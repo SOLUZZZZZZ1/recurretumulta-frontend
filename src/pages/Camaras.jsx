@@ -99,7 +99,7 @@ export default function Camaras() {
             <Link to="/contacto" className="sr-btn-secondary inline-block">
               Solicitar reunión / demo
             </Link>
-            {/* BOTÓN DEMO PRO INSTITUCIONAL */}
+            {/* BOTÓN DEMO INSTITUCIONAL */}
             <button
               type="button"
               className="sr-btn-secondary inline-block"

@@ -104,7 +104,7 @@ export default function Colegios() {
             <Link to="/contacto" className="sr-btn-secondary inline-block">
               Solicitar información
             </Link>
-            {/* BOTÓN DEMO PRO INSTITUCIONAL */}
+            {/* BOTÓN DEMO INSTITUCIONAL */}
             <button
               type="button"
               className="sr-btn-secondary inline-block"

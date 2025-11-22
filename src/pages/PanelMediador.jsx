@@ -1,4 +1,4 @@
-// src/pages/PanelMediador.jsx — Panel del mediador con trial + Stripe + modo demo institucional
+// src/pages/PanelMediador.jsx — Panel del mediador con trial + Stripe bien integrados
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
@@ -9,72 +9,7 @@ const LS_EMAIL = "mediador_email";
 
 export default function PanelMediador() {
   const nav = useNavigate();
-
-  // 1) MODO DEMO INSTITUCIONAL (ayuntamiento / camara / colegio)
-  const demoTipo =
-    typeof window !== "undefined"
-      ? localStorage.getItem("demo_institucion")
-      : null;
-  const esDemoInstitucional = Boolean(demoTipo);
-
-  // ⚠️ SI ES DEMO, SALIMOS YA POR AQUÍ Y NO EJECUTAMOS EL FLUJO NORMAL
-  if (esDemoInstitucional) {
-    const etiquetaDemo = demoTipo
-      ? `DEMO ${demoTipo.toUpperCase()}`
-      : "DEMO INSTITUCIONAL";
-
-    const salirDemo = () => {
-      localStorage.removeItem("demo_institucion");
-      nav("/instituciones");
-    };
-
-    return (
-      <>
-        <Seo title="Panel demo institucional · Mediazion" />
-        <main
-          className="sr-container py-8"
-          style={{ minHeight: "calc(100vh - 160px)" }}
-        >
-          <div
-            className="sr-card mb-4"
-            style={{
-              borderColor: "#bfdbfe",
-              color: "#1d4ed8",
-              background: "#eff6ff",
-            }}
-          >
-            <p className="sr-small">
-              Estás viendo <b>Mediazion en modo DEMO institucional</b> para{" "}
-              <b>{demoTipo}</b>. El acceso es limitado y se utiliza solo para
-              demostraciones. Los datos que veas aquí son de ejemplo.
-            </p>
-            <button
-              onClick={salirDemo}
-              className="sr-btn-secondary mt-3"
-              type="button"
-            >
-              ⬅ Salir del modo demo
-            </button>
-          </div>
-
-          {/* Panel principal en modo demo (sin trial ni pagos, pero con aspecto PRO) */}
-          <ProDashboard
-            who={etiquetaDemo}
-            subStatus="active"      // se muestra como PRO
-            trialLeft={null}       // sin trial
-            onSubscribe={null}     // sin botón de activar PRO
-            onLogout={salirDemo}   // cerrar demo
-          />
-        </main>
-      </>
-    );
-  }
-
-  // 2) FLUJO NORMAL (mediador real con login)
-  const email =
-    typeof window !== "undefined"
-      ? (localStorage.getItem(LS_EMAIL) || "").trim()
-      : "";
+  const email = (localStorage.getItem(LS_EMAIL) || "").trim();
 
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -91,7 +26,6 @@ export default function PanelMediador() {
       return;
     }
     loadStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, nav]);
 
   async function loadStatus() {
@@ -169,17 +103,17 @@ export default function PanelMediador() {
   }
 
   // --- Cálculo del estado real (trial activo vs. trial caducado) ---
-  const ahora = new Date();
+  const now = new Date();
   const endDate = trialEnd ? new Date(trialEnd) : null;
   const trialActive =
-    subStatus === "trialing" && endDate && endDate.getTime() > ahora.getTime();
+    subStatus === "trialing" && endDate && endDate.getTime() > now.getTime();
 
-  const isSubscribed = subStatus === "active"; // PRO de pago
-  const isPro = isSubscribed || trialActive;   // PRO (trial o pago)
+  const isSubscribed = subStatus === "active";      // PRO de pago
+  const isPro = isSubscribed || trialActive;       // PRO (trial o pago)
 
   // Tus correos "maestros" para test Stripe aunque ya sean PRO
   const isMaster = ["soluzziona@gmail.com", "marbra.mrb@gmail.com"].includes(
-    (email || "").toLowerCase()
+    email.toLowerCase()
   );
 
   return (
@@ -229,7 +163,10 @@ export default function PanelMediador() {
                   quieres seguir utilizando IA, actas, recursos y agenda
                   avanzada, puedes activar tu suscripción PRO.
                 </p>
-                <StripeButton email={email} label="Activar suscripción PRO" />
+                <StripeButton
+                  email={email}
+                  label="Activar suscripción PRO"
+                />
               </section>
             )}
 

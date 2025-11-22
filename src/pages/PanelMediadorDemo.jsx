@@ -84,7 +84,7 @@ export default function PanelMediadorDemo() {
 
         <ProDashboard
           who={etiquetaDemo}
-          subStatus="active"     // se muestra como PRO
+          subStatus="active"     // se muestra como PRO visualmente
           trialLeft={null}
           onSubscribe={null}    // sin activar trial real en demo
           onLogout={salirDemo}  // cerrar demo
