@@ -125,9 +125,18 @@ export default function Ayuntamientos() {
             >
               Acceso Ayuntamientos
             </Link>
-            <Link to="/contacto" className="sr-btn-secondary inline-block">
-              Solicitar demostración
-            </Link>
+
+            {/* BOTÓN DEMO INSTITUCIONAL */}
+            <button
+              type="button"
+              className="sr-btn-secondary inline-block"
+              onClick={() => {
+                localStorage.setItem("demo_institucion", "ayuntamiento");
+                window.location.href = "/panel-mediador";
+              }}
+            >
+              🎛 Entrar en demo institucional
+            </button>
           </div>
         </section>
 
