@@ -58,7 +58,8 @@ export default function Colegios() {
               interno.
             </li>
             <li>
-              IA profesional para redactar escritos, mejorar claridad y estructura.
+              IA profesional para redactar escritos, mejorar claridad y
+              estructura.
             </li>
             <li>
               Directorio de mediadores del Colegio, con visibilidad pública
@@ -103,16 +104,16 @@ export default function Colegios() {
             <Link to="/contacto" className="sr-btn-secondary inline-block">
               Solicitar información
             </Link>
-            {/* BOTÓN DEMO INSTITUCIONAL */}
+            {/* BOTÓN DEMO PRO INSTITUCIONAL */}
             <button
               type="button"
               className="sr-btn-secondary inline-block"
               onClick={() => {
                 localStorage.setItem("demo_institucion", "colegio");
-                window.location.href = "/panel-mediador";
+                window.location.href = "/panel-mediador-demo";
               }}
             >
-              🎛 Entrar en demo institucional
+              🎛 Entrar en demo PRO
             </button>
           </div>
         </section>

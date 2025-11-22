@@ -99,16 +99,16 @@ export default function Camaras() {
             <Link to="/contacto" className="sr-btn-secondary inline-block">
               Solicitar reunión / demo
             </Link>
-            {/* BOTÓN DEMO INSTITUCIONAL */}
+            {/* BOTÓN DEMO PRO INSTITUCIONAL */}
             <button
               type="button"
               className="sr-btn-secondary inline-block"
               onClick={() => {
                 localStorage.setItem("demo_institucion", "camara");
-                window.location.href = "/panel-mediador";
+                window.location.href = "/panel-mediador-demo";
               }}
             >
-              🎛 Entrar en demo institucional
+              🎛 Entrar en demo PRO
             </button>
           </div>
         </section>
