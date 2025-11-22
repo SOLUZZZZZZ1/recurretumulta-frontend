@@ -8,7 +8,7 @@ export default function Colegios() {
     <>
       <Seo
         title="Colegios Profesionales · Mediazion"
-        description="Soluciones de mediación para Colegios Profesionales y sus colegiados."
+        description="Soluciones de mediación para Colegios Profesionales."
       />
       <main
         className="sr-container py-12"
@@ -27,7 +27,7 @@ export default function Colegios() {
         {/* CABECERA */}
         <section className="sr-card mb-6 flex flex-col md:flex-row gap-6 items-start">
           <div className="flex-shrink-0">
-            {/* Icono libro / título */}
+            {/* Icono libro / colegio profesional */}
             <svg width="72" height="72" fill="#0ea5e9" viewBox="0 0 24 24">
               <path d="M4 4h12l4 4v12H4V4zm12 1.5V9h3.5L16 5.5z" />
             </svg>
@@ -35,10 +35,11 @@ export default function Colegios() {
           <div>
             <h1 className="sr-h1 mb-3">Colegios Profesionales</h1>
             <p className="sr-p mb-1">
-              Mediazion se adapta a las necesidades de Colegios de Abogados,
-              Psicólogos, Trabajadores Sociales y otros colectivos que desean
-              ofrecer a sus colegiados un servicio de mediación moderno,
-              estructurado y tecnológico.
+              Mediazion puede utilizarse como plataforma de referencia para
+              Colegios de Abogados, Psicólogos, Trabajadores Sociales y otros
+              colectivos que quieran ofrecer servicios de mediación
+              estructurados, con panel, actas, IA y directorio de mediadores
+              colegiados.
             </p>
             <p className="sr-small text-zinc-600">
               Pensado para áreas de mediación, formación continua y servicios a
@@ -49,29 +50,23 @@ export default function Colegios() {
 
         {/* APORTES PRINCIPALES */}
         <section className="sr-card mb-6">
-          <h2 className="sr-h2 mb-2">
-            ¿Qué ofrece Mediazion a un Colegio Profesional?
-          </h2>
+          <h2 className="sr-h2 mb-2">¿Qué ofrece Mediazion a un Colegio?</h2>
           <ul className="sr-p list-disc ml-6">
-            <li>
-              Panel de gestión de casos de mediación accesible solo para
-              mediadores colegiados.
-            </li>
+            <li>Panel de gestión de casos para mediadores colegiados.</li>
             <li>
               Actas e informes con formato profesional, listos para expediente
-              interno o para enviar a las partes.
+              interno.
             </li>
             <li>
-              IA profesional para mejorar redacción, claridad y estructura de
-              documentos.
+              IA profesional para redactar escritos, mejorar claridad y estructura.
             </li>
             <li>
-              Directorio público de mediadores del Colegio, con fichas
-              profesionales y visibilidad controlada.
+              Directorio de mediadores del Colegio, con visibilidad pública
+              controlada.
             </li>
             <li>
-              Estadísticas e informes para la Junta, memorias anuales y
-              proyectos de mediación.
+              Estadísticas e informes para la Junta y la memoria anual del
+              Colegio.
             </li>
           </ul>
         </section>
@@ -81,13 +76,19 @@ export default function Colegios() {
           <h2 className="sr-h2 mb-2">Usos posibles en el Colegio</h2>
           <ul className="sr-p list-disc ml-6">
             <li>Servicio de mediación intrajudicial o extrajudicial del Colegio.</li>
-            <li>Programas de mediación familiar, civil o mercantil gestionados por el Colegio.</li>
+            <li>
+              Programas de mediación familiar, civil o mercantil gestionados por el
+              Colegio.
+            </li>
             <li>Itinerarios formativos en mediación con soporte tecnológico.</li>
-            <li>Supervisión y seguimiento de casos liderados por mediadores colegiados.</li>
+            <li>
+              Supervisión y seguimiento de casos liderados por mediadores
+              colegiados.
+            </li>
           </ul>
         </section>
 
-        {/* CONTACTO */}
+        {/* CONTACTO + DEMO */}
         <section className="sr-card">
           <h2 className="sr-h2 mb-2">Contacto institucional</h2>
           <p className="sr-p mb-2">
@@ -98,9 +99,22 @@ export default function Colegios() {
           <p className="sr-p">
             <b>Email:</b> admin@mediazion.eu
           </p>
-          <Link to="/contacto" className="sr-btn-secondary inline-block mt-2">
-            Solicitar información
-          </Link>
+          <div className="flex flex-wrap gap-3 mt-2">
+            <Link to="/contacto" className="sr-btn-secondary inline-block">
+              Solicitar información
+            </Link>
+            {/* BOTÓN DEMO INSTITUCIONAL */}
+            <button
+              type="button"
+              className="sr-btn-secondary inline-block"
+              onClick={() => {
+                localStorage.setItem("demo_institucion", "colegio");
+                window.location.href = "/panel-mediador";
+              }}
+            >
+              🎛 Entrar en demo institucional
+            </button>
+          </div>
         </section>
       </main>
     </>

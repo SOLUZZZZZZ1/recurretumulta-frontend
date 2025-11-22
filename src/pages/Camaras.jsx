@@ -53,9 +53,15 @@ export default function Camaras() {
           <ul className="sr-p list-disc ml-6">
             <li>Gestión integral de expedientes mercantiles y societarios.</li>
             <li>Actas DOCX/PDF con formato profesional y homogéneo.</li>
-            <li>IA Legal para revisar contratos, resumir documentación y redactar borradores de acuerdos.</li>
+            <li>
+              IA Legal para revisar contratos, resumir documentación y redactar
+              borradores de acuerdos.
+            </li>
             <li>Agenda de mediaciones y reuniones con empresas y profesionales.</li>
-            <li>Estadísticas para memorias anuales, informes internos y proyectos europeos.</li>
+            <li>
+              Estadísticas para memorias anuales, informes internos y proyectos
+              europeos.
+            </li>
           </ul>
         </section>
 
@@ -78,7 +84,7 @@ export default function Camaras() {
           </div>
         </section>
 
-        {/* CONTACTO */}
+        {/* CONTACTO + DEMO */}
         <section className="sr-card">
           <h2 className="sr-h2 mb-2">Contacto institucional</h2>
           <p className="sr-p mb-2">
@@ -89,9 +95,22 @@ export default function Camaras() {
           <p className="sr-p mb-1">
             <b>Email:</b> admin@mediazion.eu
           </p>
-          <Link to="/contacto" className="sr-btn-secondary inline-block mt-2">
-            Solicitar reunión / demo
-          </Link>
+          <div className="flex flex-wrap gap-3 mt-2">
+            <Link to="/contacto" className="sr-btn-secondary inline-block">
+              Solicitar reunión / demo
+            </Link>
+            {/* BOTÓN DEMO INSTITUCIONAL */}
+            <button
+              type="button"
+              className="sr-btn-secondary inline-block"
+              onClick={() => {
+                localStorage.setItem("demo_institucion", "camara");
+                window.location.href = "/panel-mediador";
+              }}
+            >
+              🎛 Entrar en demo institucional
+            </button>
+          </div>
         </section>
       </main>
     </>

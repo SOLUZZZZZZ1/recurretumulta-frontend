@@ -54,23 +54,24 @@ export default function Ayuntamientos() {
           <h2 className="sr-h2 mb-2">¿Qué aporta Mediazion a un Ayuntamiento?</h2>
           <ul className="sr-p list-disc ml-6 mb-2">
             <li>
-              <b>Registro estructurado</b> de casos de convivencia y conflictos vecinales.
+              <b>Registro estructurado</b> de casos de convivencia y conflictos
+              vecinales.
             </li>
             <li>
-              <b>Actas homogéneas y profesionales</b>, listas para unir al expediente
-              electrónico municipal.
+              <b>Actas homogéneas y profesionales</b>, listas para unir al
+              expediente electrónico municipal.
             </li>
             <li>
               <b>Agenda vinculada a casos</b> para organizar sesiones, visitas y
               reuniones con las partes.
             </li>
             <li>
-              <b>IA profesional</b> para redactar cartas, informes técnicos y resúmenes
-              de expedientes.
+              <b>IA profesional</b> para redactar cartas, informes técnicos y
+              resúmenes de expedientes.
             </li>
             <li>
-              <b>Estadísticas e informes</b> para memorias anuales, proyectos europeos y
-              órganos de gobierno.
+              <b>Estadísticas e informes</b> para memorias anuales, proyectos
+              europeos y órganos de gobierno.
             </li>
           </ul>
         </section>
@@ -129,15 +130,6 @@ export default function Ayuntamientos() {
             </Link>
           </div>
         </section>
-            
-  🎛 Entrar en demo institucional
-<Link
-  to="/instituciones/demo-ayto"
-  className="sr-btn-secondary inline-block"
-  onClick={() => activarDemo("ayuntamiento")}
->
-  
-
 
         {/* CONTACTO */}
         <section className="sr-card">
