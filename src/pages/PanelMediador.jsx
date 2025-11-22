@@ -1,4 +1,4 @@
-// src/pages/PanelMediador.jsx — Panel del mediador con trial + Stripe bien integrados
+// src/pages/PanelMediador.jsx — Panel del mediador con trial + Stripe + modo demo institucional
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
@@ -9,7 +9,19 @@ const LS_EMAIL = "mediador_email";
 
 export default function PanelMediador() {
   const nav = useNavigate();
-  const email = (localStorage.getItem(LS_EMAIL) || "").trim();
+
+  // Email normal de mediador (login)
+  const email = (typeof window !== "undefined"
+    ? (localStorage.getItem(LS_EMAIL) || "").trim()
+    : ""
+  );
+
+  // Modo demo institucional (ayuntamiento / camara / colegio)
+  const demoTipo =
+    typeof window !== "undefined"
+      ? localStorage.getItem("demo_institucion")
+      : null;
+  const esDemoInstitucional = Boolean(demoTipo);
 
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -21,12 +33,26 @@ export default function PanelMediador() {
   const [trialLeft, setTrialLeft] = useState(null);
 
   useEffect(() => {
+    // Si es demo institucional, no exigimos email ni consultamos estado PRO
+    if (esDemoInstitucional) {
+      setLoading(false);
+      setErrorMsg("");
+      setInfoMsg("");
+      setSubStatus("active"); // en demo siempre mostramos como PRO activo
+      setAccountStatus("demo");
+      setTrialEnd(null);
+      setTrialLeft(null);
+      return;
+    }
+
+    // Flujo normal: mediador debe tener email
     if (!email) {
       nav("/acceso");
       return;
     }
     loadStatus();
-  }, [email, nav]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email, esDemoInstitucional, nav]);
 
   async function loadStatus() {
     setLoading(true);
@@ -70,9 +96,14 @@ export default function PanelMediador() {
     }
   }
 
-  // Activa trial solo si está en BASIC (none)
+  // Activa trial solo si está en BASIC (none) y NO es demo institucional
   async function handleTrial() {
     try {
+      if (esDemoInstitucional) {
+        setInfoMsg("Estás en modo demo institucional. El trial real no se puede activar aquí.");
+        return;
+      }
+
       if (subStatus !== "none") {
         setInfoMsg("Ya tienes una prueba o un plan PRO en curso.");
         return;
@@ -98,6 +129,14 @@ export default function PanelMediador() {
   }
 
   function handleLogout() {
+    if (esDemoInstitucional) {
+      // Salir del modo demo institucional
+      localStorage.removeItem("demo_institucion");
+      nav("/"); // volvemos al inicio
+      return;
+    }
+
+    // Logout normal de mediador
     localStorage.removeItem(LS_EMAIL);
     nav("/acceso");
   }
@@ -106,15 +145,25 @@ export default function PanelMediador() {
   const now = new Date();
   const endDate = trialEnd ? new Date(trialEnd) : null;
   const trialActive =
-    subStatus === "trialing" && endDate && endDate.getTime() > now.getTime();
+    !esDemoInstitucional &&
+    subStatus === "trialing" &&
+    endDate &&
+    endDate.getTime() > now.getTime();
 
-  const isSubscribed = subStatus === "active";      // PRO de pago
-  const isPro = isSubscribed || trialActive;       // PRO (trial o pago)
+  const isSubscribed = subStatus === "active"; // PRO de pago
+  const isPro = esDemoInstitucional ? true : isSubscribed || trialActive; // PRO demo o PRO real
 
   // Tus correos "maestros" para test Stripe aunque ya sean PRO
-  const isMaster = ["soluzziona@gmail.com", "marbra.mrb@gmail.com"].includes(
-    email.toLowerCase()
-  );
+  const isMaster =
+    !esDemoInstitucional &&
+    ["soluzziona@gmail.com", "marbra.mrb@gmail.com"].includes(
+      (email || "").toLowerCase()
+    );
+
+  // Valor a mostrar como "usuario"
+  const whoLabel = esDemoInstitucional
+    ? `DEMO ${demoTipo ? demoTipo.toUpperCase() : "INSTITUCION"}`
+    : email;
 
   return (
     <>
@@ -137,7 +186,21 @@ export default function PanelMediador() {
             className="sr-card mb-4"
             style={{ borderColor: "#bbf7d0", color: "#166534" }}
           >
-            <p className="sr-small">✅ {infoMsg}</p>
+            <p className="sr-small">✅ {msg}</p>
+          </div>
+        )}
+
+        {/* Banner especial para modo demo institucional */}
+        {esDemoInstitucional && (
+          <div
+            className="sr-card mb-4"
+            style={{ borderColor: "#bfdbfe", color: "#1d4ed8", background: "#eff6ff" }}
+          >
+            <p className="sr-small">
+              Estás viendo <b>Mediazion en modo DEMO institucional</b> para{" "}
+              <b>{demoTipo}</b>. El acceso es limitado y se utiliza solo para
+              demostraciones. Los datos no se guardan como expedientes reales.
+            </p>
           </div>
         )}
 
@@ -147,15 +210,17 @@ export default function PanelMediador() {
           <>
             {/* Panel principal con tu diseño */}
             <ProDashboard
-              who={email}
-              subStatus={subStatus}
-              trialLeft={trialActive ? trialLeft : null}
-              onSubscribe={subStatus === "none" ? handleTrial : null}
+              who={whoLabel}
+              subStatus={esDemoInstitucional ? "active" : subStatus}
+              trialLeft={esDemoInstitucional ? null : trialActive ? trialLeft : null}
+              onSubscribe={
+                esDemoInstitucional ? null : subStatus === "none" ? handleTrial : null
+              }
               onLogout={handleLogout}
             />
 
-            {/* BLOQUE: Suscripción PRO para usuarios que YA NO son PRO */}
-            {!isPro && (
+            {/* BLOQUE: Suscripción PRO para usuarios que YA NO son PRO (solo modo normal, no demo) */}
+            {!isPro && !esDemoInstitucional && (
               <section className="sr-card mt-6">
                 <h2 className="sr-h2 mb-2">Suscripción PRO</h2>
                 <p className="sr-p mb-2">
@@ -170,8 +235,8 @@ export default function PanelMediador() {
               </section>
             )}
 
-            {/* BLOQUE: Test Stripe SOLO para tus correos maestros, aunque ya estén en PRO */}
-            {isPro && isMaster && (
+            {/* BLOQUE: Test Stripe SOLO para tus correos maestros, aunque ya estén en PRO (no en demo) */}
+            {isPro && isMaster && !esDemoInstitucional && (
               <section className="sr-card mt-6">
                 <h2 className="sr-h2 mb-2">🧪 Test Stripe (solo admin)</h2>
                 <p className="sr-small text-zinc-600 mb-2">
