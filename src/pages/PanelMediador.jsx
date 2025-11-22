@@ -10,14 +10,14 @@ const LS_EMAIL = "mediador_email";
 export default function PanelMediador() {
   const nav = useNavigate();
 
-  // MODO DEMO INSTITUCIONAL (ayuntamiento / camara / colegio)
+  // 1) MODO DEMO INSTITUCIONAL (ayuntamiento / camara / colegio)
   const demoTipo =
     typeof window !== "undefined"
       ? localStorage.getItem("demo_institucion")
       : null;
   const esDemoInstitucional = Boolean(demoTipo);
 
-  // Si estamos en modo demo institucional, devolvemos un panel especial
+  // ⚠️ SI ES DEMO, SALIMOS YA POR AQUÍ Y NO EJECUTAMOS EL FLUJO NORMAL
   if (esDemoInstitucional) {
     const etiquetaDemo = demoTipo
       ? `DEMO ${demoTipo.toUpperCase()}`
@@ -57,23 +57,20 @@ export default function PanelMediador() {
             </button>
           </div>
 
-          {/* Panel principal en modo demo (sin trial ni pagos) */}
+          {/* Panel principal en modo demo (sin trial ni pagos, pero con aspecto PRO) */}
           <ProDashboard
             who={etiquetaDemo}
             subStatus="active"      // se muestra como PRO
             trialLeft={null}       // sin trial
             onSubscribe={null}     // sin botón de activar PRO
-            onLogout={salirDemo}   // botón de cerrar sesión sale del demo
+            onLogout={salirDemo}   // cerrar demo
           />
         </main>
       </>
     );
   }
 
-  // -----------------------------
-  // FLUJO NORMAL (mediador real)
-  // -----------------------------
-
+  // 2) FLUJO NORMAL (mediador real con login)
   const email =
     typeof window !== "undefined"
       ? (localStorage.getItem(LS_EMAIL) || "").trim()
