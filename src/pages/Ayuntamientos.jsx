@@ -129,6 +129,15 @@ export default function Ayuntamientos() {
             </Link>
           </div>
         </section>
+            
+  🎛 Entrar en demo institucional
+<Link
+  to="/instituciones/demo-ayto"
+  className="sr-btn-secondary inline-block"
+  onClick={() => activarDemo("ayuntamiento")}
+>
+  
+
 
         {/* CONTACTO */}
         <section className="sr-card">
