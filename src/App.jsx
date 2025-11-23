@@ -16,6 +16,7 @@ import Colegios from "./pages/Colegios.jsx";
 import RegistroInstitucion from "./pages/RegistroInstitucion.jsx";
 import RegistroInstitucionOK from "./pages/RegistroInstitucionOK.jsx";
 import AdminInstituciones from "./pages/admin/AdminInstituciones.jsx";
+import InstitucionDashboard from "./components/InstitucionDashboard.jsx";
 
 
 
@@ -95,6 +96,15 @@ export default function App() {
         <Route path="/instituciones/colegios" element={<Colegios />} />
         <Route path="/instituciones/registro" element={<RegistroInstitucion />} />
         <Route path="/instituciones/registro/ok" element={<RegistroInstitucionOK />} />
+        <Route path="/panel-institucion" element={
+          <InstitucionDashboard
+                who={emailInstitucion}
+        institucion={nombreInstitucion}
+          expiresAt={fechaExpiracion}
+           onLogout={handleLogoutInstitucion}
+  />
+} />
+
         
 
 
