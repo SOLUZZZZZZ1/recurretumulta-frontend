@@ -65,7 +65,7 @@ export default function Inicio() {
               fontWeight: 700,
             }}
           >
-            Soluciones profesionales, sin conflicto.
+            Soluciones profesionales, sin litigio.
           </p>
 
           <p style={{ margin: 0, color: "#111111", fontSize: "16px" }}>
