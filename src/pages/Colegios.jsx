@@ -104,16 +104,10 @@ export default function Colegios() {
             <Link to="/contacto" className="sr-btn-secondary inline-block">
               Solicitar información
             </Link>
-            <button
-              type="button"
+            <Link
+              to="/instituciones/registro"
               className="sr-btn-secondary inline-block"
-              onClick={() => {
-                localStorage.setItem("mediador_email", "demo-colegio@mediazion.eu");
-                window.location.href = "/panel-mediador";
-              }}
             >
-              🎛 Entrar en demo PRO
-            
               📝 Solicitar alta institucional
             </Link>
           </div>
