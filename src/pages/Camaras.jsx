@@ -88,7 +88,7 @@ export default function Camaras() {
         <section className="sr-card">
           <h2 className="sr-h2 mb-2">Contacto institucional</h2>
           <p className="sr-p mb-2">
-            Si formás parte de una Cámara de Comercio y quieres explorar cómo
+            Si formas parte de una Cámara de Comercio y quieres explorar cómo
             Mediazion puede apoyar vuestro servicio de mediación empresarial,
             podemos organizar una demostración adaptada a vuestra realidad.
           </p>
@@ -99,15 +99,10 @@ export default function Camaras() {
             <Link to="/contacto" className="sr-btn-secondary inline-block">
               Solicitar reunión / demo
             </Link>
-            <button
-              type="button"
+            <Link
+              to="/instituciones/registro"
               className="sr-btn-secondary inline-block"
-              onClick={() => {
-                localStorage.setItem("mediador_email", "demo-camara@mediazion.eu");
-                window.location.href = "/panel-mediador";
-              }}
             >
-              
               📝 Solicitar alta institucional
             </Link>
           </div>
