@@ -113,11 +113,7 @@ export default function Colegios() {
               }}
             >
               🎛 Entrar en demo PRO
-            </button>
-            <Link
-              to="/instituciones/registro"
-              className="sr-btn-primary inline-block"
-            >
+            
               📝 Solicitar alta institucional
             </Link>
           </div>
