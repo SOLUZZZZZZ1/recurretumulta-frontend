@@ -84,7 +84,7 @@ export default function Camaras() {
           </div>
         </section>
 
-        {/* CONTACTO + DEMO */}
+        {/* CONTACTO + DEMO + ALTA */}
         <section className="sr-card">
           <h2 className="sr-h2 mb-2">Contacto institucional</h2>
           <p className="sr-p mb-2">
@@ -99,17 +99,22 @@ export default function Camaras() {
             <Link to="/contacto" className="sr-btn-secondary inline-block">
               Solicitar reunión / demo
             </Link>
-            {/* BOTÓN DEMO INSTITUCIONAL */}
             <button
               type="button"
               className="sr-btn-secondary inline-block"
               onClick={() => {
-                localStorage.setItem("demo_institucion", "camara");
-                window.location.href = "/panel-mediador-demo";
+                localStorage.setItem("mediador_email", "demo-camara@mediazion.eu");
+                window.location.href = "/panel-mediador";
               }}
             >
               🎛 Entrar en demo PRO
             </button>
+            <Link
+              to="/instituciones/registro"
+              className="sr-btn-primary inline-block"
+            >
+              📝 Solicitar alta institucional
+            </Link>
           </div>
         </section>
       </main>

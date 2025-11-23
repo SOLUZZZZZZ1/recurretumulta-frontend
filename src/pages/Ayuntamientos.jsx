@@ -126,17 +126,28 @@ export default function Ayuntamientos() {
               Acceso Ayuntamientos
             </Link>
 
-            {/* BOTÓN DEMO PRO INSTITUCIONAL */}
+            {/* DEMO (puedes dejarlo o quitarlo más adelante) */}
             <button
               type="button"
               className="sr-btn-secondary inline-block"
               onClick={() => {
-                localStorage.setItem("demo_institucion", "ayuntamiento");
-                window.location.href = "/panel-mediador-demo";
+                localStorage.setItem(
+                  "mediador_email",
+                  "demo-ayuntamiento@mediazion.eu"
+                );
+                window.location.href = "/panel-mediador";
               }}
             >
               🎛 Entrar en demo PRO
             </button>
+
+            {/* ALTA INSTITUCIONAL */}
+            <Link
+              to="/instituciones/registro"
+              className="sr-btn-secondary inline-block"
+            >
+              📝 Solicitar alta institucional
+            </Link>
           </div>
         </section>
 
