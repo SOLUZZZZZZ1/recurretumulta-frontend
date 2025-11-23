@@ -7,9 +7,11 @@ import Footer from "./components/Footer.jsx";
 import AvisoLegal from "./pages/AvisoLegal.jsx";
 import Rgpd from "./pages/Rgpd.jsx";
 import Cookies from "./pages/Cookies.jsx";
+
 import Ayuntamientos from "./pages/Ayuntamientos.jsx";
 import AyuntamientoLogin from "./pages/AyuntamientoLogin.jsx";
 import PanelAyuntamiento from "./pages/PanelAyuntamiento.jsx";
+
 import Instituciones from "./pages/Instituciones.jsx";
 import Camaras from "./pages/Camaras.jsx";
 import Colegios from "./pages/Colegios.jsx";
@@ -17,8 +19,6 @@ import RegistroInstitucion from "./pages/RegistroInstitucion.jsx";
 import RegistroInstitucionOK from "./pages/RegistroInstitucionOK.jsx";
 import AdminInstituciones from "./pages/admin/AdminInstituciones.jsx";
 import InstitucionDashboard from "./components/InstitucionDashboard.jsx";
-
-
 
 import Inicio from "./pages/Inicio.jsx";
 import QuienesSomos from "./pages/QuienesSomos.jsx";
@@ -63,6 +63,18 @@ import VocesEditor from "./pages/VocesEditor.jsx";
 import VocesListaPRO from "./pages/VocesListaPRO.jsx";
 
 export default function App() {
+  // ⚠️ De momento usamos valores neutros para el panel institucional.
+  // Más adelante lo conectaremos al login de instituciones.
+  const emailInstitucion = "";
+  const nombreInstitucion = "Acceso institucional";
+  const fechaExpiracion = null;
+
+  function handleLogoutInstitucion() {
+    // Aquí más adelante limpias storage/cookies específicas de instituciones.
+    // De momento, redirigimos al acceso institucional.
+    window.location.href = "/ayuntamientos/acceso";
+  }
+
   return (
     <div
       className="min-h-screen text-zinc-900"
@@ -95,19 +107,21 @@ export default function App() {
         <Route path="/instituciones/camaras" element={<Camaras />} />
         <Route path="/instituciones/colegios" element={<Colegios />} />
         <Route path="/instituciones/registro" element={<RegistroInstitucion />} />
-        <Route path="/instituciones/registro/ok" element={<RegistroInstitucionOK />} />
-        <Route path="/panel-institucion" element={
-          <InstitucionDashboard
-                who={emailInstitucion}
-        institucion={nombreInstitucion}
-          expiresAt={fechaExpiracion}
-           onLogout={handleLogoutInstitucion}
-  />
-} />
-
-        
-
-
+        <Route
+          path="/instituciones/registro/ok"
+          element={<RegistroInstitucionOK />}
+        />
+        <Route
+          path="/panel-institucion"
+          element={
+            <InstitucionDashboard
+              who={emailInstitucion}
+              institucion={nombreInstitucion}
+              expiresAt={fechaExpiracion}
+              onLogout={handleLogoutInstitucion}
+            />
+          }
+        />
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
@@ -116,17 +130,29 @@ export default function App() {
 
         {/* Mediadores */}
         <Route path="/mediadores" element={<Mediadores />} />
-        <Route path="/mediadores/directorio" element={<MediadoresDirectorio />} />
+        <Route
+          path="/mediadores/directorio"
+          element={<MediadoresDirectorio />}
+        />
         <Route path="/mediadores/alta" element={<MediadorAlta />} />
-        <Route path="/panel-mediador/instrucciones" element={<InstruccionesPanel />} />
+        <Route
+          path="/panel-mediador/instrucciones"
+          element={<InstruccionesPanel />}
+        />
 
         {/* Acceso mediadores (login) */}
         <Route path="/acceso" element={<LoginMediador />} />
 
         {/* Panel mediador (normal) */}
         <Route path="/panel-mediador" element={<PanelMediador />} />
-        <Route path="/panel-mediador-demo" element={<PanelMediadorDemo />} />
-        <Route path="/panel-mediador/plantillas" element={<Plantillas />} />
+        <Route
+          path="/panel-mediador-demo"
+          element={<PanelMediadorDemo />}
+        />
+        <Route
+          path="/panel-mediador/plantillas"
+          element={<Plantillas />}
+        />
 
         {/* Panel mediador · herramientas PRO */}
         <Route path="/panel-mediador/ai" element={<AiPanel />} />
@@ -138,7 +164,10 @@ export default function App() {
         <Route path="/panel-mediador/perfil" element={<PerfilMediador />} />
         <Route path="/panel-mediador/voces" element={<VocesListaPRO />} />
         <Route path="/panel-mediador/voces/nuevo" element={<VocesEditor />} />
-        <Route path="/panel-mediador/documentos" element={<Documentos />} />
+        <Route
+          path="/panel-mediador/documentos"
+          element={<Documentos />}
+        />
 
         {/* Voces público */}
         <Route path="/voces" element={<VocesPublic />} />
@@ -157,12 +186,17 @@ export default function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/ia" element={<AdminIA />} />
         <Route path="/admin/mediadores" element={<AdminMediadores />} />
-        <Route path="/admin/instituciones" element={<AdminInstituciones />} />
+        <Route
+          path="/admin/instituciones"
+          element={<AdminInstituciones />}
+        />
 
-
-        {/* 🔹 Admin alternativo para pruebas: /nora-admin */}
+        {/* Admin alternativo para pruebas: /nora-admin */}
         <Route path="/nora-admin" element={<AdminLogin />} />
-        <Route path="/nora-admin/dashboard" element={<AdminDashboard />} />
+        <Route
+          path="/nora-admin/dashboard"
+          element={<AdminDashboard />}
+        />
       </Routes>
       <Footer />
     </div>
