@@ -84,7 +84,7 @@ export default function Camaras() {
           </div>
         </section>
 
-        {/* CONTACTO + DEMO + ALTA */}
+        {/* CONTACTO + ALTA */}
         <section className="sr-card">
           <h2 className="sr-h2 mb-2">Contacto institucional</h2>
           <p className="sr-p mb-2">

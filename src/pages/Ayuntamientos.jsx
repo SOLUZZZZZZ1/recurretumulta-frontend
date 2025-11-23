@@ -1,4 +1,4 @@
-// src/pages/Ayuntamientos.jsx — Ayuntamientos y Mediazion (versión PRO)
+// src/pages/Ayuntamientos.jsx — Ayuntamientos · Mediazion (versión PRO)
 import React from "react";
 import { Link } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
@@ -7,11 +7,9 @@ export default function Ayuntamientos() {
   return (
     <>
       <Seo
-        title="Ayuntamientos y Mediazion"
-        description="Solución de mediación comunitaria y convivencia vecinal para Ayuntamientos."
-        canonical="https://mediazion.eu/ayuntamientos"
+        title="Ayuntamientos · Mediazion"
+        description="Mediación comunitaria y convivencia vecinal para Ayuntamientos."
       />
-
       <main
         className="sr-container py-12"
         style={{ minHeight: "calc(100vh - 160px)" }}
@@ -29,22 +27,21 @@ export default function Ayuntamientos() {
         {/* CABECERA */}
         <section className="sr-card mb-6 flex flex-col md:flex-row gap-6 items-start">
           <div className="flex-shrink-0">
-            {/* Icono edificio municipal */}
+            {/* Icono casas / barrio */}
             <svg width="72" height="72" fill="#0ea5e9" viewBox="0 0 24 24">
-              <path d="M3 22v-2h18v2H3zm2-4V9h14v9H5zM12 2l9 5H3l9-5z" />
+              <path d="M3 12l9-9 9 9h-2v8h-5v-6H9v6H4zm7-8h5v-4h-5v4z" />
             </svg>
           </div>
           <div>
-            <h1 className="sr-h1 mb-3">Ayuntamientos y Mediazion</h1>
+            <h1 className="sr-h1 mb-3">Ayuntamientos</h1>
             <p className="sr-p mb-1">
-              Mediazion es una plataforma profesional diseñada para ayudar a los
-              Ayuntamientos a gestionar la mediación comunitaria, la convivencia
-              vecinal y los conflictos de barrio con orden, trazabilidad y
-              herramientas modernas.
+              Mediazion ayuda a los Ayuntamientos a gestionar mediación
+              comunitaria y convivencia vecinal de forma estructurada, con
+              herramientas digitales para casos, actas, agenda e IA aplicada.
             </p>
             <p className="sr-small text-zinc-600">
-              Ideal para servicios sociales, policía local, unidades de
-              convivencia y áreas de participación ciudadana.
+              Pensado para áreas de convivencia, servicios sociales, participación
+              ciudadana y oficinas municipales de mediación.
             </p>
           </div>
         </section>
@@ -52,84 +49,60 @@ export default function Ayuntamientos() {
         {/* APORTES PRINCIPALES */}
         <section className="sr-card mb-6">
           <h2 className="sr-h2 mb-2">¿Qué aporta Mediazion a un Ayuntamiento?</h2>
-          <ul className="sr-p list-disc ml-6 mb-2">
+          <ul className="sr-p list-disc ml-6">
             <li>
-              <b>Registro estructurado</b> de casos de convivencia y conflictos
+              Registro y seguimiento de casos de convivencia y conflictos
               vecinales.
             </li>
+            <li>Actas e informes con formato homogéneo, listos para expediente.</li>
             <li>
-              <b>Actas homogéneas y profesionales</b>, listas para unir al
-              expediente electrónico municipal.
+              Agenda de mediaciones, reuniones y sesiones de seguimiento.
             </li>
             <li>
-              <b>Agenda vinculada a casos</b> para organizar sesiones, visitas y
-              reuniones con las partes.
+              IA para redactar comunicaciones a vecinos, resúmenes de casos e
+              informes para responsables políticos.
             </li>
             <li>
-              <b>IA profesional</b> para redactar cartas, informes técnicos y
-              resúmenes de expedientes.
-            </li>
-            <li>
-              <b>Estadísticas e informes</b> para memorias anuales, proyectos
-              europeos y órganos de gobierno.
+              Estadísticas de casos para memorias anuales y proyectos de convivencia.
             </li>
           </ul>
         </section>
 
-        {/* CASOS TÍPICOS */}
+        {/* USOS POSIBLES */}
         <section className="sr-card mb-6">
-          <h2 className="sr-h2 mb-2">Casos típicos que se pueden gestionar</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <ul className="sr-p list-disc ml-6">
-              <li>Problemas de ruidos y convivencia entre vecinos.</li>
-              <li>Uso de patios, zonas comunes y espacios públicos.</li>
-              <li>Conflictos derivados de obras, tráfico o actividades.</li>
-              <li>
-                Disputas entre comercios y vecindario (terrazas, horarios, etc.).
-              </li>
-            </ul>
-            <ul className="sr-p list-disc ml-6">
-              <li>Conflictos escolares con impacto en la comunidad.</li>
-              <li>Desacuerdos entre comunidades de propietarios.</li>
-              <li>Quejas recurrentes que requieren mediación previa.</li>
-              <li>
-                Cualquier situación en la que la intervención neutra mejore la
-                convivencia.
-              </li>
-            </ul>
-          </div>
-          <p className="sr-small text-zinc-600 mt-3">
-            La plataforma se adapta al circuito de mediación comunitaria ya
-            existente en el municipio y no pretende sustituir la política
-            pública, sino reforzarla.
-          </p>
+          <h2 className="sr-h2 mb-2">Usos posibles en el Ayuntamiento</h2>
+          <ul className="sr-p list-disc ml-6">
+            <li>
+              Servicios municipales de mediación comunitaria y vecinal.
+            </li>
+            <li>
+              Gestión de conflictos en viviendas públicas o barrios concretos.
+            </li>
+            <li>
+              Programas de participación ciudadana y mejora de convivencia en
+              distritos.
+            </li>
+            <li>
+              Coordinación entre servicios sociales, policía local y oficinas de
+              mediación.
+            </li>
+          </ul>
         </section>
 
-        {/* ACCESO Y PILOTO */}
-        <section className="sr-card mb-6">
-          <h2 className="sr-h2 mb-2">Acceso de Ayuntamientos y pilotos</h2>
+        {/* CONTACTO + ALTA */}
+        <section className="sr-card">
+          <h2 className="sr-h2 mb-2">Contacto institucional</h2>
           <p className="sr-p mb-2">
-            Cada Ayuntamiento dispone de un acceso específico para sus
-            técnicos/as de mediación o convivencia. Desde ese panel podrán
-            gestionar casos, actas, agenda y estadísticas con total seguridad.
+            Si trabajas en un Ayuntamiento y quieres explorar cómo Mediazion puede
+            ayudaros a estructurar vuestro servicio de mediación comunitaria:
           </p>
-          <p className="sr-p mb-3">
-            Si quieres estudiar un piloto o una prueba en tu municipio, podemos
-            habilitar un acceso inicial acompañado y ayudarte en la puesta en
-            marcha, formación básica y documentación de procesos.
+          <p className="sr-p mb-1">
+            <b>Email:</b> admin@mediazion.eu
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              to="/ayuntamientos/acceso"
-              className="sr-btn-primary inline-block"
-            >
-              Acceso Ayuntamientos
+          <div className="flex flex-wrap gap-3 mt-2">
+            <Link to="/contacto" className="sr-btn-secondary inline-block">
+              Solicitar reunión / demo
             </Link>
-
-            {/* DEMO (puedes dejarlo o quitarlo más adelante) */}
-            
-
-            {/* ALTA INSTITUCIONAL */}
             <Link
               to="/instituciones/registro"
               className="sr-btn-secondary inline-block"
@@ -137,22 +110,6 @@ export default function Ayuntamientos() {
               📝 Solicitar alta institucional
             </Link>
           </div>
-        </section>
-
-        {/* CONTACTO */}
-        <section className="sr-card">
-          <h2 className="sr-h2 mb-2">¿Hablamos?</h2>
-          <p className="sr-p mb-2">
-            Si eres responsable de un Ayuntamiento y te interesa explorar cómo
-            Mediazion puede ayudar en convivencia y mediación comunitaria, ponte
-            en contacto con nosotros:
-          </p>
-          <p className="sr-p mb-1">
-            <b>Email:</b> admin@mediazion.eu
-          </p>
-          <Link to="/contacto" className="sr-btn-secondary inline-block mt-2">
-            Ir al formulario de contacto
-          </Link>
         </section>
       </main>
     </>
