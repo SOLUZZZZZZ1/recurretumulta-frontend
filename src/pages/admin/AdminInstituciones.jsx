@@ -1,8 +1,13 @@
 // src/pages/admin/AdminInstituciones.jsx — Gestión de solicitudes institucionales
 import React, { useEffect, useState } from "react";
 import Seo from "../../components/Seo.jsx";
+import { useNavigate } from "react-router-dom";
+
+const LS_ADMIN_KEY = "mediazion_admin_auth";
 
 export default function AdminInstituciones() {
+  const nav = useNavigate();
+
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
@@ -31,8 +36,15 @@ export default function AdminInstituciones() {
   }
 
   useEffect(() => {
+    // Protección básica: sólo admin logueado puede ver esto
+    const token = localStorage.getItem(LS_ADMIN_KEY);
+    if (token !== "ok") {
+      nav("/admin", { replace: true });
+      return;
+    }
+    // Si está logueado, cargamos la lista
     cargarSolicitudes();
-  }, []);
+  }, [nav]);
 
   async function verDetalle(id) {
     setMsg("");
@@ -98,7 +110,9 @@ export default function AdminInstituciones() {
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data?.ok) {
-        throw new Error(data?.detail || data?.message || "No se pudo crear el usuario institucional.");
+        throw new Error(
+          data?.detail || data?.message || "No se pudo crear el usuario institucional."
+        );
       }
       setMsg(
         `Usuario institucional creado para ${data.institucion} (${data.email}). Expira en ${new Date(
@@ -141,7 +155,10 @@ export default function AdminInstituciones() {
         </p>
 
         {msg && (
-          <div className="sr-card mb-4" style={{ color: msg.includes("Error") ? "#991b1b" : "#166534" }}>
+          <div
+            className="sr-card mb-4"
+            style={{ color: msg.includes("Error") ? "#991b1b" : "#166534" }}
+          >
             <p className="sr-small">{msg}</p>
           </div>
         )}
