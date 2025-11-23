@@ -15,6 +15,8 @@ import Camaras from "./pages/Camaras.jsx";
 import Colegios from "./pages/Colegios.jsx";
 import RegistroInstitucion from "./pages/RegistroInstitucion.jsx";
 import RegistroInstitucionOK from "./pages/RegistroInstitucionOK.jsx";
+import AdminInstituciones from "./pages/admin/AdminInstituciones.jsx";
+
 
 
 import Inicio from "./pages/Inicio.jsx";
@@ -93,6 +95,8 @@ export default function App() {
         <Route path="/instituciones/colegios" element={<Colegios />} />
         <Route path="/instituciones/registro" element={<RegistroInstitucion />} />
         <Route path="/instituciones/registro/ok" element={<RegistroInstitucionOK />} />
+        
+
 
 
         {/* Legal */}
@@ -143,6 +147,8 @@ export default function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/ia" element={<AdminIA />} />
         <Route path="/admin/mediadores" element={<AdminMediadores />} />
+        <Route path="/admin/instituciones" element={<AdminInstituciones />} />
+
 
         {/* 🔹 Admin alternativo para pruebas: /nora-admin */}
         <Route path="/nora-admin" element={<AdminLogin />} />
