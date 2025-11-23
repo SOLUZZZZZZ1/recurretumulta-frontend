@@ -23,7 +23,7 @@ export default function AdminDashboard() {
       <h1 className="sr-h1 mb-2">Panel de administración</h1>
       <p className="sr-p mb-8">
         Espacio interno para controlar Mediazion: accesos rápidos a mediadores,
-        contenido, contactos, IA y utilidades técnicas.
+        contenido, contactos, IA, instituciones y utilidades técnicas.
       </p>
 
       {/* BLOQUE 1: Tarjetas resumen / accesos rápidos */}
@@ -86,7 +86,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* IA para el Administrador */}
+        {/* Asistente IA */}
         <div className="sr-card">
           <h2 className="sr-h2 mb-2">Asistente IA</h2>
           <p className="sr-p mb-4">
@@ -100,6 +100,27 @@ export default function AdminDashboard() {
             </Link>
             <Link to="/panel-mediador/ai-legal" className="sr-btn-secondary">
               Abrir IA Legal
+            </Link>
+          </div>
+        </div>
+
+        {/* Instituciones */}
+        <div className="sr-card">
+          <h2 className="sr-h2 mb-2">Instituciones</h2>
+          <p className="sr-p mb-4">
+            Gestiona las solicitudes de Ayuntamientos, Cámaras de Comercio y
+            Colegios Profesionales: estados, detalle y creación de usuarios
+            institucionales.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Link to="/instituciones" className="sr-btn-secondary">
+              Ver página pública de Instituciones
+            </Link>
+            <Link to="/instituciones/registro" className="sr-btn-secondary">
+              Probar formulario institucional
+            </Link>
+            <Link to="/admin/instituciones" className="sr-btn-primary">
+              Abrir panel de Instituciones (admin)
             </Link>
           </div>
         </div>
