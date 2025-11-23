@@ -13,6 +13,9 @@ import PanelAyuntamiento from "./pages/PanelAyuntamiento.jsx";
 import Instituciones from "./pages/Instituciones.jsx";
 import Camaras from "./pages/Camaras.jsx";
 import Colegios from "./pages/Colegios.jsx";
+import RegistroInstitucion from "./pages/RegistroInstitucion.jsx";
+import RegistroInstitucionOK from "./pages/RegistroInstitucionOK.jsx";
+
 
 import Inicio from "./pages/Inicio.jsx";
 import QuienesSomos from "./pages/QuienesSomos.jsx";
@@ -88,6 +91,9 @@ export default function App() {
         <Route path="/instituciones" element={<Instituciones />} />
         <Route path="/instituciones/camaras" element={<Camaras />} />
         <Route path="/instituciones/colegios" element={<Colegios />} />
+        <Route path="/instituciones/registro" element={<RegistroInstitucion />} />
+        <Route path="/instituciones/registro/ok" element={<RegistroInstitucionOK />} />
+
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
