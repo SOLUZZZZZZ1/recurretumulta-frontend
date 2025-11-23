@@ -127,19 +127,7 @@ export default function Ayuntamientos() {
             </Link>
 
             {/* DEMO (puedes dejarlo o quitarlo más adelante) */}
-            <button
-              type="button"
-              className="sr-btn-secondary inline-block"
-              onClick={() => {
-                localStorage.setItem(
-                  "mediador_email",
-                  "demo-ayuntamiento@mediazion.eu"
-                );
-                window.location.href = "/panel-mediador";
-              }}
-            >
-              🎛 Entrar en demo PRO
-            </button>
+            
 
             {/* ALTA INSTITUCIONAL */}
             <Link
