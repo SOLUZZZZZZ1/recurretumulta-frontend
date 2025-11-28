@@ -1,109 +1,100 @@
-// src/pages/Documentos.jsx — Panel PRO · Gestión real de Documentos Mediazion
+// src/pages/Documentos.jsx — compatible con Panel Mediador y Panel Institución
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
 
-const LS_EMAIL = "mediador_email";
-
 export default function Documentos() {
-  const email = localStorage.getItem(LS_EMAIL) || "";
-  const nav = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  function goPerfil() {
-    if (!email) {
-      alert("Debes iniciar sesión para acceder a tu Perfil.");
-      nav("/acceso");
-      return;
-    }
-    nav("/panel-mediador/perfil");
-  }
+  const pathname = location.pathname || "";
+  const isInstitucion = pathname.startsWith("/panel-institucion");
+  const isMediador = pathname.startsWith("/panel-mediador");
 
-  function goIA() {
-    if (!email) {
-      alert("Debes iniciar sesión para acceder a la IA Profesional.");
-      nav("/acceso");
-      return;
-    }
-    nav("/panel-mediador/ai");
-  }
+  const titulo = isInstitucion
+    ? "Documentos · Panel Institución"
+    : "Documentos · Panel Mediador";
 
-  function goPanel() {
-    if (!email) {
-      nav("/acceso");
-      return;
-    }
-    nav("/panel-mediador");
-  }
+  const subtitulo = isInstitucion
+    ? "Accede a actas, plantillas y documentación que tu institución utiliza en los procesos de mediación."
+    : "Accede a actas, plantillas y documentación que utilizas en tus casos de mediación.";
+
+  const backRoute = isInstitucion ? "/panel-institucion" : "/panel-mediador";
 
   return (
     <>
       <Seo
-        title="Documentos · Panel PRO"
-        description="Gestión de documentos personales, CV y archivos utilizados con la IA Profesional."
+        title={titulo + " · Mediazion"}
+        description="Zona de documentos y plantillas vinculadas con la mediación."
       />
-
       <main
-        className="sr-container py-8"
+        className="sr-container py-10"
         style={{ minHeight: "calc(100vh - 160px)" }}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="sr-h1">📁 Documentos</h1>
-          <button className="sr-btn-secondary" onClick={goPanel}>
-            ← Volver al Panel PRO
-          </button>
-        </div>
+        <section className="sr-card max-w-5xl mx-auto p-6 rounded-2xl">
+          <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="sr-h1">
+                {isInstitucion ? "Documentos de la institución" : "Documentos del mediador"}
+              </h1>
+              <p className="sr-p text-zinc-600 mt-1">{subtitulo}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                className="sr-btn-secondary"
+                onClick={() => navigate(backRoute)}
+              >
+                Volver al panel
+              </button>
+            </div>
+          </header>
 
-        <p className="sr-p text-zinc-700 mb-6">
-          Desde aquí puedes gestionar tu avatar, curriculum y, en un futuro muy
-          próximo, tus documentos generados por la IA, plantillas profesionales
-          y una biblioteca personal segura.
-        </p>
+          <section className="grid gap-4 md:grid-cols-2">
+            <article className="border rounded-2xl p-4 bg-white">
+              <h2 className="font-semibold mb-1">Plantillas básicas</h2>
+              <p className="sr-small text-zinc-600 mb-2">
+                Modelos de actas, hojas de derivación, consentimientos informados y otros documentos
+                reutilizables.
+              </p>
+              <ul className="sr-small list-disc list-inside text-zinc-700 space-y-1">
+                <li>Acta de sesión de mediación</li>
+                <li>Consentimiento informado</li>
+                <li>Ficha de derivación desde la institución</li>
+              </ul>
+            </article>
 
-        {/* AVATAR */}
-        <section className="sr-card mb-5">
-          <h2 className="sr-h2 mb-1">📷 Foto / Avatar</h2>
-          <p className="sr-small text-zinc-600 mb-3">
-            Tu foto se gestiona desde tu Perfil.
-          </p>
-          <button className="sr-btn-secondary" onClick={goPerfil}>
-            Ir a Perfil
-          </button>
-        </section>
+            <article className="border rounded-2xl p-4 bg-white">
+              <h2 className="font-semibold mb-1">Documentos legales</h2>
+              <p className="sr-small text-zinc-600 mb-2">
+                Textos de referencia para cláusulas, avisos informativos y protección de datos.
+              </p>
+              <ul className="sr-small list-disc list-inside text-zinc-700 space-y-1">
+                <li>Cláusulas informativas RGPD</li>
+                <li>Compromiso de confidencialidad</li>
+                <li>Textos para comunicaciones oficiales</li>
+              </ul>
+            </article>
 
-        {/* CURRICULUM */}
-        <section className="sr-card mb-5">
-          <h2 className="sr-h2 mb-1">📄 Curriculum</h2>
-          <p className="sr-small text-zinc-600 mb-3">
-            Desde tu Perfil puedes subir tu CV en PDF o actualizarlo cuando
-            quieras.
-          </p>
-          <button className="sr-btn-secondary" onClick={goPerfil}>
-            Ir a Perfil
-          </button>
-        </section>
+            <article className="border rounded-2xl p-4 bg-white">
+              <h2 className="font-semibold mb-1">Recursos internos</h2>
+              <p className="sr-small text-zinc-600 mb-2">
+                Guías internas y protocolos que podéis compartir dentro de vuestro servicio.
+              </p>
+              <p className="sr-small text-zinc-700">
+                Muy pronto podrás subir aquí tus propios PDF y enlaces internos para tenerlos siempre a
+                mano dentro del panel.
+              </p>
+            </article>
 
-        {/* HISTORIAL DE IA (placeholder hasta conectar backend) */}
-        <section className="sr-card mb-5">
-          <h2 className="sr-h2 mb-1">🧠 Archivos usados con la IA Profesional</h2>
-          <p className="sr-small text-zinc-600 mb-3">
-            Muy pronto podrás ver aquí un historial de los documentos usados en
-            IA (PDF, DOCX, TXT, imágenes) vinculados a cada consulta.
-          </p>
-          <button className="sr-btn-secondary" onClick={goIA}>
-            Usar IA Profesional
-          </button>
-        </section>
-
-        {/* PRÓXIMAS FUNCIONES */}
-        <section className="sr-card mb-5">
-          <h2 className="sr-h2 mb-2">🗂️ Próximamente</h2>
-          <ul className="list-disc ml-6 text-sm text-zinc-700">
-            <li>Historial real de documentos usados con IA</li>
-            <li>Guardar documentos generados automáticamente por la IA</li>
-            <li>Directorio personal de plantillas profesionales</li>
-            <li>Gestor de actas generadas</li>
-            <li>Biblioteca de documentos segura en S3</li>
-          </ul>
+            <article className="border rounded-2xl p-4 bg-white">
+              <h2 className="font-semibold mb-1">Próximamente</h2>
+              <p className="sr-small text-zinc-600">
+                Estamos preparando un gestor de documentos completo con subida de archivos, categorización
+                y acceso restringido según rol (institución / mediador).
+              </p>
+            </article>
+          </section>
         </section>
       </main>
     </>

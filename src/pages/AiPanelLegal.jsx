@@ -1,5 +1,6 @@
 // src/pages/AiPanelLegal.jsx — IA Legal (chat jurídico + buscador jurídico)
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
 
 function ChatBubble({ role, content }) {
@@ -23,6 +24,17 @@ function ChatBubble({ role, content }) {
 }
 
 export default function AiPanelLegal() {
+  const navigate = useNavigate();
+
+  // Detectamos si quien usa la IA es mediador o institución
+  const hasInstitucion = !!localStorage.getItem("institucion_email");
+  const hasMediador = !!localStorage.getItem("mediador_email");
+  const perfilRoute = hasMediador
+    ? "/panel-mediador/perfil"
+    : hasInstitucion
+    ? "/panel-institucion/perfil"
+    : "/panel-mediador/perfil";
+
   // CHAT
   const [chatMessages, setChatMessages] = useState([
     {
@@ -82,7 +94,6 @@ export default function AiPanelLegal() {
         throw new Error(data?.detail || data?.message || "No se pudo obtener respuesta");
       }
 
-      // 👇 AQUÍ nos aseguramos de usar SOLO data.text (string)
       const text = data.text || "(respuesta vacía)";
       setChatMessages((prev) => [
         ...prev,
@@ -141,12 +152,32 @@ export default function AiPanelLegal() {
         description="IA Jurídica experta en mediación: consulta dudas legales y explora noticias relevantes."
         canonical="https://mediazion.eu/panel-mediador/ia-legal"
       />
-      <main className="sr-container py-8">
-        <h1 className="sr-h1 mb-2">IA Legal · Mediación</h1>
-        <p className="sr-p mb-6">
-          Consulta dudas jurídicas sobre mediación y explora noticias recientes
-          relacionadas con normativa, reformas y casos relevantes.
-        </p>
+      <main className="sr-container py-8" style={{ minHeight: "calc(100vh - 160px)" }}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h1 className="sr-h1 mb-2">IA Legal · Mediación</h1>
+            <p className="sr-p mb-2">
+              Consulta dudas jurídicas sobre mediación y explora noticias recientes
+              relacionadas con normativa, reformas y casos relevantes.
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              className="sr-btn-secondary"
+              onClick={() => navigate(-1)}
+            >
+              Volver al panel
+            </button>
+            <button
+              type="button"
+              className="sr-btn-ghost"
+              onClick={() => navigate(perfilRoute)}
+            >
+              Ir a perfil
+            </button>
+          </div>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* CHAT JURÍDICO */}

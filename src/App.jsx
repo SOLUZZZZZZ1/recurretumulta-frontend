@@ -1,6 +1,6 @@
-// src/App.jsx
+// src/App.jsx — versión completa con panel mediador, institucional, instrucciones y admin (incluye /admin/colaboradores)
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -19,6 +19,12 @@ import RegistroInstitucion from "./pages/RegistroInstitucion.jsx";
 import RegistroInstitucionOK from "./pages/RegistroInstitucionOK.jsx";
 import AdminInstituciones from "./pages/admin/AdminInstituciones.jsx";
 import InstitucionDashboard from "./components/InstitucionDashboard.jsx";
+import PerfilInstitucion from "./pages/PerfilInstitucion.jsx";
+
+// Nuevos módulos institucionales
+import CasosInstitucion from "./pages/CasosInstitucion.jsx";
+import CasoDetalleInstitucion from "./pages/CasoDetalleInstitucion.jsx";
+import AgendaInstitucion from "./pages/AgendaInstitucion.jsx";
 
 import Inicio from "./pages/Inicio.jsx";
 import QuienesSomos from "./pages/QuienesSomos.jsx";
@@ -34,11 +40,14 @@ import Cancel from "./pages/Cancel.jsx";
 import Ayuda from "./pages/Ayuda.jsx";
 import Documentos from "./pages/Documentos.jsx";
 import InstruccionesPanel from "./pages/InstruccionesPanel.jsx";
+import InstruccionesInstitucion from "./pages/InstruccionesInstitucion.jsx";
+import Colaboradores from "./pages/Colaboradores.jsx";
 
 import AdminLogin from "./pages/admin/Login.jsx";
 import AdminDashboard from "./pages/admin/Dashboard.jsx";
 import AdminIA from "./pages/admin/AdminIA.jsx";
 import AdminMediadores from "./pages/admin/AdminMediadores.jsx";
+import AdminColaboradores from "./pages/admin/Colaboradores.jsx";
 
 import MediadoresDirectorio from "./pages/MediadoresDirectorio.jsx";
 import PanelMediador from "./pages/PanelMediador.jsx";
@@ -62,16 +71,30 @@ import VocesDetalle from "./pages/VocesDetalle.jsx";
 import VocesEditor from "./pages/VocesEditor.jsx";
 import VocesListaPRO from "./pages/VocesListaPRO.jsx";
 
+// --- Guard institucional (separado del panel de mediador) ---
+function hasInstitucionSession() {
+  try {
+    const token = localStorage.getItem("institucion_token");
+    const email = localStorage.getItem("institucion_email");
+    return Boolean(token && email);
+  } catch {
+    return false;
+  }
+}
+
+function RequireInstitucion({ children }) {
+  if (!hasInstitucionSession()) {
+    return <Navigate to="/ayuntamientos/acceso" replace />;
+  }
+  return children;
+}
+
 export default function App() {
-  // ⚠️ De momento usamos valores neutros para el panel institucional.
-  // Más adelante lo conectaremos al login de instituciones.
   const emailInstitucion = "";
   const nombreInstitucion = "Acceso institucional";
   const fechaExpiracion = null;
 
   function handleLogoutInstitucion() {
-    // Aquí más adelante limpias storage/cookies específicas de instituciones.
-    // De momento, redirigimos al acceso institucional.
     window.location.href = "/ayuntamientos/acceso";
   }
 
@@ -96,17 +119,86 @@ export default function App() {
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/actualidad" element={<Actualidad />} />
         <Route path="/ayuda" element={<Ayuda />} />
+        <Route path="/colaboradores" element={<Colaboradores />} />
 
-        {/* Ayuntamientos */}
+        {/* Ayuntamientos / Instituciones: acceso y panel */}
         <Route path="/ayuntamientos" element={<Ayuntamientos />} />
         <Route path="/ayuntamientos/acceso" element={<AyuntamientoLogin />} />
-        <Route path="/panel-ayuntamiento" element={<PanelAyuntamiento />} />
+        <Route
+          path="/panel-ayuntamiento"
+          element={
+            <RequireInstitucion>
+              <PanelAyuntamiento />
+            </RequireInstitucion>
+          }
+        />
 
-        {/* Instituciones */}
+        {/* Perfil institución y módulos vinculados */}
+        <Route
+          path="/panel-institucion/perfil"
+          element={
+            <RequireInstitucion>
+              <PerfilInstitucion />
+            </RequireInstitucion>
+          }
+        />
+        <Route
+          path="/panel-institucion/casos"
+          element={
+            <RequireInstitucion>
+              <CasosInstitucion />
+            </RequireInstitucion>
+          }
+        />
+        <Route
+          path="/panel-institucion/casos/:id"
+          element={
+            <RequireInstitucion>
+              <CasoDetalleInstitucion />
+            </RequireInstitucion>
+          }
+        />
+        <Route
+          path="/panel-institucion/agenda"
+          element={
+            <RequireInstitucion>
+              <AgendaInstitucion />
+            </RequireInstitucion>
+          }
+        />
+        <Route
+          path="/panel-institucion/documentos"
+          element={
+            <RequireInstitucion>
+              <Documentos />
+            </RequireInstitucion>
+          }
+        />
+        <Route
+          path="/panel-institucion/acta"
+          element={
+            <RequireInstitucion>
+              <ActaNueva />
+            </RequireInstitucion>
+          }
+        />
+        <Route
+          path="/panel-institucion/instrucciones"
+          element={
+            <RequireInstitucion>
+              <InstruccionesInstitucion />
+            </RequireInstitucion>
+          }
+        />
+
+        {/* Instituciones (landing + registro) */}
         <Route path="/instituciones" element={<Instituciones />} />
         <Route path="/instituciones/camaras" element={<Camaras />} />
         <Route path="/instituciones/colegios" element={<Colegios />} />
-        <Route path="/instituciones/registro" element={<RegistroInstitucion />} />
+        <Route
+          path="/instituciones/registro"
+          element={<RegistroInstitucion />}
+        />
         <Route
           path="/instituciones/registro/ok"
           element={<RegistroInstitucionOK />}
@@ -114,12 +206,14 @@ export default function App() {
         <Route
           path="/panel-institucion"
           element={
-            <InstitucionDashboard
-              who={emailInstitucion}
-              institucion={nombreInstitucion}
-              expiresAt={fechaExpiracion}
-              onLogout={handleLogoutInstitucion}
-            />
+            <RequireInstitucion>
+              <InstitucionDashboard
+                who={emailInstitucion}
+                institucion={nombreInstitucion}
+                expiresAt={fechaExpiracion}
+                onLogout={handleLogoutInstitucion}
+              />
+            </RequireInstitucion>
           }
         />
 
@@ -145,14 +239,8 @@ export default function App() {
 
         {/* Panel mediador (normal) */}
         <Route path="/panel-mediador" element={<PanelMediador />} />
-        <Route
-          path="/panel-mediador-demo"
-          element={<PanelMediadorDemo />}
-        />
-        <Route
-          path="/panel-mediador/plantillas"
-          element={<Plantillas />}
-        />
+        <Route path="/panel-mediador-demo" element={<PanelMediadorDemo />} />
+        <Route path="/panel-mediador/plantillas" element={<Plantillas />} />
 
         {/* Panel mediador · herramientas PRO */}
         <Route path="/panel-mediador/ai" element={<AiPanel />} />
@@ -164,10 +252,6 @@ export default function App() {
         <Route path="/panel-mediador/perfil" element={<PerfilMediador />} />
         <Route path="/panel-mediador/voces" element={<VocesListaPRO />} />
         <Route path="/panel-mediador/voces/nuevo" element={<VocesEditor />} />
-        <Route
-          path="/panel-mediador/documentos"
-          element={<Documentos />}
-        />
 
         {/* Voces público */}
         <Route path="/voces" element={<VocesPublic />} />
@@ -181,22 +265,17 @@ export default function App() {
         <Route path="/suscripcion/ok" element={<Success />} />
         <Route path="/suscripcion/cancel" element={<Cancel />} />
 
-        {/* Admin clásico */}
+        {/* Admin */}
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/ia" element={<AdminIA />} />
         <Route path="/admin/mediadores" element={<AdminMediadores />} />
-        <Route
-          path="/admin/instituciones"
-          element={<AdminInstituciones />}
-        />
+        <Route path="/admin/instituciones" element={<AdminInstituciones />} />
+        <Route path="/admin/colaboradores" element={<AdminColaboradores />} />
 
         {/* Admin alternativo para pruebas: /nora-admin */}
         <Route path="/nora-admin" element={<AdminLogin />} />
-        <Route
-          path="/nora-admin/dashboard"
-          element={<AdminDashboard />}
-        />
+        <Route path="/nora-admin/dashboard" element={<AdminDashboard />} />
       </Routes>
       <Footer />
     </div>

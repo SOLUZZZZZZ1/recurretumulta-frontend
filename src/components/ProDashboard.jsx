@@ -1,4 +1,4 @@
-// src/components/ProDashboard.jsx — Dashboard PRO 3x3 con todas las pestañas + invitación colegas
+// src/components/ProDashboard.jsx — Dashboard PRO 3x3 con todas las pestañas + invitación colegas + guía PRO
 import React from "react";
 import { Link } from "react-router-dom";
 
@@ -62,7 +62,7 @@ export default class ProDashboard extends React.Component {
               onClick={() => {
                 const base = "https://mediazion.eu/mediadores";
                 const msg =
-                  "Hola! Estoy usando Mediazion para gestionar mis mediaciones (IA profesional con visión para leer documentos, actas, agenda, casos...). " +
+                  "Hola! Estoy usando Mediazion para gestionar mis mediaciones (IA profesional con visión para leer documentos, actas multiformato, agenda, casos...). " +
                   "Puedes darte de alta gratis aquí: " +
                   base;
                 if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -205,7 +205,7 @@ export default class ProDashboard extends React.Component {
             to="/panel-mediador/instrucciones"
             className="underline text-sky-600 hover:text-sky-800"
           >
-            Instrucciones de uso del Panel
+            📘 Guía PRO del Mediador (IA, Actas, Agenda, Voces…)
           </Link>
         </div>
       </section>

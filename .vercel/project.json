@@ -1,16 +1,1 @@
-{
-  "projectId": "prj_dsejN8Tsxw30auCWBcsyk66nYYo4",
-  "orgId": "team_gmnmy2GHMJOmo07xI8ErnsmP",
-  "projectName": "mediazion-frontend",
-  "settings": {
-    "createdAt": 1760954918870,
-    "framework": null,
-    "devCommand": null,
-    "installCommand": null,
-    "buildCommand": null,
-    "outputDirectory": null,
-    "rootDirectory": null,
-    "directoryListing": false,
-    "nodeVersion": "22.x"
-  }
-}
+{"projectId":"prj_FMovN0wITRMmEhtnVkjsxRaRdqmE","orgId":"team_gmnmy2GHMJOmo07xI8ErnsmP","projectName":"frontend"}

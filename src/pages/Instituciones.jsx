@@ -1,4 +1,4 @@
-// src/pages/Instituciones.jsx — Instituciones · Mediazion (versión PRO con iconos)
+// src/pages/Instituciones.jsx — Instituciones · Mediazion (versión PRO con iconos + acceso panel institucional)
 import React from "react";
 import { Link } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
@@ -33,7 +33,7 @@ export default function Instituciones() {
             <div className="mb-4 flex justify-center">
               {/* Icono edificio municipal */}
               <svg width="48" height="48" fill="#0ea5e9" viewBox="0 0 24 24">
-                <path d="M3 22v-2h18v2H3zm2-4V9h14v9H5zM12 2l9 5H3l9-5z"/>
+                <path d="M3 22v-2h18v2H3zm2-4V9h14v9H5zM12 2l9 5H3l9-5z" />
               </svg>
             </div>
             <h2 className="sr-h2 mb-2">Ayuntamientos</h2>
@@ -52,7 +52,7 @@ export default function Instituciones() {
             <div className="mb-4 flex justify-center">
               {/* Icono edificio empresarial */}
               <svg width="48" height="48" fill="#0ea5e9" viewBox="0 0 24 24">
-                <path d="M4 22V2h9v4h7v16h-5v-6H9v6H4zm7-8h5v-4h-5v4z"/>
+                <path d="M4 22V2h9v4h7v16h-5v-6H9v6H4zm7-8h5v-4h-5v4z" />
               </svg>
             </div>
             <h2 className="sr-h2 mb-2">Cámaras de Comercio</h2>
@@ -71,7 +71,7 @@ export default function Instituciones() {
             <div className="mb-4 flex justify-center">
               {/* Icono libro / colegio profesional */}
               <svg width="48" height="48" fill="#0ea5e9" viewBox="0 0 24 24">
-                <path d="M4 4h11l5 5v11H4V4zm11 1.5V9h3.5L15 5.5z"/>
+                <path d="M4 4h11l5 5v11H4V4zm11 1.5V9h3.5L15 5.5z" />
               </svg>
             </div>
             <h2 className="sr-h2 mb-2">Colegios Profesionales</h2>
@@ -80,6 +80,24 @@ export default function Instituciones() {
               público y gestión centralizada de mediaciones.
             </p>
           </Link>
+        </section>
+
+        {/* Acceso general al panel institucional */}
+        <section className="mt-12 text-center">
+          <h2 className="sr-h2 mb-3">Acceso al Panel Institucional</h2>
+          <p className="sr-p mb-4 max-w-2xl mx-auto">
+            Si ya tienes usuario institucional (Ayuntamiento, Cámara de Comercio o Colegio Profesional),
+            puedes acceder directamente a tu panel para gestionar casos, actas, agenda y documentación.
+          </p>
+          <Link
+            to="/ayuntamientos/acceso"
+            className="sr-btn-primary inline-flex items-center justify-center px-6 py-3 rounded-full text-base font-semibold"
+          >
+            Acceso Instituciones
+          </Link>
+          <p className="sr-small text-zinc-500 mt-3">
+            El mismo acceso sirve para Ayuntamientos, Cámaras de Comercio y Colegios Profesionales.
+          </p>
         </section>
       </main>
     </>

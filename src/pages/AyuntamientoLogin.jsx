@@ -1,90 +1,170 @@
-// src/pages/AyuntamientoLogin.jsx — Acceso Ayuntamientos · Mediazion
+
+// src/pages/AyuntamientoLogin.jsx — corregido para panel-institucion
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
 
-const LS_AYTO_TOKEN = "ayto_token";
+const DEV_ALLOW_FALLBACK = true;
 
 export default function AyuntamientoLogin() {
-  const nav = useNavigate();
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [msg, setMsg] = useState("");
-  const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
-  async function onSubmit(e) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    setMsg("");
-    setBusy(true);
+    setErrorMsg("");
+
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      setErrorMsg("Introduce tu correo institucional y la contraseña.");
+      return;
+    }
 
     try {
-      // 🔹 Más adelante: cambiar a llamada real:
-      // const resp = await fetch("/api/ayuntamientos/login", { ... })
-      // Por ahora, simulamos login si el email no está vacío:
-      if (!email || !pass) {
-        throw new Error("Introduce email y contraseña.");
+      setLoading(true);
+
+      const resp = await fetch("/api/instituciones/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        }),
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (resp.ok) {
+        const emailFinal =
+          data.email || data.institucion_email || trimmedEmail;
+
+        const nombreInstitucion =
+          data.institucion ||
+          data.institucion_nombre ||
+          data.nombre ||
+          data.name ||
+          "Institución";
+
+        const expira =
+          data.fecha_expiracion ||
+          data.expira ||
+          data.expires_at ||
+          null;
+
+        const tipo = data.tipo || "—";
+        const token =
+          data.token ||
+          data.access_token ||
+          data.session_token ||
+          "token";
+
+        try {
+          localStorage.setItem("institucion_email", String(emailFinal));
+          localStorage.setItem("institucion_nombre", String(nombreInstitucion));
+          localStorage.setItem("institucion_tipo", String(tipo));
+          if (expira) {
+            localStorage.setItem("institucion_expira", String(expira));
+          } else {
+            localStorage.removeItem("institucion_expira");
+          }
+          localStorage.setItem("institucion_token", String(token));
+        } catch (err) {
+          console.error("Error guardando datos institucionales", err);
+        }
+
+        navigate("/panel-institucion");
+        return;
       }
 
-      // Guardamos un token simple en localStorage
-      localStorage.setItem(LS_AYTO_TOKEN, email);
-      setMsg("✅ Acceso correcto. Redirigiendo al panel…");
-      setTimeout(() => {
-        nav("/panel-ayuntamiento");
-      }, 700);
-    } catch (e) {
-      setMsg("❌ " + (e.message || "Error de acceso"));
+      const detail =
+        data?.detail ||
+        data?.message ||
+        "No se ha podido iniciar sesión.";
+
+      if (DEV_ALLOW_FALLBACK) {
+        try {
+          localStorage.setItem("institucion_email", String(trimmedEmail));
+          localStorage.setItem("institucion_nombre", "Institución de prueba");
+          localStorage.removeItem("institucion_expira");
+          localStorage.setItem("institucion_token", "dev-token");
+        } catch (err) {
+          console.error("Error guardando fallback institucional", err);
+        }
+        navigate("/panel-institucion");
+        return;
+      }
+
+      throw new Error(detail);
+    } catch (err) {
+      setErrorMsg(err.message || "Error al iniciar sesión.");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
   return (
     <>
       <Seo
-        title="Acceso Ayuntamientos · Mediazion"
-        description="Acceso al panel de mediación comunitaria para Ayuntamientos."
-        canonical="https://mediazion.eu/ayuntamientos/acceso"
+        title="Acceso Instituciones · Mediazion"
+        description="Acceso seguro para Ayuntamientos, Cámaras y Colegios."
       />
       <main
         className="sr-container py-12"
         style={{ minHeight: "calc(100vh - 160px)" }}
       >
-        <h1 className="sr-h1 mb-4">Acceso Ayuntamientos</h1>
-        <p className="sr-p mb-4">
-          Introduce las credenciales facilitadas por Mediazion para acceder al
-          Panel de Mediación Comunitaria de tu Ayuntamiento.
-        </p>
+        <section className="max-w-md mx-auto sr-card p-8 rounded-2xl">
+          <h1 className="sr-h1 mb-4 text-center">Acceso Instituciones</h1>
 
-        <section className="sr-card" style={{ maxWidth: 480 }}>
-          <form onSubmit={onSubmit} className="grid gap-3">
+          {errorMsg && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {errorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="sr-label">Email institucional</label>
+              <label className="sr-label" htmlFor="email">
+                Correo institucional
+              </label>
               <input
+                id="email"
                 type="email"
-                className="sr-input"
-                placeholder="ayuntamiento@municipio.es"
+                className="sr-input mt-1 w-full"
+                placeholder="correo@institucion.es"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
+
             <div>
-              <label className="sr-label">Contraseña</label>
+              <label className="sr-label" htmlFor="password">
+                Contraseña
+              </label>
               <input
+                id="password"
                 type="password"
-                className="sr-input"
+                className="sr-input mt-1 w-full"
                 placeholder="********"
-                value={pass}
-                onChange={(e) => setPass(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <button className="sr-btn-primary" type="submit" disabled={busy}>
-              {busy ? "Accediendo…" : "Entrar al panel"}
+
+            <button
+              type="submit"
+              className="sr-btn-primary w-full mt-2"
+              disabled={loading}
+            >
+              {loading ? "Accediendo…" : "Entrar en el panel"}
             </button>
-            {msg && (
-              <p className="sr-small" style={{ color: msg.startsWith("✅") ? "#166534" : "#991b1b" }}>
-                {msg}
-              </p>
-            )}
           </form>
         </section>
       </main>

@@ -1,4 +1,4 @@
-// src/pages/InstruccionesPanel.jsx — Guía de uso del Panel del Mediador
+// src/pages/InstruccionesPanel.jsx — Guía PRO del Panel del Mediador (con Visión PRO)
 import React from "react";
 import Seo from "../components/Seo.jsx";
 import { Link } from "react-router-dom";
@@ -7,8 +7,8 @@ export default function InstruccionesPanel() {
   return (
     <>
       <Seo
-        title="Instrucciones Panel Mediador · Mediazion"
-        description="Guía práctica para sacar todo el partido al Panel PRO de Mediazion."
+        title="Guía PRO del Mediador · Mediazion"
+        description="Guía práctica para sacar todo el partido al Panel PRO del Mediador: IA, Visión (PDF/imagen), actas vinculadas, agenda, casos y Voces."
         canonical="https://mediazion.eu/panel-mediador/instrucciones"
       />
       <main
@@ -16,15 +16,16 @@ export default function InstruccionesPanel() {
         style={{ minHeight: "calc(100vh - 160px)" }}
       >
         <div className="mb-6">
-          <h1 className="sr-h1 mb-2">Instrucciones de uso · Panel del Mediador</h1>
+          <h1 className="sr-h1 mb-2">📘 Guía PRO del Mediador</h1>
           <p className="sr-p text-zinc-700">
-            Aquí tienes una guía rápida para sacar el máximo partido al Panel del
-            Mediador. Es distinta a la ayuda general de la web: aquí hablamos de
-            IA, actas, agenda, recursos… todo lo que solo ve quien está dentro.
+            Esta guía te ayuda a sacar el máximo partido al Panel PRO del
+            Mediador en Mediazion. Aquí hablamos de IA Profesional, Visión
+            (PDF/imagen), actas vinculadas a casos, agenda, casos y Voces. Es
+            información interna del panel, no la ayuda general de la web.
           </p>
         </div>
 
-        {/* 1. Acceso y estados PRO/BASIC */}
+        {/* 1. Acceso y estados PRO/BÁSICO */}
         <section className="sr-card mb-6">
           <h2 className="sr-h2 mb-2">1. Acceso y estados PRO / Básico</h2>
           <p className="sr-p mb-2">
@@ -34,7 +35,8 @@ export default function InstruccionesPanel() {
           <ul className="sr-list">
             <li>
               <b>PRO (trial):</b> durante los primeros días verás el panel en modo
-              PRO en prueba. Tienes acceso a todas las herramientas.
+              PRO en prueba. Tienes acceso a todas las herramientas, incluidas IA,
+              actas y agenda.
             </li>
             <li>
               <b>PRO activo:</b> si tienes suscripción, seguirás viendo todo el
@@ -42,22 +44,25 @@ export default function InstruccionesPanel() {
             </li>
             <li>
               <b>Panel Básico:</b> cuando termina la prueba y no hay suscripción,
-              las herramientas avanzadas (IA, actas, recursos, agenda…) se
+              las herramientas avanzadas (IA, actas, agenda, recursos…) se
               desactivan y verás el botón para suscribirte.
             </li>
           </ul>
         </section>
 
-        {/* 2. IA Profesional (incluida visión sobre imágenes) */}
+        {/* 2. IA Profesional (texto + Visión) */}
         <section className="sr-card mb-6">
-          <h2 className="sr-h2 mb-2">2. IA Profesional (con visión de documentos)</h2>
+          <h2 className="sr-h2 mb-2">
+            2. IA Profesional (texto + Visión PDF / imagen)
+          </h2>
           <p className="sr-p mb-2">
             La <b>IA Profesional</b> es tu asistente para redactar, resumir,
-            revisar y preparar documentos. Además, puede leer <b>imágenes y
-            fotos de documentos</b> y extraer el texto para trabajar con él.
+            revisar y preparar documentos. Además, puede leer <b>PDFs e imágenes
+            de documentos</b> (fotos, escaneos, capturas de pantalla) y trabajar
+            con su contenido.
           </p>
 
-          <h3 className="sr-h3 mt-2 mb-1">2.1. Cómo usar IA Profesional con texto</h3>
+          <h3 className="sr-h3 mt-2 mb-1">2.1. Modo texto (igual que siempre)</h3>
           <ol className="sr-list">
             <li>En el panel, haz clic en <b>🤖 IA Profesional</b>.</li>
             <li>
@@ -71,31 +76,56 @@ export default function InstruccionesPanel() {
             </li>
           </ol>
 
-          <h3 className="sr-h3 mt-3 mb-1">2.2. Cómo usar IA Profesional con imágenes (visión)</h3>
+          <h3 className="sr-h3 mt-3 mb-1">
+            2.2. Visión PRO: PDF / DOCX / TXT / imágenes
+          </h3>
           <p className="sr-small text-zinc-700 mb-2">
-            Puedes subir <b>fotos de documentos, pantallazos, PDFs convertidos en
-            imagen</b>, y la IA es capaz de leerlos y trabajar con el contenido.
+            Puedes adjuntar un <b>PDF, DOCX, TXT, Markdown o una imagen</b> de un
+            documento (foto, escaneo, captura de pantalla). La IA puede leerlo y
+            ayudarte a trabajar con él.
           </p>
           <ol className="sr-list">
-            <li>En <b>🤖 IA Profesional</b>, utiliza la opción de subir archivo o imagen (icono de clip 📎 o botón “Subir archivo”).</li>
-            <li>Selecciona la imagen: una foto de un contrato, un acuerdo firmado, un documento escaneado, etc.</li>
             <li>
-              En el mensaje, indica lo que quieres hacer, por ejemplo:
+              En la parte derecha, usa el campo <b>“Documento (opcional)”</b> para
+              subir el archivo.
+            </li>
+            <li>
+              Marca la casilla <b>“Usar este documento en la respuesta”</b> si
+              quieres que la IA lo tenga en cuenta.
+            </li>
+            <li>
+              Opcionalmente, usa uno de los <b>modos de análisis rápido</b>:
               <ul className="sr-list mt-1">
-                <li>“Extrae el texto completo del documento que te adjunto.”</li>
-                <li>“Resume el documento en 5 puntos.”</li>
-                <li>“Dime las cláusulas importantes y los riesgos para las partes.”</li>
+                <li>
+                  <b>Leer y resumir:</b> resumen estructurado del documento.
+                </li>
+                <li>
+                  <b>Datos clave:</b> nombres, fechas, importes, referencias…
+                </li>
+                <li>
+                  <b>Revisión legal suave:</b> detecta puntos sensibles, plazos,
+                  obligaciones, etc. (sin sustituir al asesor legal).
+                </li>
+                <li>
+                  <b>Texto para acta:</b> genera un borrador listo para pegar en
+                  un acta.
+                </li>
+                <li>
+                  <b>Correo a las partes:</b> prepara un correo profesional de
+                  resumen o próximos pasos.
+                </li>
               </ul>
             </li>
             <li>
-              La IA leerá la imagen, extraerá el texto y te responderá como si
-              hubieras pegado el documento a mano.
+              Puedes escribir un mensaje adicional o, en algunos modos, dejar el
+              campo vacío: la IA trabajará directamente sobre el documento.
             </li>
           </ol>
 
           <p className="sr-small text-zinc-600 mt-2">
-            ➜ Ejemplos de uso: escritos de abogados, correos impresos, acuerdos
-            manuscritos, actas antiguas escaneadas, etc.
+            ➜ Ejemplos de uso: contratos, actas antiguas, escritos de
+            abogados, informes, comunicaciones oficiales, capturas de pantalla
+            de WhatsApp, etc.
           </p>
         </section>
 
@@ -103,9 +133,9 @@ export default function InstruccionesPanel() {
         <section className="sr-card mb-6">
           <h2 className="sr-h2 mb-2">3. IA Legal (⚖️)</h2>
           <p className="sr-p mb-2">
-            La <b>IA Legal</b> está pensada para consultas más técnicas
-            relacionadas con normativa, cláusulas y enfoque jurídico. No sustituye
-            al asesoramiento legal, pero te ayuda a:
+            La <b>IA Legal</b> está pensada para consultas técnicas relacionadas
+            con normativa, cláusulas y enfoque jurídico. No sustituye al
+            asesoramiento legal, pero te ayuda a:
           </p>
           <ul className="sr-list">
             <li>Plantear mejor las alternativas de acuerdo.</li>
@@ -118,36 +148,54 @@ export default function InstruccionesPanel() {
           </p>
         </section>
 
-        {/* 4. Actas */}
+        {/* 4. Actas MULTIMODELO */}
         <section className="sr-card mb-6">
-          <h2 className="sr-h2 mb-2">4. Actas 📝</h2>
+          <h2 className="sr-h2 mb-2">
+            4. Actas 📝 (multimodelo y vinculadas a casos)
+          </h2>
           <p className="sr-p mb-2">
             En <b>Actas</b> puedes generar borradores de actas de sesión, actas
-            finales o documentos internos:
+            finales o documentos internos, con distintos modelos predefinidos.
           </p>
           <ol className="sr-list">
-            <li>Haz clic en <b>📝 Actas</b> desde el panel.</li>
-            <li>Rellena los campos básicos (partes, fecha, tipo de sesión…).</li>
             <li>
-              Puedes pedirle a la IA que te proponga un texto base y luego
-              ajustarlo tú.
+              Desde el panel, haz clic en <b>📝 Actas</b>, o bien desde un caso
+              pulsa <b>“Crear acta vinculada”</b>.
+            </li>
+            <li>
+              El sistema detectará el <b>ID del caso</b> (por ejemplo 4) y lo
+              rellenará como <b>Nº de expediente</b>.
+            </li>
+            <li>
+              Elige el modelo de acta (básica, cierre con acuerdo, sin acuerdo,
+              derivación, escolar…) y ajusta el texto a tu realidad.
+            </li>
+            <li>
+              Puedes usar la IA Profesional para ayudarte con el contenido del
+              acta a partir de documentos o notas.
             </li>
           </ol>
         </section>
 
         {/* 5. Casos */}
         <section className="sr-card mb-6">
-          <h2 className="sr-h2 mb-2">5. Casos 🗂️</h2>
+          <h2 className="sr-h2 mb-2">
+            5. Casos 🗂️ (expedientes con actas vinculadas)
+          </h2>
           <p className="sr-p mb-2">
             En <b>Casos</b> tendrás la vista de tus expedientes: cada conflicto,
-            con su información, documentos y evolución.
+            con su información, documentación y evolución.
           </p>
           <ul className="sr-list">
             <li>Crear un nuevo caso con los datos esenciales.</li>
-            <li>Asociar notas, ideas y próximos pasos.</li>
+            <li>Actualizar el estado: abierto, en curso o cerrado.</li>
             <li>
-              Vincular la agenda y, próximamente, videollamadas y documentos
-              directamente al caso.
+              Generar <b>actas vinculadas</b> al caso con el botón “Crear acta
+              vinculada”.
+            </li>
+            <li>
+              Ver el <b>listado de actas DOCX</b> generadas para ese caso y
+              abrirlas cuando lo necesites.
             </li>
           </ul>
         </section>
@@ -157,19 +205,19 @@ export default function InstruccionesPanel() {
           <h2 className="sr-h2 mb-2">6. Agenda 🗓️</h2>
           <p className="sr-p mb-2">
             La <b>Agenda</b> te sirve para marcar sesiones, recordatorios y
-            tareas relacionadas con tus casos:
+            tareas relacionadas con tus casos.
           </p>
           <ol className="sr-list">
             <li>Haz clic en <b>🗓️ Agenda</b>.</li>
             <li>Crea citas con fecha, hora y descripción.</li>
             <li>
-              Cuando esté activado el enlace con <b>Casos</b>, podrás escoger a
-              qué caso pertenece cada cita, para ver todo unificado.
+              Cuando esté activo el enlace con <b>Casos</b>, podrás escoger a qué
+              caso pertenece cada cita y verlo todo unificado.
             </li>
           </ol>
         </section>
 
-                {/* 7. Recursos */}
+        {/* 7. Recursos */}
         <section className="sr-card mb-6">
           <h2 className="sr-h2 mb-2">7. Recursos 💳</h2>
           <p className="sr-p mb-2">
@@ -177,9 +225,17 @@ export default function InstruccionesPanel() {
             tu práctica profesional.
           </p>
           <ul className="sr-list">
-            <li>Acceso a materiales, utilidades y enlaces que iremos activando.</li>
-            <li>Modelos, plantillas y documentación de apoyo para tu trabajo diario.</li>
-            <li>En el futuro, accesos directos a opciones de cobro y otras integraciones.</li>
+            <li>
+              Acceso a materiales, utilidades y enlaces que iremos activando.
+            </li>
+            <li>
+              Modelos, plantillas y documentación de apoyo para tu trabajo
+              diario.
+            </li>
+            <li>
+              En el futuro, accesos directos a opciones de cobro y otras
+              integraciones.
+            </li>
           </ul>
         </section>
 
@@ -220,15 +276,14 @@ export default function InstruccionesPanel() {
             </li>
             <li>
               <b>Moderación IA:</b> antes de publicar, puedes pedir a la IA que
-              revise el texto (tono, claridad, posibles datos sensibles) para
-              asegurarte de que refleja bien tu trabajo.
+              revise el texto (tono, claridad, posibles datos sensibles).
             </li>
           </ul>
         </section>
 
         {/* Próximamente: videollamadas */}
         <section className="sr-card mb-6">
-          <h2 className="sr-h2 mb-2">Próximamente: Videollamadas integradas</h2>
+          <h2 className="sr-h2 mb-2">Próximamente: videollamadas integradas</h2>
           <p className="sr-p mb-2">
             Está previsto integrar <b>videollamadas</b> directamente en el Panel
             del Mediador, de forma que puedas:
@@ -241,17 +296,13 @@ export default function InstruccionesPanel() {
               videollamada.
             </li>
           </ul>
-          <p className="sr-small text-zinc-600 mt-2">
-            ➜ Cuando esté activo, lo verás como una opción más dentro de Agenda
-            y Casos.
-          </p>
         </section>
 
         {/* Enlace de retorno al panel */}
         <section className="sr-card mb-10">
           <p className="sr-p mb-2">
-            Cuando quieras volver al panel principal, puedes usar el menú o este
-            enlace:
+            Cuando quieras volver al panel principal del Mediador, puedes usar el
+            menú o este enlace:
           </p>
           <Link to="/panel-mediador" className="sr-btn-secondary">
             ← Volver al Panel del Mediador

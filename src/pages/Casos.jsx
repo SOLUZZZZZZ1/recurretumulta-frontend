@@ -1,4 +1,4 @@
-// src/pages/Casos.jsx — Gestor de casos para mediadores PRO (backend pg_conn + email)
+// src/pages/Casos.jsx — Gestor de casos para mediadores PRO (con botón Crear acta vinculada)
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
@@ -165,7 +165,7 @@ export default function Casos() {
         );
       }
 
-      // Mensaje limpio, sin [object Object]
+      // Mensaje limpio
       setInfoMsg(creating ? "Caso creado correctamente." : "Cambios guardados.");
 
       // Recargamos lista y seleccionamos algo
@@ -223,12 +223,16 @@ export default function Casos() {
         title="Casos — Mediazion"
         description="Gestor de casos y expedientes para mediadores PRO en Mediazion."
       />
-      <main className="sr-container py-8" style={{ minHeight: "calc(100vh - 160px)" }}>
+      <main
+        className="sr-container py-8"
+        style={{ minHeight: "calc(100vh - 160px)" }}
+      >
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="sr-h1">Casos</h1>
             <p className="sr-small text-slate-600">
-              Gestiona tus expedientes de mediación. Solo tú ves esta información.
+              Gestiona tus expedientes de mediación. Solo tú ves esta
+              información.
             </p>
           </div>
           <div className="flex gap-2">
@@ -252,28 +256,37 @@ export default function Casos() {
         {!email && (
           <div className="sr-card mb-4">
             <p className="sr-p">
-              Debes iniciar sesión en el panel para gestionar tus casos. No se ha
-              encontrado el correo en localStorage (<code>{LS_EMAIL}</code>).
+              Debes iniciar sesión en el panel para gestionar tus casos. No se
+              ha encontrado el correo en localStorage (<code>{LS_EMAIL}</code>).
             </p>
           </div>
         )}
 
         {errorMsg && (
-          <div className="sr-card mb-3" style={{ borderColor: "#fecaca", color: "#991b1b" }}>
+          <div
+            className="sr-card mb-3"
+            style={{ borderColor: "#fecaca", color: "#991b1b" }}
+          >
             <p className="sr-small">❌ {errorMsg}</p>
           </div>
         )}
 
         {infoMsg && (
-          <div className="sr-card mb-3" style={{ borderColor: "#bbf7d0", color: "#166534" }}>
+          <div
+            className="sr-card mb-3"
+            style={{ borderColor: "#bbf7d0", color: "#166534" }}
+          >
             <p className="sr-small">✅ {infoMsg}</p>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Columna izquierda: listado */}
-          <section className="md:col-span-1 sr-card" style={{ minHeight: 260 }}>
-            <div className="flex items-center justify-between mb-2">
+          <section
+            className="md:col-span-1 sr-card"
+            style={{ minHeight: 260 }}
+          >
+            <div className="flex items-center justify_between mb-2">
               <h2 className="sr-h3">Tus casos</h2>
               {loadingList && (
                 <span className="sr-small text-slate-500">Cargando…</span>
@@ -282,7 +295,8 @@ export default function Casos() {
 
             {(!casos || casos.length === 0) && !loadingList && (
               <p className="sr-small text-slate-500">
-                No tienes casos todavía. Pulsa <b>“Nuevo caso”</b> para crear el primero.
+                No tienes casos todavía. Pulsa <b>“Nuevo caso”</b> para crear el
+                primero.
               </p>
             )}
 
@@ -395,6 +409,18 @@ export default function Casos() {
                   <button
                     type="button"
                     className="sr-btn-secondary"
+                    onClick={() =>
+                      nav(`/panel-mediador/acta?caso=${current.id}`)
+                    }
+                    disabled={loadingSave}
+                  >
+                    Crear acta vinculada
+                  </button>
+                )}
+                {!creating && current && (
+                  <button
+                    type="button"
+                    className="sr-btn-secondary"
                     onClick={handleDelete}
                     disabled={loadingSave}
                   >
@@ -406,8 +432,9 @@ export default function Casos() {
 
             {!creating && current && (
               <p className="sr-small text-slate-500 mt-4">
-                Más adelante podrás adjuntar documentos del caso, enlazar sesiones
-                de Agenda y trabajar este expediente con la IA.
+                Puedes generar actas vinculadas a este expediente desde el botón
+                “Crear acta vinculada”. Más adelante podrás adjuntar documentos,
+                enlazar sesiones de Agenda y trabajar este caso con la IA.
               </p>
             )}
           </section>

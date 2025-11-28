@@ -1,4 +1,4 @@
-// src/pages/PanelMediador.jsx — Panel del mediador con trial + Stripe bien integrados
+// src/pages/PanelMediador.jsx — Panel del mediador con sección COLABORADORES añadida
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
@@ -70,7 +70,6 @@ export default function PanelMediador() {
     }
   }
 
-  // Activa trial solo si está en BASIC (none)
   async function handleTrial() {
     try {
       if (subStatus !== "none") {
@@ -102,16 +101,14 @@ export default function PanelMediador() {
     nav("/acceso");
   }
 
-  // --- Cálculo del estado real (trial activo vs. trial caducado) ---
   const now = new Date();
   const endDate = trialEnd ? new Date(trialEnd) : null;
   const trialActive =
     subStatus === "trialing" && endDate && endDate.getTime() > now.getTime();
 
-  const isSubscribed = subStatus === "active";      // PRO de pago
-  const isPro = isSubscribed || trialActive;       // PRO (trial o pago)
+  const isSubscribed = subStatus === "active";
+  const isPro = isSubscribed || trialActive;
 
-  // Tus correos "maestros" para test Stripe aunque ya sean PRO
   const isMaster = ["soluzziona@gmail.com", "marbra.mrb@gmail.com"].includes(
     email.toLowerCase()
   );
@@ -145,7 +142,7 @@ export default function PanelMediador() {
           <p className="sr-p">Cargando tu panel…</p>
         ) : (
           <>
-            {/* Panel principal con tu diseño */}
+            {/* Panel PRO principal */}
             <ProDashboard
               who={email}
               subStatus={subStatus}
@@ -154,23 +151,84 @@ export default function PanelMediador() {
               onLogout={handleLogout}
             />
 
-            {/* BLOQUE: Suscripción PRO para usuarios que YA NO son PRO */}
+            {/* --- SECCIÓN COLABORADORES --- */}
+            <section className="sr-card mt-6">
+              <h2 className="sr-h2 mb-3">COLABORADORES</h2>
+
+              <p className="sr-small text-zinc-600 mb-4">
+                Servicios y entidades que colaboran con Mediazion:
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {/* EJEMPLOS — sustituir por logos reales */}
+                <a
+                  href="https://ejemplo1.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center p-4 border rounded-xl bg-white hover:shadow-md transition"
+                >
+                  <img
+                    src="/colaborador1.png"
+                    alt="Colaborador 1"
+                    className="max-h-12 object-contain opacity-90"
+                  />
+                </a>
+
+                <a
+                  href="https://ejemplo2.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center p-4 border rounded-xl bg-white hover:shadow-md transition"
+                >
+                  <img
+                    src="/colaborador2.png"
+                    alt="Colaborador 2"
+                    className="max-h-12 object-contain opacity-90"
+                  />
+                </a>
+
+                <a
+                  href="https://ejemplo3.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center p-4 border rounded-xl bg-white hover:shadow-md transition"
+                >
+                  <img
+                    src="/colaborador3.png"
+                    alt="Colaborador 3"
+                    className="max-h-12 object-contain opacity-90"
+                  />
+                </a>
+
+                <a
+                  href="https://ejemplo4.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center p-4 border rounded-xl bg-white hover:shadow-md transition"
+                >
+                  <img
+                    src="/colaborador4.png"
+                    alt="Colaborador 4"
+                    className="max-h-12 object-contain opacity-90"
+                  />
+                </a>
+              </div>
+            </section>
+
+            {/* BLOQUE: Suscripción PRO si no es PRO */}
             {!isPro && (
               <section className="sr-card mt-6">
                 <h2 className="sr-h2 mb-2">Suscripción PRO</h2>
                 <p className="sr-p mb-2">
                   Tu prueba PRO ha finalizado o aún no la has activado. Si
-                  quieres seguir utilizando IA, actas, recursos y agenda
-                  avanzada, puedes activar tu suscripción PRO.
+                  quieres seguir utilizando IA, actas, recursos y agenda avanzada,
+                  puedes activar tu suscripción PRO.
                 </p>
-                <StripeButton
-                  email={email}
-                  label="Activar suscripción PRO"
-                />
+                <StripeButton email={email} label="Activar suscripción PRO" />
               </section>
             )}
 
-            {/* BLOQUE: Test Stripe SOLO para tus correos maestros, aunque ya estén en PRO */}
+            {/* BLOQUE: Test Stripe para correos maestros */}
             {isPro && isMaster && (
               <section className="sr-card mt-6">
                 <h2 className="sr-h2 mb-2">🧪 Test Stripe (solo admin)</h2>

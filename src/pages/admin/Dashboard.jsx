@@ -7,7 +7,6 @@ const LS_ADMIN_KEY = "mediazion_admin_auth";
 export default function AdminDashboard() {
   const nav = useNavigate();
 
-  // Protección básica: si no hay "login" admin, redirige al /admin (login)
   useEffect(() => {
     const token = localStorage.getItem(LS_ADMIN_KEY);
     if (token !== "ok") {
@@ -23,7 +22,8 @@ export default function AdminDashboard() {
       <h1 className="sr-h1 mb-2">Panel de administración</h1>
       <p className="sr-p mb-8">
         Espacio interno para controlar Mediazion: accesos rápidos a mediadores,
-        contenido, contactos, IA, instituciones y utilidades técnicas.
+        contenido, contactos, IA, instituciones, colaboradores y utilidades
+        técnicas.
       </p>
 
       {/* BLOQUE 1: Tarjetas resumen / accesos rápidos */}
@@ -77,10 +77,7 @@ export default function AdminDashboard() {
             <Link to="/contacto" className="sr-btn-secondary">
               Probar formulario de contacto
             </Link>
-            <a
-              href="mailto:info@mediazion.eu"
-              className="sr-btn-ghost"
-            >
+            <a href="mailto:info@mediazion.eu" className="sr-btn-ghost">
               Abrir bandeja de contacto
             </a>
           </div>
@@ -124,6 +121,23 @@ export default function AdminDashboard() {
             </Link>
           </div>
         </div>
+
+        {/* Colaboradores */}
+        <div className="sr-card">
+          <h2 className="sr-h2 mb-2">Colaboradores</h2>
+          <p className="sr-p mb-4">
+            Gestiona los colaboradores que aparecen en la página pública
+            “Colaboradores”: nombre, logo y enlace.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Link to="/colaboradores" className="sr-btn-secondary">
+              Ver página pública de Colaboradores
+            </Link>
+            <Link to="/admin/colaboradores" className="sr-btn-primary">
+              Gestionar Colaboradores (admin)
+            </Link>
+          </div>
+        </div>
       </section>
 
       {/* BLOQUE 2: Herramientas técnicas / backend */}
@@ -144,7 +158,7 @@ export default function AdminDashboard() {
             </p>
             <code className="sr-code-block mb-2">GET /admin/health</code>
             <p className="sr-small mb-3">
-              Requiere cabecera <code>X-Admin-Token</code> con el token de
+              Requiere cabecera <code>X-Admin-Token</code> con eltoken de
               administrador configurado en el backend.
             </p>
             <a
