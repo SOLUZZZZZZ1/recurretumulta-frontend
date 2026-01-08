@@ -1,103 +1,23 @@
-// src/App.jsx — versión completa con panel mediador, institucional, instrucciones y admin (incluye /admin/colaboradores)
+// src/App.jsx — RecurreTuMulta (versión limpia MVP)
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
+
+// Páginas
+import Inicio from "./pages/Inicio.jsx";
+import ComoFunciona from "./pages/ComoFunciona.jsx";
+import Precios from "./pages/Precios.jsx";
+import FAQ from "./pages/FAQ.jsx";
+import Contacto from "./pages/Contacto.jsx";
+
+// Legal
 import AvisoLegal from "./pages/AvisoLegal.jsx";
-import Rgpd from "./pages/Rgpd.jsx";
+import Privacidad from "./pages/Privacidad.jsx";
 import Cookies from "./pages/Cookies.jsx";
 
-import Ayuntamientos from "./pages/Ayuntamientos.jsx";
-import AyuntamientoLogin from "./pages/AyuntamientoLogin.jsx";
-import PanelAyuntamiento from "./pages/PanelAyuntamiento.jsx";
-
-import Instituciones from "./pages/Instituciones.jsx";
-import Camaras from "./pages/Camaras.jsx";
-import Colegios from "./pages/Colegios.jsx";
-import RegistroInstitucion from "./pages/RegistroInstitucion.jsx";
-import RegistroInstitucionOK from "./pages/RegistroInstitucionOK.jsx";
-import AdminInstituciones from "./pages/admin/AdminInstituciones.jsx";
-import InstitucionDashboard from "./components/InstitucionDashboard.jsx";
-import PerfilInstitucion from "./pages/PerfilInstitucion.jsx";
-
-// Nuevos módulos institucionales
-import CasosInstitucion from "./pages/CasosInstitucion.jsx";
-import CasoDetalleInstitucion from "./pages/CasoDetalleInstitucion.jsx";
-import AgendaInstitucion from "./pages/AgendaInstitucion.jsx";
-
-import Inicio from "./pages/Inicio.jsx";
-import QuienesSomos from "./pages/QuienesSomos.jsx";
-import Servicios from "./pages/Servicios.jsx";
-import Mediadores from "./pages/Mediadores.jsx";
-import Tarifas from "./pages/Tarifas.jsx";
-import Contacto from "./pages/Contacto.jsx";
-import Actualidad from "./pages/Actualidad.jsx";
-import MediadorAlta from "./pages/MediadorAlta.jsx";
-import Plantillas from "../Plantillas.jsx";
-import Success from "./pages/Success.jsx";
-import Cancel from "./pages/Cancel.jsx";
-import Ayuda from "./pages/Ayuda.jsx";
-import Documentos from "./pages/Documentos.jsx";
-import InstruccionesPanel from "./pages/InstruccionesPanel.jsx";
-import InstruccionesInstitucion from "./pages/InstruccionesInstitucion.jsx";
-import Colaboradores from "./pages/Colaboradores.jsx";
-
-import AdminLogin from "./pages/admin/Login.jsx";
-import AdminDashboard from "./pages/admin/Dashboard.jsx";
-import AdminIA from "./pages/admin/AdminIA.jsx";
-import AdminMediadores from "./pages/admin/AdminMediadores.jsx";
-import AdminColaboradores from "./pages/admin/Colaboradores.jsx";
-
-import MediadoresDirectorio from "./pages/MediadoresDirectorio.jsx";
-import PanelMediador from "./pages/PanelMediador.jsx";
-import PanelMediadorDemo from "./pages/PanelMediadorDemo.jsx";
-
-import CourseDetail from "./pages/CourseDetail.jsx";
-import WebinarDetail from "./pages/WebinarDetail.jsx";
-
-import LoginMediador from "./pages/LoginMediador.jsx";
-
-import AiPanel from "./pages/AiPanel.jsx";
-import AiPanelLegal from "./pages/AiPanelLegal.jsx";
-import Casos from "./pages/Casos.jsx";
-import Pagos from "./pages/Pagos.jsx";
-import Agenda from "./pages/Agenda.jsx";
-import PerfilMediador from "./pages/PerfilMediador.jsx";
-import ActaNueva from "./pages/ActaNueva.jsx";
-
-import VocesPublic from "./pages/VocesPublic.jsx";
-import VocesDetalle from "./pages/VocesDetalle.jsx";
-import VocesEditor from "./pages/VocesEditor.jsx";
-import VocesListaPRO from "./pages/VocesListaPRO.jsx";
-
-// --- Guard institucional (separado del panel de mediador) ---
-function hasInstitucionSession() {
-  try {
-    const token = localStorage.getItem("institucion_token");
-    const email = localStorage.getItem("institucion_email");
-    return Boolean(token && email);
-  } catch {
-    return false;
-  }
-}
-
-function RequireInstitucion({ children }) {
-  if (!hasInstitucionSession()) {
-    return <Navigate to="/ayuntamientos/acceso" replace />;
-  }
-  return children;
-}
-
 export default function App() {
-  const emailInstitucion = "";
-  const nombreInstitucion = "Acceso institucional";
-  const fechaExpiracion = null;
-
-  function handleLogoutInstitucion() {
-    window.location.href = "/ayuntamientos/acceso";
-  }
-
   return (
     <div
       className="min-h-screen text-zinc-900"
@@ -110,173 +30,20 @@ export default function App() {
       }}
     >
       <Navbar />
+
       <Routes>
-        {/* Básicas */}
         <Route path="/" element={<Inicio />} />
-        <Route path="/quienes-somos" element={<QuienesSomos />} />
-        <Route path="/servicios" element={<Servicios />} />
-        <Route path="/tarifas" element={<Tarifas />} />
+        <Route path="/como-funciona" element={<ComoFunciona />} />
+        <Route path="/precios" element={<Precios />} />
+        <Route path="/faq" element={<FAQ />} />
         <Route path="/contacto" element={<Contacto />} />
-        <Route path="/actualidad" element={<Actualidad />} />
-        <Route path="/ayuda" element={<Ayuda />} />
-        <Route path="/colaboradores" element={<Colaboradores />} />
-
-        {/* Ayuntamientos / Instituciones: acceso y panel */}
-        <Route path="/ayuntamientos" element={<Ayuntamientos />} />
-        <Route path="/ayuntamientos/acceso" element={<AyuntamientoLogin />} />
-        <Route
-          path="/panel-ayuntamiento"
-          element={
-            <RequireInstitucion>
-              <PanelAyuntamiento />
-            </RequireInstitucion>
-          }
-        />
-
-        {/* Perfil institución y módulos vinculados */}
-        <Route
-          path="/panel-institucion/perfil"
-          element={
-            <RequireInstitucion>
-              <PerfilInstitucion />
-            </RequireInstitucion>
-          }
-        />
-        <Route
-          path="/panel-institucion/casos"
-          element={
-            <RequireInstitucion>
-              <CasosInstitucion />
-            </RequireInstitucion>
-          }
-        />
-        <Route
-          path="/panel-institucion/casos/:id"
-          element={
-            <RequireInstitucion>
-              <CasoDetalleInstitucion />
-            </RequireInstitucion>
-          }
-        />
-        <Route
-          path="/panel-institucion/agenda"
-          element={
-            <RequireInstitucion>
-              <AgendaInstitucion />
-            </RequireInstitucion>
-          }
-        />
-        <Route
-          path="/panel-institucion/documentos"
-          element={
-            <RequireInstitucion>
-              <Documentos />
-            </RequireInstitucion>
-          }
-        />
-        <Route
-          path="/panel-institucion/acta"
-          element={
-            <RequireInstitucion>
-              <ActaNueva />
-            </RequireInstitucion>
-          }
-        />
-        <Route
-          path="/panel-institucion/instrucciones"
-          element={
-            <RequireInstitucion>
-              <InstruccionesInstitucion />
-            </RequireInstitucion>
-          }
-        />
-
-        {/* Instituciones (landing + registro) */}
-        <Route path="/instituciones" element={<Instituciones />} />
-        <Route path="/instituciones/camaras" element={<Camaras />} />
-        <Route path="/instituciones/colegios" element={<Colegios />} />
-        <Route
-          path="/instituciones/registro"
-          element={<RegistroInstitucion />}
-        />
-        <Route
-          path="/instituciones/registro/ok"
-          element={<RegistroInstitucionOK />}
-        />
-        <Route
-          path="/panel-institucion"
-          element={
-            <RequireInstitucion>
-              <InstitucionDashboard
-                who={emailInstitucion}
-                institucion={nombreInstitucion}
-                expiresAt={fechaExpiracion}
-                onLogout={handleLogoutInstitucion}
-              />
-            </RequireInstitucion>
-          }
-        />
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
-        <Route path="/rgpd" element={<Rgpd />} />
+        <Route path="/privacidad" element={<Privacidad />} />
         <Route path="/cookies" element={<Cookies />} />
-
-        {/* Mediadores */}
-        <Route path="/mediadores" element={<Mediadores />} />
-        <Route
-          path="/mediadores/directorio"
-          element={<MediadoresDirectorio />}
-        />
-        <Route path="/mediadores/alta" element={<MediadorAlta />} />
-        <Route
-          path="/panel-mediador/instrucciones"
-          element={<InstruccionesPanel />}
-        />
-
-        {/* Acceso mediadores (login) */}
-        <Route path="/acceso" element={<LoginMediador />} />
-
-        {/* Panel mediador (normal) */}
-        <Route path="/panel-mediador" element={<PanelMediador />} />
-        <Route path="/panel-mediador-demo" element={<PanelMediadorDemo />} />
-        <Route path="/panel-mediador/plantillas" element={<Plantillas />} />
-
-        {/* Panel mediador · herramientas PRO */}
-        <Route path="/panel-mediador/ai" element={<AiPanel />} />
-        <Route path="/panel-mediador/ai-legal" element={<AiPanelLegal />} />
-        <Route path="/panel-mediador/acta" element={<ActaNueva />} />
-        <Route path="/panel-mediador/casos" element={<Casos />} />
-        <Route path="/panel-mediador/pagos" element={<Pagos />} />
-        <Route path="/panel-mediador/agenda" element={<Agenda />} />
-        <Route path="/panel-mediador/perfil" element={<PerfilMediador />} />
-        <Route path="/panel-mediador/voces" element={<VocesListaPRO />} />
-        <Route path="/panel-mediador/voces/nuevo" element={<VocesEditor />} />
-
-        {/* Voces público */}
-        <Route path="/voces" element={<VocesPublic />} />
-        <Route path="/voces/:slug" element={<VocesDetalle />} />
-
-        {/* Detalle formativo */}
-        <Route path="/servicios/curso/:slug" element={<CourseDetail />} />
-        <Route path="/servicios/webinar/:slug" element={<WebinarDetail />} />
-
-        {/* Suscripción */}
-        <Route path="/suscripcion/ok" element={<Success />} />
-        <Route path="/suscripcion/cancel" element={<Cancel />} />
-
-        {/* Admin */}
-        <Route path="/admin" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/ia" element={<AdminIA />} />
-        <Route path="/admin/mediadores" element={<AdminMediadores />} />
-        <Route path="/admin/instituciones" element={<AdminInstituciones />} />
-        <Route path="/admin/colaboradores" element={<AdminColaboradores />} />
-
-        {/* Admin alternativo para pruebas: /nora-admin */}
-        <Route path="/nora-admin" element={<AdminLogin />} />
-        <Route path="/nora-admin/dashboard" element={<AdminDashboard />} />
       </Routes>
+
       <Footer />
     </div>
   );

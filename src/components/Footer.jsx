@@ -1,4 +1,3 @@
-// src/components/Footer.jsx — versión con titular legal La Talamanquina S.L.
 import React from "react";
 import { Link } from "react-router-dom";
 
@@ -18,152 +17,35 @@ export default function Footer() {
         style={{
           display: "grid",
           gap: 20,
-          gridTemplateColumns: "repeat(3, minmax(0,1fr))",
+          gridTemplateColumns: "repeat(2, minmax(0,1fr))",
         }}
       >
-        {/* MEDIAZION */}
+        {/* RECURRE TU MULTA */}
         <div>
-          <h4
-            style={{
-              margin: 0,
-              marginBottom: 8,
-              fontSize: 16,
-              fontWeight: 800,
-            }}
-          >
-            MEDIAZION
+          <h4 style={{ marginBottom: 8, fontSize: 16, fontWeight: 800 }}>
+            RecurreTuMulta
           </h4>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", lineHeight: 1.9 }}>
-            <li>
-              <Link to="/" style={{ color: "#e5e7eb", textDecoration: "none" }}>
-                Inicio
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/quienes-somos"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Quiénes somos
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/servicios"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Servicios
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/actualidad"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Actualidad
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/tarifas"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Tarifas
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/contacto"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Contacto
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        {/* MEDIADORES */}
-        <div>
-          <h4
-            style={{
-              margin: 0,
-              marginBottom: 8,
-              fontSize: 16,
-              fontWeight: 800,
-            }}
-          >
-            Mediadores
-          </h4>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", lineHeight: 1.9 }}>
-            <li>
-              <Link
-                to="/mediadores"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Área mediadores
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/mediadores/alta"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Alta gratuita
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/mediadores/directorio"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Directorio
-              </Link>
-            </li>
+          <ul style={{ listStyle: "none", padding: 0, lineHeight: 1.9 }}>
+            <li><Link to="/" style={{ color: "#e5e7eb" }}>Inicio</Link></li>
+            <li><Link to="/como-funciona" style={{ color: "#e5e7eb" }}>Cómo funciona</Link></li>
+            <li><Link to="/precios" style={{ color: "#e5e7eb" }}>Precios</Link></li>
+            <li><Link to="/contacto" style={{ color: "#e5e7eb" }}>Contacto</Link></li>
           </ul>
         </div>
 
         {/* LEGAL */}
         <div>
-          <h4
-            style={{
-              margin: 0,
-              marginBottom: 8,
-              fontSize: 16,
-              fontWeight: 800,
-            }}
-          >
+          <h4 style={{ marginBottom: 8, fontSize: 16, fontWeight: 800 }}>
             Legal
           </h4>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", lineHeight: 1.9 }}>
-            <li>
-              <Link
-                to="/aviso-legal"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Aviso legal
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/rgpd"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Protección de datos (RGPD)
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/cookies"
-                style={{ color: "#e5e7eb", textDecoration: "none" }}
-              >
-                Política de cookies
-              </Link>
-            </li>
+          <ul style={{ listStyle: "none", padding: 0, lineHeight: 1.9 }}>
+            <li><Link to="/aviso-legal" style={{ color: "#e5e7eb" }}>Aviso legal</Link></li>
+            <li><Link to="/privacidad" style={{ color: "#e5e7eb" }}>Privacidad</Link></li>
+            <li><Link to="/cookies" style={{ color: "#e5e7eb" }}>Cookies</Link></li>
           </ul>
         </div>
       </div>
 
-      {/* FOOTER LEGAL COMPLETO */}
       <div
         className="sr-container"
         style={{
@@ -174,11 +56,11 @@ export default function Footer() {
           lineHeight: 1.7,
         }}
       >
-        © {new Date().getFullYear()} MEDIAZION · Centro de Mediación y Resolución de Conflictos
+        © {new Date().getFullYear()} RecurreTuMulta · Asistencia automatizada en trámites administrativos  
         <br />
-        Titular del sitio: LA TALAMANQUINA, S.L. (NIF B75440115)
+        Este sitio no presta asesoramiento jurídico ni garantiza resultados.
         <br />
-        Domicilio: Calle Velázquez, 15 – 28001 Madrid · Email: admin@mediazion.eu
+        www.recurretumulta.eu
       </div>
     </footer>
   );
