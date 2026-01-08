@@ -10,7 +10,7 @@ import Inicio from "./pages/Inicio.jsx";
 import ComoFunciona from "./pages/ComoFunciona.jsx";
 import Precios from "./pages/Precios.jsx";
 import FAQ from "./pages/FAQ.jsx";
-import Contacto from "./pages/Contacto.jsx";
+
 
 // Legal
 import AvisoLegal from "./pages/AvisoLegal.jsx";
@@ -36,7 +36,7 @@ export default function App() {
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/faq" element={<FAQ />} />
-        <Route path="/contacto" element={<Contacto />} />
+        
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
