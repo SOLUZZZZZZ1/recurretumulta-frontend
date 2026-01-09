@@ -1,5 +1,6 @@
-// src/components/ExtractedSummary.jsx
+// src/components/ExtractedSummary.jsx — con botón 'Ver resumen'
 import React from "react";
+import { Link } from "react-router-dom";
 
 function Row({ label, value }) {
   return (
@@ -26,6 +27,8 @@ export default function ExtractedSummary({ data }) {
 
   if (!extracted) return null;
 
+  try { localStorage.setItem("rtm_last_analysis", JSON.stringify(data)); } catch {}
+
   return (
     <div className="sr-card" style={{marginTop:14}}>
       <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
@@ -33,9 +36,10 @@ export default function ExtractedSummary({ data }) {
           <h3 className="sr-h3">Resultado del análisis</h3>
           <div className="sr-small">Expediente interno: <code>{caseId}</code></div>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {extracted.organismo && <Badge>{extracted.organismo}</Badge>}
           {extracted.plazo_recurso_sugerido && <Badge>Plazo: {extracted.plazo_recurso_sugerido}</Badge>}
+          <Link to={`/resumen?case=${encodeURIComponent(caseId)}`} className="sr-btn-secondary">Ver resumen</Link>
         </div>
       </div>
 
@@ -45,10 +49,7 @@ export default function ExtractedSummary({ data }) {
       <Row label="Fecha notificación" value={extracted.fecha_notificacion} />
       <Row label="Fecha documento" value={extracted.fecha_documento} />
       <Row label="Tipo sanción" value={extracted.tipo_sancion} />
-      <Row label="Normativa aplicable"
-           value="Real Decreto Legislativo 6/2015 (Ley de Tráfico); Ley 39/2015            (Procedimiento Administrativo Común)"
-     />
-
+      <Row label="Normativa aplicable (orientativa)" value="RDL 6/2015 (Ley de Tráfico); Ley 39/2015 (Procedimiento Administrativo Común)" />
 
       <div style={{marginTop:10}}>
         <div className="sr-small" style={{fontWeight:800}}>Observaciones</div>
