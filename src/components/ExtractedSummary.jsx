@@ -45,6 +45,10 @@ export default function ExtractedSummary({ data }) {
       <Row label="Fecha notificación" value={extracted.fecha_notificacion} />
       <Row label="Fecha documento" value={extracted.fecha_documento} />
       <Row label="Tipo sanción" value={extracted.tipo_sancion} />
+      <Row label="Normativa aplicable"
+           value="Real Decreto Legislativo 6/2015 (Ley de Tráfico); Ley 39/2015            (Procedimiento Administrativo Común)"
+     />
+
 
       <div style={{marginTop:10}}>
         <div className="sr-small" style={{fontWeight:800}}>Observaciones</div>
