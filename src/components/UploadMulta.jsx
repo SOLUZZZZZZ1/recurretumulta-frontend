@@ -1,15 +1,8 @@
-// src/components/UploadMulta.jsx — RecurreTuMulta
+// src/components/UploadMulta.jsx — RecurreTuMulta (bonito, sin JSON)
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ExtractedSummary from "./ExtractedSummary.jsx";
 
 const API_BASE = "/api";
-
-function pretty(obj) {
-  try {
-    return JSON.stringify(obj, null, 2);
-  } catch {
-    return String(obj);
-  }
-}
 
 export default function UploadMulta({
   endpointAnalyze = "/analyze",
@@ -17,8 +10,8 @@ export default function UploadMulta({
   maxSizeMB = 12,
 }) {
   const inputRef = useRef(null);
-  const [health, setHealth] = useState({ ok: null, msg: "" });
 
+  const [health, setHealth] = useState({ ok: null, msg: "" });
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -26,8 +19,9 @@ export default function UploadMulta({
     uploading: false,
     ok: null,
     msg: "",
-    data: null,
   });
+
+  const [result, setResult] = useState(null);
 
   const maxBytes = useMemo(() => maxSizeMB * 1024 * 1024, [maxSizeMB]);
 
@@ -36,8 +30,8 @@ export default function UploadMulta({
       try {
         const r = await fetch(`${API_BASE}${endpointHealth}`);
         if (!r.ok) throw new Error(`Health ${r.status}`);
-        await r.json().catch(() => ({}));
-        setHealth({ ok: true, msg: "OK" });
+        const data = await r.json().catch(() => ({}));
+        setHealth({ ok: !!data?.ok, msg: "OK" });
       } catch {
         setHealth({ ok: false, msg: "Backend no disponible (todavía)" });
       }
@@ -48,6 +42,11 @@ export default function UploadMulta({
     inputRef.current?.click();
   }
 
+  function resetResult() {
+    setResult(null);
+    setStatus({ uploading: false, ok: null, msg: "" });
+  }
+
   function validateAndSet(f) {
     if (!f) return;
     if (f.size > maxBytes) {
@@ -55,12 +54,12 @@ export default function UploadMulta({
         uploading: false,
         ok: false,
         msg: `El archivo es demasiado grande. Máximo ${maxSizeMB} MB.`,
-        data: null,
       });
+      setResult(null);
       return;
     }
     setFile(f);
-    setStatus({ uploading: false, ok: null, msg: "", data: null });
+    resetResult();
   }
 
   function onDrop(e) {
@@ -76,12 +75,12 @@ export default function UploadMulta({
         uploading: false,
         ok: false,
         msg: "Primero sube una multa (foto o PDF).",
-        data: null,
       });
       return;
     }
 
-    setStatus({ uploading: true, ok: null, msg: "Analizando…", data: null });
+    setStatus({ uploading: true, ok: null, msg: "Analizando…" });
+    setResult(null);
 
     try {
       const fd = new FormData();
@@ -93,6 +92,7 @@ export default function UploadMulta({
       });
 
       const data = await r.json().catch(() => ({}));
+
       if (!r.ok) {
         const err =
           data?.detail ||
@@ -102,19 +102,15 @@ export default function UploadMulta({
         throw new Error(err);
       }
 
-      setStatus({
-        uploading: false,
-        ok: true,
-        msg: "Análisis listo.",
-        data,
-      });
+      setStatus({ uploading: false, ok: true, msg: "Análisis listo." });
+      setResult(data);
     } catch (e) {
       setStatus({
         uploading: false,
         ok: false,
         msg: e?.message || "No se pudo analizar el archivo.",
-        data: null,
       });
+      setResult(null);
     }
   }
 
@@ -144,6 +140,7 @@ export default function UploadMulta({
         </div>
       </div>
 
+      {/* Dropzone */}
       <div
         onDragEnter={(e) => {
           e.preventDefault();
@@ -167,7 +164,9 @@ export default function UploadMulta({
         style={{
           marginTop: 14,
           border: `2px dashed ${dragOver ? "#111827" : "#cbd5e1"}`,
-          background: dragOver ? "rgba(17,24,39,0.04)" : "rgba(255,255,255,0.75)",
+          background: dragOver
+            ? "rgba(17,24,39,0.04)"
+            : "rgba(255,255,255,0.75)",
           borderRadius: 16,
           padding: 18,
           cursor: "pointer",
@@ -177,7 +176,7 @@ export default function UploadMulta({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,.pdf"
+          accept="image/*,.pdf,.docx"
           style={{ display: "none" }}
           onChange={(e) => validateAndSet(e.target.files?.[0])}
         />
@@ -185,10 +184,11 @@ export default function UploadMulta({
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <p className="sr-p" style={{ margin: 0 }}>
-              <strong>Arrastra y suelta</strong> aquí tu multa, o haz clic para seleccionar.
+              <strong>Arrastra y suelta</strong> aquí tu multa, o haz clic para
+              seleccionar.
             </p>
             <p className="sr-small" style={{ marginTop: 6, opacity: 0.85 }}>
-              Formatos: JPG/PNG/WebP/PDF
+              Formatos: JPG/PNG/WebP/PDF/DOCX
             </p>
           </div>
 
@@ -204,6 +204,7 @@ export default function UploadMulta({
           </button>
         </div>
 
+        {/* File selected */}
         {file && (
           <div style={{ marginTop: 12 }} className="sr-card">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -220,7 +221,7 @@ export default function UploadMulta({
                 onClick={(e) => {
                   e.stopPropagation();
                   setFile(null);
-                  setStatus({ uploading: false, ok: null, msg: "", data: null });
+                  resetResult();
                   if (inputRef.current) inputRef.current.value = "";
                 }}
               >
@@ -231,7 +232,11 @@ export default function UploadMulta({
         )}
       </div>
 
-      <div className="sr-cta-row" style={{ marginTop: 14, justifyContent: "flex-start" }}>
+      {/* Actions */}
+      <div
+        className="sr-cta-row"
+        style={{ marginTop: 14, justifyContent: "flex-start" }}
+      >
         <button
           type="button"
           className="sr-btn-primary"
@@ -242,33 +247,20 @@ export default function UploadMulta({
         </button>
 
         <span className="sr-small" style={{ alignSelf: "center" }}>
-          {status.ok === true && <span style={{ color: "#166534" }}>✅ {status.msg}</span>}
-          {status.ok === false && <span style={{ color: "#991b1b" }}>❌ {status.msg}</span>}
-          {status.ok === null && status.msg && <span style={{ opacity: 0.85 }}>{status.msg}</span>}
+          {status.ok === true && (
+            <span style={{ color: "#166534" }}>✅ {status.msg}</span>
+          )}
+          {status.ok === false && (
+            <span style={{ color: "#991b1b" }}>❌ {status.msg}</span>
+          )}
+          {status.ok === null && status.msg && (
+            <span style={{ opacity: 0.85 }}>{status.msg}</span>
+          )}
         </span>
       </div>
 
-      {status.data && (
-        <div style={{ marginTop: 14 }}>
-          <h3 className="sr-h3" style={{ marginBottom: 8 }}>
-            Resultado del análisis
-          </h3>
-          <pre
-            className="sr-p"
-            style={{
-              whiteSpace: "pre-wrap",
-              fontSize: 13,
-              background: "#0b1220",
-              color: "#e5e7eb",
-              padding: 14,
-              borderRadius: 14,
-              overflowX: "auto",
-            }}
-          >
-            {pretty(status.data)}
-          </pre>
-        </div>
-      )}
+      {/* Pretty result */}
+      {result && <ExtractedSummary data={result} />}
     </div>
   );
 }
