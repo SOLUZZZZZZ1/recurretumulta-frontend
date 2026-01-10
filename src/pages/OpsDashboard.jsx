@@ -296,7 +296,11 @@ export default function OpsDashboard() {
                 Marcar como presentado
               </button>
 
-              <input type="file" onChange={(e) צור => setJustificante(e.target.files?.[0] || null)} className="text-sm" />
+              <input
+                type="file"
+                onChange={(e) => setJustificante(e.target.files?.[0] || null)}
+                className="text-sm"
+              />
 
               <button
                 onClick={uploadJustificante}
