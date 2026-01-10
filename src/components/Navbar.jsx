@@ -13,12 +13,7 @@ export default function Navbar() {
             alt="RTM"
             style={{ height: 34, width: 34, display: "block" }}
           />
-
-          {/* Wordmark (pequeño y limpio) */}
-          <span
-            className="sr-wordmark sr-hidden-mobile"
-            style={{ letterSpacing: "0.02em" }}
-          >
+          <span className="sr-wordmark sr-hidden-mobile" style={{ letterSpacing: "0.02em" }}>
             RecurreTuMulta
           </span>
         </Link>
@@ -41,8 +36,8 @@ export default function Navbar() {
             Contacto
           </NavLink>
 
-          {/* CTA */}
-          <Link to="/" className="sr-btn-primary" style={{ marginLeft: 12 }}>
+          {/* ✅ Solo este en verde */}
+          <Link to="/" className="sr-btn-cta" style={{ marginLeft: 12 }}>
             Subir multa
           </Link>
         </nav>
