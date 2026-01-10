@@ -2,6 +2,8 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ResumenExpediente from "./pages/ResumenExpediente.jsx";
+import OpsDashboard from "./pages/OpsDashboard.jsx";
+
 
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -38,6 +40,8 @@ export default function App() {
         <Route path="/precios" element={<Precios />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
+        <Route path="/ops" element={<OpsDashboard />} />
+
         
 
         {/* Legal */}
