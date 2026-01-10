@@ -6,7 +6,7 @@
 :root{ --muted:#6b7280; --ink:#1e1e1e }
 
 /* ===== NAVBAR (layout bloqueado) ===== */
-.sr-navbar{ position:sticky; top:0; z-index:50; background:#0f172a; color:#fff; border-bottom:1px solid rgba(255,255,255,.08) }
+.sr-navbar{ position:sticky; top:0; z-index:50; background:#1f3a5f; color:#fff; border-bottom:1px solid rgba(255,255,255,.08) }
 .sr-row{ max-width:1100px; margin:0 auto; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:16px }
 .sr-brand{ display:flex; align-items:center; gap:10px; text-decoration:none }
 .sr-wordmark{ color:#fff; font-weight:800; letter-spacing:.08em; font-size:20px; line-height:1 }
