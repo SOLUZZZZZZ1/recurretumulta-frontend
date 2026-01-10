@@ -3,6 +3,7 @@ import React, { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
 import GenerateRecursoDGT from "../components/GenerateRecursoDGT.jsx";
+import PagarPresentar from "../components/PagarPresentar.jsx";
 
 function useQuery() {
   const { search } = useLocation();
@@ -78,6 +79,7 @@ export default function ResumenExpediente() {
 
         <GenerateRecursoDGT caseId={caseId} suggestedTipo={suggestedTipo} />
       </main>
+      <PagarPresentar caseId={caseId} productDefault="DGT_PRESENTACION" />
     </>
   );
 }
