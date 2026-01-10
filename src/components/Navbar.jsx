@@ -4,11 +4,25 @@ export default function Navbar() {
   const tab = ({ isActive }) => "sr-tab" + (isActive ? " active" : "");
 
   return (
-    <header className="sr-navbar">
+    <header
+      className="sr-navbar"
+      style={{
+        backgroundColor: "#1f3a5f", // azul confianza
+        color: "#ffffff",
+      }}
+    >
       <div className="sr-row">
-        {/* Marca */}
-        <Link to="/" aria-label="RecurreTuMulta" className="sr-brand">
-          <span className="sr-brand-title">RECURRE TU MULTA</span>
+        {/* Marca: solo icono RTM */}
+        <Link to="/" aria-label="RTM · RecurreTuMulta" className="sr-brand">
+          <img
+            src="/rtm-64.png"
+            alt="RTM"
+            style={{
+              height: 34,
+              width: 34,
+              display: "block",
+            }}
+          />
         </Link>
 
         {/* Navegación */}
@@ -33,14 +47,22 @@ export default function Navbar() {
           <Link
             to="/"
             className="sr-btn-primary"
-            style={{ marginLeft: 8 }}
+            style={{
+              marginLeft: 12,
+              backgroundColor: "#2bb673", // verde RTM
+              borderColor: "#2bb673",
+            }}
           >
             Subir multa
           </Link>
         </nav>
       </div>
 
-      <div className="sr-navbar-underline" />
+      {/* Línea inferior opcional (puede eliminarse si no te gusta) */}
+      <div
+        className="sr-navbar-underline"
+        style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+      />
     </header>
   );
 }
