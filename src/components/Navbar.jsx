@@ -4,25 +4,23 @@ export default function Navbar() {
   const tab = ({ isActive }) => "sr-tab" + (isActive ? " active" : "");
 
   return (
-    <header
-      className="sr-navbar"
-      style={{
-        backgroundColor: "#1f3a5f", // azul confianza
-        color: "#ffffff",
-      }}
-    >
+    <header className="sr-navbar">
       <div className="sr-row">
-        {/* Marca: solo icono RTM */}
+        {/* Marca */}
         <Link to="/" aria-label="RTM · RecurreTuMulta" className="sr-brand">
           <img
             src="/rtm-64.png"
             alt="RTM"
-            style={{
-              height: 34,
-              width: 34,
-              display: "block",
-            }}
+            style={{ height: 34, width: 34, display: "block" }}
           />
+
+          {/* Wordmark (pequeño y limpio) */}
+          <span
+            className="sr-wordmark sr-hidden-mobile"
+            style={{ letterSpacing: "0.02em" }}
+          >
+            RecurreTuMulta
+          </span>
         </Link>
 
         {/* Navegación */}
@@ -44,25 +42,13 @@ export default function Navbar() {
           </NavLink>
 
           {/* CTA */}
-          <Link
-            to="/"
-            className="sr-btn-primary"
-            style={{
-              marginLeft: 12,
-              backgroundColor: "#2bb673", // verde RTM
-              borderColor: "#2bb673",
-            }}
-          >
+          <Link to="/" className="sr-btn-primary" style={{ marginLeft: 12 }}>
             Subir multa
           </Link>
         </nav>
       </div>
 
-      {/* Línea inferior opcional (puede eliminarse si no te gusta) */}
-      <div
-        className="sr-navbar-underline"
-        style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
-      />
+      <div className="sr-navbar-underline" />
     </header>
   );
 }
