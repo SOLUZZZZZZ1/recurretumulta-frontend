@@ -17,7 +17,7 @@ export default function Footer() {
         style={{
           display: "grid",
           gap: 20,
-          gridTemplateColumns: "repeat(2, minmax(0,1fr))",
+          gridTemplateColumns: "repeat(3, minmax(0,1fr))",
         }}
       >
         {/* RECURRE TU MULTA */}
@@ -26,11 +26,49 @@ export default function Footer() {
             RecurreTuMulta
           </h4>
           <ul style={{ listStyle: "none", padding: 0, lineHeight: 1.9 }}>
-            <li><Link to="/" style={{ color: "#e5e7eb" }}>Inicio</Link></li>
-            <li><Link to="/como-funciona" style={{ color: "#e5e7eb" }}>Cómo funciona</Link></li>
-            <li><Link to="/precios" style={{ color: "#e5e7eb" }}>Precios</Link></li>
-            <li><Link to="/contacto" style={{ color: "#e5e7eb" }}>Contacto</Link></li>
+            <li>
+              <Link to="/" style={{ color: "#e5e7eb" }}>
+                Inicio
+              </Link>
+            </li>
+            <li>
+              <Link to="/como-funciona" style={{ color: "#e5e7eb" }}>
+                Cómo funciona
+              </Link>
+            </li>
+            <li>
+              <Link to="/precios" style={{ color: "#e5e7eb" }}>
+                Precios
+              </Link>
+            </li>
+            <li>
+              <Link to="/contacto" style={{ color: "#e5e7eb" }}>
+                Contacto
+              </Link>
+            </li>
           </ul>
+        </div>
+
+        {/* CONTACTO */}
+        <div>
+          <h4 style={{ marginBottom: 8, fontSize: 16, fontWeight: 800 }}>
+            Contacto
+          </h4>
+          <p style={{ lineHeight: 1.7, color: "#e5e7eb", margin: 0 }}>
+            Para cualquier consulta sobre el uso de la plataforma, escríbenos a:
+          </p>
+          <p style={{ marginTop: 6 }}>
+            <a
+              href="mailto:soporte@recurretumulta.eu"
+              style={{ color: "#2bb673", fontWeight: 700 }}
+            >
+              soporte@recurretumulta.eu
+            </a>
+          </p>
+          <p style={{ fontSize: 12, opacity: 0.85, lineHeight: 1.6 }}>
+            No ofrecemos asesoramiento jurídico. Este canal es exclusivamente
+            para consultas técnicas o de funcionamiento del servicio.
+          </p>
         </div>
 
         {/* LEGAL */}
@@ -39,9 +77,21 @@ export default function Footer() {
             Legal
           </h4>
           <ul style={{ listStyle: "none", padding: 0, lineHeight: 1.9 }}>
-            <li><Link to="/aviso-legal" style={{ color: "#e5e7eb" }}>Aviso legal</Link></li>
-            <li><Link to="/privacidad" style={{ color: "#e5e7eb" }}>Privacidad</Link></li>
-            <li><Link to="/cookies" style={{ color: "#e5e7eb" }}>Cookies</Link></li>
+            <li>
+              <Link to="/aviso-legal" style={{ color: "#e5e7eb" }}>
+                Aviso legal
+              </Link>
+            </li>
+            <li>
+              <Link to="/privacidad" style={{ color: "#e5e7eb" }}>
+                Privacidad
+              </Link>
+            </li>
+            <li>
+              <Link to="/cookies" style={{ color: "#e5e7eb" }}>
+                Cookies
+              </Link>
+            </li>
           </ul>
         </div>
       </div>
@@ -49,14 +99,15 @@ export default function Footer() {
       <div
         className="sr-container"
         style={{
-          marginTop: 20,
+          marginTop: 24,
           fontSize: 12,
           opacity: 0.9,
           textAlign: "center",
           lineHeight: 1.7,
         }}
       >
-        © {new Date().getFullYear()} RecurreTuMulta · Asistencia automatizada en trámites administrativos  
+        © {new Date().getFullYear()} RecurreTuMulta · Asistencia automatizada en
+        trámites administrativos
         <br />
         Este sitio no presta asesoramiento jurídico ni garantiza resultados.
         <br />
