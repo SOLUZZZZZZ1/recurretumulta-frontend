@@ -27,9 +27,31 @@
 .sr-hero-title{ font-size:30px; font-weight:700; color:var(--ink) }
 .sr-hero-sub{ margin-top:8px; color:#4b5563 }
 .sr-cta-row{ margin-top:18px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap }
-.sr-btn-primary{ background:#111827; color:#fff; padding:12px 18px; border-radius:10px; text-decoration:none }
+
+/* ✅ BOTÓN PRINCIPAL = AVANZAR (VERDE RTM) */
+.sr-btn-primary{
+  background:#2bb673;
+  color:#fff;
+  padding:12px 18px;
+  border-radius:10px;
+  text-decoration:none;
+  font-weight:700;
+  border:none;
+  cursor:pointer;
+  transition:opacity .15s ease, transform .05s ease;
+}
 .sr-btn-primary:hover{ opacity:.92 }
-.sr-btn-secondary{ background:#e5e7eb; color:#111827; padding:12px 18px; border-radius:10px; text-decoration:none }
+.sr-btn-primary:active{ transform:translateY(1px) }
+
+/* Botón secundario */
+.sr-btn-secondary{
+  background:#e5e7eb;
+  color:#111827;
+  padding:12px 18px;
+  border-radius:10px;
+  text-decoration:none;
+  font-weight:600;
+}
 .sr-btn-secondary:hover{ background:#d1d5db }
 
 /* ===== UTILIDADES ===== */
