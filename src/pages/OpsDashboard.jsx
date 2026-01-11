@@ -251,10 +251,10 @@ export default function OpsDashboard() {
                   <td className="p-2">
                     <button
                       className="text-xs underline"
-                      onClick={async () => {
-                        setSelectedCase(c.case_id);
-                        await loadCaseExtras(c.case_id);
-                      }}
+                      <Link to={`/ops/case/${c.case_id}`} className="text-xs                        underline">
+                       Abrir
+                      </Link>
+
                     >
                       Abrir
                     </button>
