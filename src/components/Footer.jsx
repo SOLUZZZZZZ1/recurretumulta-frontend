@@ -1,7 +1,16 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export default function Footer() {
+  const { search, hash } = useLocation();
+
+  // Visible solo si detecta ops=1 en query (compatibilidad con HashRouter)
+  const q1 = new URLSearchParams(search);
+  const q2 = new URLSearchParams(window.location.search);
+  const q3 = new URLSearchParams(hash?.split("?")[1] || "");
+  const showOps =
+    q1.get("ops") === "1" || q2.get("ops") === "1" || q3.get("ops") === "1";
+
   return (
     <footer
       className="mt-12"
@@ -46,6 +55,15 @@ export default function Footer() {
                 Contacto
               </Link>
             </li>
+
+            {/* 🔒 Acceso OPS solo si ops=1 */}
+            {showOps && (
+              <li style={{ marginTop: 6 }}>
+                <Link to="/ops" style={{ color: "#2bb673", fontWeight: 800 }}>
+                  Operador
+                </Link>
+              </li>
+            )}
           </ul>
         </div>
 
