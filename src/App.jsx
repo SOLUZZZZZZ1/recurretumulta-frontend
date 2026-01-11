@@ -2,6 +2,7 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ResumenExpediente from "./pages/ResumenExpediente.jsx";
+import PagoOk from "./pages/PagoOk.jsx";
 
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -14,8 +15,6 @@ import FAQ from "./pages/FAQ.jsx";
 
 // Operador
 import OpsDashboard from "./pages/OpsDashboard.jsx";
-import OpsCaseDetail from "./components/OpsCaseDetail.jsx";
-
 
 // Legal
 import AvisoLegal from "./pages/AvisoLegal.jsx";
@@ -43,10 +42,10 @@ export default function App() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
 
-        {/* Operador */}
+        
+        <Route path="/pago-ok" element={<PagoOk />} />
+{/* Operador */}
         <Route path="/ops" element={<OpsDashboard />} />
-        <Route path="/ops/case/:caseId" element={<OpsCaseDetail />} />
-
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
