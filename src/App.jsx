@@ -14,7 +14,7 @@ import FAQ from "./pages/FAQ.jsx";
 
 // Operador
 import OpsDashboard from "./pages/OpsDashboard.jsx";
-import OpsCaseDetail from "./pages/OpsCaseDetail.jsx";
+import OpsCaseDetail from "./components/OpsCaseDetail.jsx";
 
 
 // Legal
