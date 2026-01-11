@@ -2,7 +2,6 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ResumenExpediente from "./pages/ResumenExpediente.jsx";
-import PagoOk from "./pages/PagoOk.jsx";
 
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -12,6 +11,10 @@ import Inicio from "./pages/Inicio.jsx";
 import ComoFunciona from "./pages/ComoFunciona.jsx";
 import Precios from "./pages/Precios.jsx";
 import FAQ from "./pages/FAQ.jsx";
+
+// Pago (post-pago: datos + autorización)
+import PagoOk from "./pages/PagoOk.jsx";
+import PagoCancel from "./pages/PagoCancel.jsx";
 
 // Operador
 import OpsDashboard from "./pages/OpsDashboard.jsx";
@@ -42,9 +45,11 @@ export default function App() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
 
-        
+        {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
-{/* Operador */}
+        <Route path="/pago-cancel" element={<PagoCancel />} />
+
+        {/* Operador */}
         <Route path="/ops" element={<OpsDashboard />} />
 
         {/* Legal */}
