@@ -1,4 +1,4 @@
-// src/components/PagarPresentar.jsx — no repite pago si ya está pagado
+// PagarPresentar.jsx — lógica final sin bucles
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -39,10 +39,9 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
       });
 
       if (data.already_paid) {
-        navigate(`/pago-ok?case=${encodeURIComponent(caseId)}`);
+        navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
         return;
       }
-
       window.location.href = data.url;
     } catch (e) {
       setErr(e.message);
@@ -51,14 +50,26 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
     }
   }
 
-  if (status?.payment_status === "paid") {
+  // 1) No pagado
+  if (!status || status.payment_status !== "paid") {
+    return (
+      <div className="sr-card mt-4">
+        <h3 className="sr-h3">Presentar por nosotros</h3>
+        <p className="sr-p">Pagas solo si presentamos el recurso en tu nombre.</p>
+        {err && <div className="sr-small" style={{ color: "#991b1b" }}>❌ {err}</div>}
+        <button className="sr-btn-primary" onClick={pagar} disabled={loading}>
+          {loading ? "Redirigiendo…" : "Pagar y presentar"}
+        </button>
+      </div>
+    );
+  }
+
+  // 2) Pagado pero NO autorizado → ir UNA sola vez a PagoOk
+  if (status.payment_status === "paid" && status.authorized === false) {
     return (
       <div className="sr-card mt-4">
         <h3 className="sr-h3">Pago confirmado</h3>
-        <p className="sr-p">
-          Hemos recibido tu pago correctamente. Continúa con el último paso para autorizar la
-          presentación.
-        </p>
+        <p className="sr-p">Último paso: confirmar datos y autorizar la presentación.</p>
         <button
           className="sr-btn-primary"
           onClick={() => navigate(`/pago-ok?case=${encodeURIComponent(caseId)}`)}
@@ -69,17 +80,16 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
     );
   }
 
+  // 3) Pagado Y autorizado → nunca volver a PagoOk
   return (
     <div className="sr-card mt-4">
-      <h3 className="sr-h3">Presentar por nosotros</h3>
-      <p className="sr-p">
-        Pagas solo si presentamos el recurso en tu nombre y te entregamos el justificante oficial.
-      </p>
-
-      {err && <div className="sr-small" style={{ color: "#991b1b" }}>❌ {err}</div>}
-
-      <button className="sr-btn-primary" onClick={pagar} disabled={loading}>
-        {loading ? "Redirigiendo…" : "Pagar y presentar"}
+      <h3 className="sr-h3">Listo para presentar</h3>
+      <p className="sr-p">Pago y autorización registrados. Nuestro equipo procederá.</p>
+      <button
+        className="sr-btn-secondary"
+        onClick={() => navigate(`/resumen?case=${encodeURIComponent(caseId)}`)}
+      >
+        Ver estado del expediente
       </button>
     </div>
   );
