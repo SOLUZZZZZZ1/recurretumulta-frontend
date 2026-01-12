@@ -55,10 +55,17 @@ export default function PagoOk() {
       // Si aún no existe, guardamos en localStorage como fallback.
       try {
         await fetchJson(`${API}/cases/${encodeURIComponent(caseId)}/details`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    full_name: form.full_name.trim(),
+    dni_nie: form.dni.trim().toUpperCase(),
+    domicilio_notif: form.address.trim(),
+    email: form.email.trim(),
+    telefono: form.phone?.trim() ? form.phone.trim() : null,
+  }),
+});
+
       } catch {
         localStorage.setItem(`rtm_details_${caseId}`, JSON.stringify(form));
       }
