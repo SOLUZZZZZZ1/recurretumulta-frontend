@@ -1,11 +1,11 @@
-// src/components/UploadMulta.jsx — Subir y analizar documento (abre el expediente)
+// src/components/UploadDocumento.jsx — Subir y analizar documento (abre el expediente)
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ExtractedSummary from "./ExtractedSummary.jsx";
 
 const API_BASE = "/api";
 
-export default function UploadMulta({
+export default function UploadDocumento({
   endpointAnalyze = "/analyze",
   endpointHealth = "/health",
   maxSizeMB = 12,
@@ -104,13 +104,13 @@ export default function UploadMulta({
         throw new Error(err);
       }
 
-      // Guardar resultado para el resumen
+      // Guardar el resultado para el resumen
       localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
 
       setStatus({ uploading: false, ok: true, msg: "Documento analizado correctamente." });
       setResult(data);
 
-      // Abrir el expediente automáticamente si viene case_id
+      // Abrir expediente automáticamente si viene case_id
       const caseId =
         data?.case_id ||
         data?.caseId ||
@@ -201,8 +201,7 @@ export default function UploadMulta({
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <p className="sr-p" style={{ margin: 0 }}>
-              <strong>Arrastra y suelta</strong> aquí tu documento, o haz clic para
-              seleccionar.
+              <strong>Arrastra y suelta</strong> aquí tu documento, o haz clic para seleccionar.
             </p>
             <p className="sr-small" style={{ marginTop: 6, opacity: 0.85 }}>
               Formatos: JPG/PNG/WebP/PDF/DOCX
@@ -250,10 +249,7 @@ export default function UploadMulta({
       </div>
 
       {/* Actions */}
-      <div
-        className="sr-cta-row"
-        style={{ marginTop: 14, justifyContent: "flex-start" }}
-      >
+      <div className="sr-cta-row" style={{ marginTop: 14, justifyContent: "flex-start" }}>
         <button
           type="button"
           className="sr-btn-primary"
@@ -264,19 +260,13 @@ export default function UploadMulta({
         </button>
 
         <span className="sr-small" style={{ alignSelf: "center" }}>
-          {status.ok === true && (
-            <span style={{ color: "#166534" }}>✅ {status.msg}</span>
-          )}
-          {status.ok === false && (
-            <span style={{ color: "#991b1b" }}>❌ {status.msg}</span>
-          )}
-          {status.ok === null && status.msg && (
-            <span style={{ opacity: 0.85 }}>{status.msg}</span>
-          )}
+          {status.ok === true && <span style={{ color: "#166534" }}>✅ {status.msg}</span>}
+          {status.ok === false && <span style={{ color: "#991b1b" }}>❌ {status.msg}</span>}
+          {status.ok === null && status.msg && <span style={{ opacity: 0.85 }}>{status.msg}</span>}
         </span>
       </div>
 
-      {/* Pretty result (si no redirige por caseId, al menos se ve aquí) */}
+      {/* Pretty result (si no redirige, al menos se ve aquí) */}
       {result && <ExtractedSummary data={result} />}
     </div>
   );
