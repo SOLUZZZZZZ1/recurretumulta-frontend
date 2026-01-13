@@ -1,6 +1,6 @@
-// src/pages/Inicio.jsx — Home (copy: documento)
+// src/pages/Inicio.jsx — Home (usa UploadDocumento)
 import Seo from "../components/Seo.jsx";
-import UploadMulta from "../components/UploadMulta.jsx";
+import UploadDocumento from "../components/UploadDocumento.jsx";
 import { Link } from "react-router-dom";
 
 export default function Inicio() {
@@ -31,7 +31,7 @@ export default function Inicio() {
           </div>
 
           <div id="subir" style={{ marginTop: 18 }}>
-            <UploadMulta />
+            <UploadDocumento endpointAnalyze="/analyze" endpointHealth="/health" maxSizeMB={12} />
           </div>
         </div>
       </main>
