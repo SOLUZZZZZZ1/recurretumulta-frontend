@@ -1,6 +1,5 @@
-// src/pages/Inicio.jsx — Home (usa UploadDocumento)
 import Seo from "../components/Seo.jsx";
-import UploadDocumento from "../components/UploadDocumento.jsx";
+import UploadExpediente from "../components/UploadExpediente.jsx";
 import { Link } from "react-router-dom";
 
 export default function Inicio() {
@@ -8,7 +7,7 @@ export default function Inicio() {
     <>
       <Seo
         title="RecurreTuMulta · Asistencia administrativa automatizada"
-        description="Sube tu documento y analizamos el expediente para preparar el recurso administrativo adecuado."
+        description="Sube hasta 5 documentos y analizamos el expediente para preparar el recurso adecuado."
         canonical="https://www.recurretumulta.eu/"
       />
 
@@ -17,21 +16,16 @@ export default function Inicio() {
           <h1 className="sr-hero-title">Recurre tu trámite en minutos</h1>
 
           <p className="sr-hero-sub">
-            Sube tu <strong>documento</strong> (foto o PDF) y analizamos el expediente para preparar
-            el recurso administrativo adecuado.
+            Sube tu <strong>expediente</strong> (hasta 5 documentos). El sistema reconstruirá el hilo del procedimiento y propondrá el recurso correcto.
           </p>
 
           <div className="sr-cta-row">
-            <a href="#subir" className="sr-btn-primary">
-              Subir documento
-            </a>
-            <Link to="/como-funciona" className="sr-btn-secondary">
-              Ver cómo funciona
-            </Link>
+            <a href="#subir" className="sr-btn-primary">Subir documentos</a>
+            <Link to="/como-funciona" className="sr-btn-secondary">Ver cómo funciona</Link>
           </div>
 
           <div id="subir" style={{ marginTop: 18 }}>
-            <UploadDocumento endpointAnalyze="/analyze" endpointHealth="/health" maxSizeMB={12} />
+            <UploadExpediente maxSizeMB={12} />
           </div>
         </div>
       </main>
