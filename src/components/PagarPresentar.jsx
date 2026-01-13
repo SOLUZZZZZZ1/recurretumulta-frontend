@@ -1,6 +1,5 @@
-// PagarPresentar.jsx — lógica final sin bucles
+// PagarPresentar.jsx — FIX HashRouter (sin bucles, navegación robusta)
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 const API = "/api";
 
@@ -12,7 +11,6 @@ async function fetchJson(url, options = {}) {
 }
 
 export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTACION" }) {
-  const navigate = useNavigate();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -39,9 +37,10 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
       });
 
       if (data.already_paid) {
-        navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
+        window.location.href = `/#/resumen?case=${encodeURIComponent(caseId)}`;
         return;
       }
+
       window.location.href = data.url;
     } catch (e) {
       setErr(e.message);
@@ -50,7 +49,7 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
     }
   }
 
-  // 1) No pagado
+  // 1) NO PAGADO
   if (!status || status.payment_status !== "paid") {
     return (
       <div className="sr-card mt-4">
@@ -64,7 +63,7 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
     );
   }
 
-  // 2) Pagado pero NO autorizado → ir UNA sola vez a PagoOk
+  // 2) PAGADO PERO NO AUTORIZADO → IR A PAGO-OK UNA VEZ
   if (status.payment_status === "paid" && status.authorized === false) {
     return (
       <div className="sr-card mt-4">
@@ -72,7 +71,9 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
         <p className="sr-p">Último paso: confirmar datos y autorizar la presentación.</p>
         <button
           className="sr-btn-primary"
-          onClick={() => navigate(`/pago-ok?case=${encodeURIComponent(caseId)}`)}
+          onClick={() => {
+            window.location.href = `/#/pago-ok?case=${encodeURIComponent(caseId)}`;
+          }}
         >
           Continuar
         </button>
@@ -80,14 +81,16 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
     );
   }
 
-  // 3) Pagado Y autorizado → nunca volver a PagoOk
+  // 3) PAGADO Y AUTORIZADO → NO VOLVER A PAGO-OK NUNCA
   return (
     <div className="sr-card mt-4">
       <h3 className="sr-h3">Listo para presentar</h3>
       <p className="sr-p">Pago y autorización registrados. Nuestro equipo procederá.</p>
       <button
         className="sr-btn-secondary"
-        onClick={() => navigate(`/resumen?case=${encodeURIComponent(caseId)}`)}
+        onClick={() => {
+          window.location.href = `/#/resumen?case=${encodeURIComponent(caseId)}`;
+        }}
       >
         Ver estado del expediente
       </button>
