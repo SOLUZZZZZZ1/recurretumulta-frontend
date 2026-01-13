@@ -87,13 +87,14 @@ export default function PagarPresentar({ caseId, productDefault = "DGT_PRESENTAC
       <h3 className="sr-h3">Listo para presentar</h3>
       <p className="sr-p">Pago y autorización registrados. Nuestro equipo procederá.</p>
       <button
-        className="sr-btn-secondary"
-        onClick={() => {
-          window.location.href = `/#/resumen?case=${encodeURIComponent(caseId)}`;
-        }}
-      >
-        Ver estado del expediente
-      </button>
+  className="sr-btn-secondary"
+  onClick={() => {
+    window.location.href = `/#/ops/case/${encodeURIComponent(caseId)}`;
+  }}
+>
+  Ver estado del expediente
+</button>
+
     </div>
   );
 }
