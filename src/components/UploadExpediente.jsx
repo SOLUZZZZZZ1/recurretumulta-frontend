@@ -36,7 +36,6 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
     const incoming = Array.from(fileList || []);
     if (!incoming.length) return;
 
-    // Límite
     const space = MAX_FILES - files.length;
     const sliced = incoming.slice(0, Math.max(0, space));
 
@@ -44,7 +43,6 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
       setMsg(`Máximo ${MAX_FILES} documentos por expediente. Se han añadido solo los primeros.`);
     }
 
-    // Validar tamaño
     const valid = [];
     for (const f of sliced) {
       if (f.size > maxBytes) {
@@ -76,39 +74,68 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
       return;
     }
 
-    // 🚧 BACKEND aún no soporta multi:
-    if (files.length > 1) {
-      setMsg(
-        "Has subido varios documentos. El análisis multi-expediente está en activación (fase backend). " +
-          "De momento, analiza 1 documento o espera a que activemos el endpoint multi."
-      );
-      return;
-    }
-
     setLoading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", files[0].file);
 
-      const data = await fetchJson(`${API}/analyze`, {
+    try {
+      // ✅ 1 archivo → /analyze (como siempre)
+      if (files.length === 1) {
+        const fd = new FormData();
+        fd.append("file", files[0].file);
+
+        const data = await fetchJson(`${API}/analyze`, {
+          method: "POST",
+          body: fd,
+        });
+
+        localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
+
+        const caseId =
+          data?.case_id ||
+          data?.caseId ||
+          data?.id ||
+          data?.extracted?.case_id ||
+          data?.extracted?.id;
+
+        if (!caseId) throw new Error("No se pudo obtener el número de expediente.");
+        navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
+        return;
+      }
+
+      // ✅ 2–5 archivos → /analyze/expediente (backend multi-documento)
+      const fdMulti = new FormData();
+      files.forEach((f) => fdMulti.append("files", f.file)); // clave: "files"
+
+      const dataMulti = await fetchJson(`${API}/analyze/expediente`, {
         method: "POST",
-        body: fd,
+        body: fdMulti,
       });
 
-      localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
+      const caseId = dataMulti?.case_id;
+      if (!caseId) throw new Error("El backend no devolvió case_id para el expediente.");
 
-      const caseId =
-        data?.case_id || data?.caseId || data?.id || data?.extracted?.case_id || data?.extracted?.id;
+      // Guardamos un resumen mínimo para que /resumen tenga algo mientras
+      localStorage.setItem(
+        "rtm_last_analysis",
+        JSON.stringify({
+          case_id: caseId,
+          extracted: {
+            extracted: {
+              organismo: null,
+              expediente_ref: null,
+              observaciones:
+                "Expediente multi-documento creado. Ya puedes continuar y, si procede, ejecutar Modo Dios desde OPS.",
+              tipo_recurso_sugerido: "Expediente multi-documento",
+              normativa_aplicable: "Ley 39/2015",
+            },
+          },
+          documents: dataMulti?.documents || [],
+        })
+      );
 
-      setMsg("Documento analizado correctamente.");
-
-      if (caseId) {
-        navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
-      } else {
-        setMsg("Documento analizado, pero no se pudo abrir el expediente automáticamente.");
-      }
+      setMsg("✅ Expediente creado. Abriendo resumen…");
+      navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
     } catch (e) {
-      setMsg(e.message || "Error al analizar el documento.");
+      setMsg(e?.message || "Error al analizar el expediente.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +160,6 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
         </div>
       </div>
 
-      {/* Zona drop */}
       <div
         onDragEnter={(e) => {
           e.preventDefault();
@@ -200,7 +226,6 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
         </div>
       </div>
 
-      {/* Lista de documentos */}
       {files.length > 0 && (
         <div className="sr-card" style={{ marginTop: 12 }}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -234,11 +259,7 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
                   </div>
                 </div>
 
-                <button
-                  className="sr-btn-secondary"
-                  type="button"
-                  onClick={() => removeFile(f.id)}
-                >
+                <button className="sr-btn-secondary" type="button" onClick={() => removeFile(f.id)}>
                   Quitar
                 </button>
               </div>
@@ -253,15 +274,17 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
         </div>
       )}
 
-      {/* Acciones */}
       <div className="sr-cta-row" style={{ marginTop: 14, justifyContent: "flex-start" }}>
         <button className="sr-btn-primary" onClick={analyze} disabled={loading}>
-          {loading ? "Analizando…" : labelBtn}
+          {loading ? "Procesando…" : labelBtn}
         </button>
 
         {msg && (
-          <span className="sr-small" style={{ alignSelf: "center", color: msg.startsWith("Documento analizado") ? "#166534" : "#991b1b" }}>
-            {msg.startsWith("Documento analizado") ? "✅" : "ℹ️"} {msg}
+          <span
+            className="sr-small"
+            style={{ alignSelf: "center", color: msg.startsWith("✅") ? "#166534" : "#991b1b" }}
+          >
+            {msg}
           </span>
         )}
       </div>
