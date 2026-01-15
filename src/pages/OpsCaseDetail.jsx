@@ -23,41 +23,43 @@ export default function OpsCaseDetail() {
   const { caseId } = useParams();
 
   const [documents, setDocuments] = useState([]);
-  const [events, setEvents] = useState([]);
   const [aiResult, setAiResult] = useState(null);
 
-  const [loadingAI, setLoadingAI] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+  const [runningAI, setRunningAI] = useState(false);
+  const [error, setError] = useState("");
 
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
 
-  async function loadAll() {
-    setErr("");
+  async function loadCase() {
+    setError("");
     if (!token) {
-      setErr("Falta token de operador. Entra en /#/ops e inicia sesión con PIN.");
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
       return;
     }
 
     setLoading(true);
     try {
-      const docsRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers });
-      const evRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers });
+      const docsRes = await fetchJson(
+        `${API}/ops/cases/${encodeURIComponent(caseId)}/documents`,
+        { headers }
+      );
+      const evRes = await fetchJson(
+        `${API}/ops/cases/${encodeURIComponent(caseId)}/events`,
+        { headers }
+      );
 
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
 
       setDocuments(docs);
-      setEvents(evs);
 
-      const ai = evs.find((e) => e.type === "ai_expediente_result");
-      if (ai?.payload) setAiResult(ai.payload);
-      else setAiResult(null);
+      const aiEvent = evs.find((e) => e.type === "ai_expediente_result");
+      setAiResult(aiEvent?.payload || null);
     } catch (e) {
-      setErr(e.message || "Error cargando expediente");
+      setError(e.message || "Error cargando expediente");
       setDocuments([]);
-      setEvents([]);
       setAiResult(null);
     } finally {
       setLoading(false);
@@ -65,18 +67,142 @@ export default function OpsCaseDetail() {
   }
 
   useEffect(() => {
-    loadAll();
+    loadCase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function runAI() {
-    setErr("");
+    setError("");
     if (!token) {
-      setErr("Falta token de operador. Entra en /#/ops e inicia sesión con PIN.");
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
       return;
     }
 
-    setLoadingAI(true);
+    setRunningAI(true);
     try {
       const data = await fetchJson(`${API}/ai/expediente/run`, {
         method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: caseId }),
+      });
+      setAiResult(data);
+    } catch (e) {
+      setError(e.message || "Error ejecutando Modo Dios");
+    } finally {
+      setRunningAI(false);
+    }
+  }
+
+  const admissibility = aiResult?.admissibility?.admissibility;
+  const recommended = aiResult?.phase?.recommended_action?.action;
+
+  return (
+    <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h1 className="sr-h2" style={{ margin: 0 }}>
+          Expediente {caseId}
+        </h1>
+        <Link to="/ops" className="sr-btn-secondary">
+          ← Volver a OPS
+        </Link>
+      </div>
+
+      {error && (
+        <div className="sr-card" style={{ marginTop: 14 }}>
+          <div className="sr-p" style={{ margin: 0, color: "#991b1b" }}>
+            ❌ {error}
+          </div>
+        </div>
+      )}
+
+      <div className="sr-card" style={{ marginTop: 14 }}>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>
+          Documentos del expediente
+        </h3>
+
+        {loading && <p className="sr-p">Cargando…</p>}
+
+        {!loading && documents.length === 0 && (
+          <p className="sr-p">No hay documentos cargados (o falta token).</p>
+        )}
+
+        {!loading && documents.length > 0 && (
+          <div style={{ display: "grid", gap: 10 }}>
+            {documents.map((d, i) => (
+              <div
+                key={i}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 10,
+                  background: "rgba(255,255,255,0.75)",
+                }}
+              >
+                <div className="sr-small" style={{ fontWeight: 800 }}>
+                  {d.kind || "documento"}
+                </div>
+                <div className="sr-small" style={{ color: "#6b7280" }}>
+                  {d.bucket}/{d.key}
+                </div>
+                <div className="sr-small" style={{ color: "#6b7280" }}>
+                  {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} ·{" "}
+                  {fmt(d.created_at)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="sr-card" style={{ marginTop: 14 }}>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>
+          Acciones
+        </h3>
+
+        <button className="sr-btn-primary" onClick={runAI} disabled={runningAI}>
+          {runningAI ? "Analizando…" : "Generar recurso ahora (Modo Dios)"}
+        </button>
+
+        <button className="sr-btn-secondary" onClick={loadCase} style={{ marginLeft: 10 }}>
+          Recargar
+        </button>
+      </div>
+
+      {aiResult && (
+        <div className="sr-card" style={{ marginTop: 14 }}>
+          <h3 className="sr-h3" style={{ marginTop: 0 }}>
+            Resultado Modo Dios
+          </h3>
+
+          <p className="sr-p">
+            <b>Admisibilidad:</b> {admissibility || "—"}
+          </p>
+
+          {recommended && (
+            <p className="sr-p">
+              <b>Acción recomendada:</b> {recommended}
+            </p>
+          )}
+
+          {admissibility === "NOT_ADMISSIBLE" && (
+            <p className="sr-p" style={{ color: "#991b1b" }}>
+              ⚠️ El recurso no es admisible en este momento.
+            </p>
+          )}
+
+          {admissibility === "ADMISSIBLE" && (
+            <p className="sr-p" style={{ color: "#166534" }}>
+              ✅ Recurso admisible. Listo para generar DOCX/PDF y presentar.
+            </p>
+          )}
+
+          {!admissibility && (
+            <p className="sr-small" style={{ color: "#6b7280" }}>
+              (Sin decisión de admisibilidad en el resultado. Revisa /ai/expediente/run.)
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
