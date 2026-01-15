@@ -11,12 +11,10 @@ async function fetchJson(url, options = {}) {
 }
 
 export default function OpsDashboard() {
-  // Token real (se guarda en localStorage)
   const [token, setToken] = useState(() => localStorage.getItem("ops_token") || "");
-  // PIN corto (operador lo escribe)
   const [pin, setPin] = useState("");
 
-  const [status, setStatus] = useState("ready_to_submit");
+  const [status, setStatus] = useState("all");
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -41,7 +39,6 @@ export default function OpsDashboard() {
     }
   }
 
-  // Login por PIN: backend devuelve token real
   async function loginWithPin() {
     try {
       if (!pin || pin.trim().length < 4) {
@@ -70,17 +67,12 @@ export default function OpsDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, status]);
 
-  // -----------------------
-  // LOGIN SCREEN
-  // -----------------------
+  /* ---------------- LOGIN ---------------- */
   if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <div className="bg-white rounded-xl shadow p-6 max-w-md w-full">
           <h1 className="text-xl font-semibold mb-3">Acceso Operador</h1>
-          <p className="text-sm text-gray-600 mb-4">
-            Introduce tu <strong>PIN</strong> (el backend te devolverá el token real).
-          </p>
 
           <input
             type="password"
@@ -90,25 +82,15 @@ export default function OpsDashboard() {
             className="w-full border rounded px-3 py-2 text-sm"
           />
 
-          <button
-            className="mt-4 w-full sr-btn-primary"
-            onClick={loginWithPin}
-          >
+          <button className="mt-4 w-full sr-btn-primary" onClick={loginWithPin}>
             Entrar
           </button>
-
-          <div className="mt-4 text-xs text-gray-500">
-            Si ya tenías token guardado, puedes recargar. Para limpiar: borra{" "}
-            <code>ops_token</code> del localStorage.
-          </div>
         </div>
       </div>
     );
   }
 
-  // -----------------------
-  // DASHBOARD (LIST ONLY)
-  // -----------------------
+  /* ---------------- DASHBOARD ---------------- */
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -133,9 +115,11 @@ export default function OpsDashboard() {
             onChange={(e) => setStatus(e.target.value)}
             className="border rounded px-2 py-1 text-sm"
           >
+            <option value="all">all (todos)</option>
+            <option value="uploaded">uploaded</option>
+            <option value="generated">generated</option>
             <option value="ready_to_submit">ready_to_submit</option>
             <option value="submitted">submitted</option>
-            <option value="generated">generated</option>
           </select>
 
           <button onClick={loadQueue} className="sr-btn-primary" style={{ padding: "8px 14px" }}>
