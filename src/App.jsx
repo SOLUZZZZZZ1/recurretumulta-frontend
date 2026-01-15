@@ -18,6 +18,7 @@ import PagoCancel from "./pages/PagoCancel.jsx";
 
 // Operador
 import OpsDashboard from "./pages/OpsDashboard.jsx";
+import OpsCaseDetail from "./pages/OpsCaseDetail.jsx";
 
 // Legal
 import AvisoLegal from "./pages/AvisoLegal.jsx";
@@ -51,6 +52,7 @@ export default function App() {
 
         {/* Operador */}
         <Route path="/ops" element={<OpsDashboard />} />
+        <Route path="/ops/case/:caseId" element={<OpsCaseDetail />} />
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
