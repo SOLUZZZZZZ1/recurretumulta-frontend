@@ -123,7 +123,9 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
               organismo: null,
               expediente_ref: null,
               observaciones:
-                "Expediente multi-documento creado. Ya puedes continuar y, si procede, ejecutar Modo Dios desde OPS.",
+                "observaciones:
+               "Hemos recibido tu documentación y estamos revisando el expediente                 para comprobar si el recurso puede presentarse en este momento.",
+",
               tipo_recurso_sugerido: "Expediente multi-documento",
               normativa_aplicable: "Ley 39/2015",
             },
