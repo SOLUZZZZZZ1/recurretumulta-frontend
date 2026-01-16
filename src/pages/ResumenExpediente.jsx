@@ -160,28 +160,10 @@ export default function ResumenExpediente() {
                 Aún no se puede presentar el recurso. Si recibes una nueva
                 notificación o resolución, súbela para completar el expediente.
               </p>
+            
 
-              <p className="sr-small" style={{ marginTop: 10, color: "#111827", fontWeight: 800 }}>
-                Guarda este número de expediente
-              </p>
-              <div
-                style={{
-                  marginTop: 6,
-                  padding: "10px 12px",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  background: "rgba(255,255,255,0.7)",
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
-                  wordBreak: "break-all",
-                }}
-              >
-                {caseId}
-              </div>
-              <div className="sr-small" style={{ marginTop: 8, color: "#6b7280" }}>
-                También te lo hemos enviado por email.
-              </div>
-
-            </div>
+            <ContactoExpediente caseId={caseId} publicStatus={publicStatus} onSaved={() => refresh(false)} />
+</div>
 
             <AppendDocuments caseId={caseId} onDone={() => refresh(true)} />
           </div>
