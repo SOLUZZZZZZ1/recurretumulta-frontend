@@ -64,7 +64,7 @@ export default function ComoFunciona() {
           <h2 className="sr-h2">¿Qué tipo de sanciones cubrimos?</h2>
           <p className="sr-p">
             <b>RecurreTuMulta actúa frente a sanciones y procedimientos administrativos</b>
-             emitidos por cualquier Administración pública, con independencia del organismo
+                    emitidos por cualquier Administración pública, con independencia del organismo
             que los haya iniciado.
           </p>
 
