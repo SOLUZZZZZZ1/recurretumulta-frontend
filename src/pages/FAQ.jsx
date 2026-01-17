@@ -71,7 +71,7 @@ export default function FAQ() {
         </Item>
 
         <Item q="¿Presentáis el recurso por mí?">
-          Según el plan, podemos preparar el escrito para que lo presentes tú, o presentarlo en tu nombre
+          Si , podemos  presentarlo en tu nombre
           (con justificante) si eliges la opción correspondiente y se cumplen los requisitos de representación.
         </Item>
 
