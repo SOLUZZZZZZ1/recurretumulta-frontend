@@ -34,7 +34,7 @@ export default function ComoFunciona() {
         <section className="sr-card mb-6">
           <h2 className="sr-h2">2️⃣ Análisis automático</h2>
           <p className="sr-p">
-            Analizamos el documento combinando reglas legales administrativas             apoyados por inteligencia artificial :
+            Analizamos el documento combinando inteligencia artificial y reglas administrativas:
           </p>
           <ul className="sr-p list-disc pl-5">
             <li>Detectamos el tipo de procedimiento</li>
@@ -63,28 +63,67 @@ export default function ComoFunciona() {
         <section className="sr-card mb-6">
           <h2 className="sr-h2">¿Qué tipo de sanciones cubrimos?</h2>
           <p className="sr-p">
-            RecurreTuMulta actúa frente a <b>cualquier sanción administrativa</b>  emitida por cualquier instancia u organismo de cualquier administración  pública:  ayuntamientos, consejos comarcales (Catalunya),diputaciones provinciales, administración central del Estado,despejando la vía hasta agotar las máximas instancias judiciales en España (y TJUE si fuera el caso).
+            <b>RecurreTuMulta actúa frente a sanciones y procedimientos administrativos</b>
+            emitidos por cualquier Administración pública, con independencia del organismo
+            que los haya iniciado.
+          </p>
+
+          <p className="sr-p">
+            Trabajamos con expedientes procedentes, entre otros, de:
           </p>
 
           <ul className="sr-p list-disc pl-5">
-            <li><b>Tráfico y movilidad:</b> DGT y ayuntamientos (radares, estacionamiento, ZBE, etc.)</li>
-            <li><b>Ayuntamientos y CCAA:</b> ruido, convivencia, licencias, actividades, urbanismo</li>
-            <li><b>AEAT y Seguridad Social:</b> sanciones y requerimientos administrativos habituales</li>
+            <li>Ayuntamientos</li>
+            <li>Consejos comarcales (Catalunya)</li>
+            <li>Diputaciones provinciales</li>
+            <li>Comunidades Autónomas</li>
+            <li>Administración General del Estado</li>
           </ul>
 
-          <p className="sr-small mt-2">
-            Si es una sanción administrativa, normalmente podemos ayudarte. En casos complejos,
-            el sistema te indicará qué opción conviene o qué documentación falta.
+          <p className="sr-p mt-3">
+            Nuestro sistema está diseñado para analizar el expediente, calcular plazos
+            y preparar los escritos adecuados en cada fase de la vía administrativa,
+            hasta su agotamiento cuando corresponda.
+          </p>
+
+          <h3 className="sr-h3 mt-4">A título de ejemplo, cubrimos habitualmente:</h3>
+
+          <ul className="sr-p list-disc pl-5">
+            <li>
+              <b>Tráfico y movilidad:</b> DGT y entidades locales (radares, estacionamiento,
+              ZBE, velocidad, señalización, etc.).
+            </li>
+            <li>
+              <b>Administración local y autonómica:</b> ruido y convivencia, licencias,
+              actividades, urbanismo, inspecciones, consumo, sanciones municipales.
+            </li>
+            <li>
+              <b>Hacienda y Seguridad Social:</b> sanciones, requerimientos y procedimientos
+              administrativos habituales.
+            </li>
+          </ul>
+
+          <p className="sr-p mt-3">
+            👉 <b>Si se trata de una sanción o procedimiento administrativo</b>, normalmente
+            podemos ayudarte.
           </p>
         </section>
 
         <section className="sr-card mb-6">
-          <h2 className="sr-h2">Transparente y sin promesas imposibles</h2>
+          <h2 className="sr-h2">¿Y si el caso es complejo?</h2>
+          <p className="sr-p">
+            En expedientes más complejos o con documentación incompleta, el sistema:
+          </p>
           <ul className="sr-p list-disc pl-5">
-            <li>El recurso se redacta solo con datos reales del documento</li>
-            <li>Los plazos están controlados y te avisamos del siguiente paso</li>
-            <li>Tú decides si presentarlo o que lo presentemos por ti</li>
+            <li>Indica qué información falta</li>
+            <li>Ayuda a decidir la vía más adecuada</li>
+            <li>O recomienda no continuar si no es procedente</li>
           </ul>
+
+          <p className="sr-small mt-2">
+            Cuando el procedimiento excede la vía administrativa o requiere intervención
+            judicial, te informaremos de las opciones disponibles.
+          </p>
         </section>
 
         <section className="sr-card text-center">
