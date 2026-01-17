@@ -36,20 +36,18 @@ export default function Inicio() {
             correcto.
           </p>
 
+          {/* CTA hero (sin "Subir documentos" duplicado) */}
           <div className="sr-cta-row">
-            <a href="#subir" className="sr-btn-primary">
-              Subir documentos
-            </a>
             <Link to="/como-funciona" className="sr-btn-secondary">
               Ver cómo funciona
             </Link>
           </div>
 
-          <div id="subir" style={{ marginTop: 18 }}>
+          <div id="subir" style={{ marginTop: 24 }}>
             <UploadExpediente maxSizeMB={12} />
 
             {/* Recuperar expediente (backup del link por email) */}
-            <div className="sr-card" style={{ marginTop: 12, textAlign: "left" }}>
+            <div className="sr-card" style={{ marginTop: 16, textAlign: "left" }}>
               <h3 className="sr-h3" style={{ marginTop: 0 }}>
                 ¿Ya tienes un expediente?
               </h3>
