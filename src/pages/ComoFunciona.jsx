@@ -63,14 +63,13 @@ export default function ComoFunciona() {
         <section className="sr-card mb-6">
           <h2 className="sr-h2">¿Qué tipo de sanciones cubrimos?</h2>
           <p className="sr-p">
-            RecurreTuMulta actúa frente a <b>cualquier sanción administrativa</b> emitida
-            por organismos públicos.
+            RecurreTuMulta actúa frente a <b>cualquier sanción administrativa</b>  emitida por cualquier instancia u organismo de cualquier administración  pública:  ayuntamientos, consejos comarcales (Catalunya),diputaciones provinciales, administración central del Estado,despejando la vía hasta agotar las máximas instancias judiciales en España (y TJUE si fuera el caso).
           </p>
 
           <ul className="sr-p list-disc pl-5">
             <li><b>Tráfico y movilidad:</b> DGT y ayuntamientos (radares, estacionamiento, ZBE, etc.)</li>
             <li><b>Ayuntamientos y CCAA:</b> ruido, convivencia, licencias, actividades, urbanismo</li>
-            <li><b>Hacienda y Seguridad Social:</b> sanciones y requerimientos administrativos habituales</li>
+            <li><b>AEAT y Seguridad Social:</b> sanciones y requerimientos administrativos habituales</li>
           </ul>
 
           <p className="sr-small mt-2">
