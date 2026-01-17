@@ -1,4 +1,4 @@
-// src/components/Navbar.jsx — Navbar (copy: documento)
+// src/components/Navbar.jsx — Navbar limpio (sin CTA duplicado)
 import { Link } from "react-router-dom";
 
 export default function Navbar() {
@@ -16,10 +16,6 @@ export default function Navbar() {
           <Link to="/faq" className="sr-tab">FAQ</Link>
           <Link to="/contacto" className="sr-tab">Contacto</Link>
         </nav>
-
-        <a href="/#subir" className="sr-btn-primary">
-          Subir documento
-        </a>
       </div>
       <div className="sr-navbar-underline" />
     </header>

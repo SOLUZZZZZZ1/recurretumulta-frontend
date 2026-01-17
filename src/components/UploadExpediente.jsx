@@ -70,7 +70,7 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
     setMsg("");
 
     if (files.length === 0) {
-      setMsg("Primero sube al menos un documento.");
+      setMsg("Primero añade al menos un documento.");
       return;
     }
 
@@ -123,8 +123,7 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
               organismo: null,
               expediente_ref: null,
               observaciones:
-                "Hemos recibido tu documentación y estamos revisando el expediente                 para comprobar si el recurso puede presentarse en este momento.",
-
+                "Hemos recibido tu documentación y estamos revisando el expediente para comprobar si el recurso puede presentarse en este momento.",
               tipo_recurso_sugerido: "Expediente multi-documento",
               normativa_aplicable: "Ley 39/2015",
             },
@@ -214,9 +213,10 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
             </p>
           </div>
 
+          {/* ✅ Botón principal en verde */}
           <button
             type="button"
-            className="sr-btn-secondary"
+            className="sr-btn-primary"
             onClick={(e) => {
               e.stopPropagation();
               pickFiles();
@@ -230,7 +230,7 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
       {files.length > 0 && (
         <div className="sr-card" style={{ marginTop: 12 }}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="sr-h3">Documentos subidos</div>
+            <div className="sr-h3">Documentos añadidos</div>
             <button className="sr-btn-secondary" type="button" onClick={clearAll}>
               Limpiar todo
             </button>
@@ -266,12 +266,6 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
               </div>
             ))}
           </div>
-
-          {files.length > 1 && (
-            <div className="sr-small" style={{ marginTop: 10, color: "#6b7280" }}>
-              ⚠️ Importante: en procedimientos exigentes (OEPM, etc.) es recomendable subir todos los documentos antes de analizar.
-            </div>
-          )}
         </div>
       )}
 
