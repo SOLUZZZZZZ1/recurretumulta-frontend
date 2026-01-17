@@ -34,7 +34,7 @@ export default function ComoFunciona() {
         <section className="sr-card mb-6">
           <h2 className="sr-h2">2️⃣ Análisis automático</h2>
           <p className="sr-p">
-            Analizamos el documento combinando inteligencia artificial y reglas administrativas:
+            Analizamos el documento combinando reglas legales administrativas             apoyados por inteligencia artificial :
           </p>
           <ul className="sr-p list-disc pl-5">
             <li>Detectamos el tipo de procedimiento</li>
