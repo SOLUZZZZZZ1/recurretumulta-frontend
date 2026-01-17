@@ -22,33 +22,35 @@ export default function Precios() {
         <section className="sr-card">
           <h2 className="sr-h2">Presentación del recurso</h2>
 
-          <p className="sr-p" style={{ fontSize: 28, fontWeight: 800 }}>
+          <p className="sr-p" style={{ fontSize: 28, fontWeight: 800, marginBottom: 10 }}>
             Desde 29,90 €
           </p>
 
-          <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18 }}>
+          <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18, marginTop: 0 }}>
             <li>Incluye 1 documento</li>
             <li>Presentación oficial por registro</li>
             <li>Justificante incluido</li>
           </ul>
 
-          <p className="sr-small" style={{ marginTop: 8 }}>
+          <p className="sr-small" style={{ marginTop: 10 }}>
             Documento adicional: <b>+5,00 €</b> por documento
           </p>
 
-          <p className="sr-small" style={{ marginTop: 6, color: "#6b7280" }}>
+          <p className="sr-small" style={{ marginTop: 8, color: "#6b7280" }}>
             El precio final se calcula automáticamente según la documentación
             del expediente y se muestra antes de pagar.
           </p>
 
-          <Link to="/" className="sr-btn-primary" style={{ marginTop: 12 }}>
-            Empezar (gratis)
-          </Link>
+          <div style={{ marginTop: 14 }}>
+            <Link to="/" className="sr-btn-primary">
+              Empezar (gratis)
+            </Link>
+          </div>
         </section>
 
         <section className="sr-card" style={{ marginTop: 18 }}>
           <h3 className="sr-h3">Avisos importantes</h3>
-          <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18 }}>
+          <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18, marginBottom: 0 }}>
             <li>
               En algunos procedimientos, presentar recursos implica renunciar al
               descuento por pronto pago.
