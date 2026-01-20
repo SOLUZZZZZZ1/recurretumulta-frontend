@@ -10,11 +10,25 @@ async function fetchJson(url, options = {}) {
   return data;
 }
 
+function formatDate(d) {
+  if (!d) return "—";
+  try {
+    return new Date(d).toLocaleDateString("es-ES");
+  } catch {
+    return "—";
+  }
+}
+
+function shortId(id) {
+  if (!id || id.length < 12) return id;
+  return `${id.slice(0, 8)}…${id.slice(-4)}`;
+}
+
 export default function OpsDashboard() {
   const [token, setToken] = useState(() => localStorage.getItem("ops_token") || "");
   const [pin, setPin] = useState("");
 
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState("ready_to_submit");
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -67,7 +81,6 @@ export default function OpsDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, status]);
 
-  /* ---------------- LOGIN ---------------- */
   if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
@@ -90,7 +103,6 @@ export default function OpsDashboard() {
     );
   }
 
-  /* ---------------- DASHBOARD ---------------- */
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -108,18 +120,18 @@ export default function OpsDashboard() {
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-4 mb-6 flex gap-4 items-center">
+        <div className="bg-white rounded-xl shadow p-4 mb-6 flex gap-4 items-center flex-wrap">
           <label className="text-sm">Estado:</label>
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             className="border rounded px-2 py-1 text-sm"
           >
-            <option value="all">all (todos)</option>
+            <option value="ready_to_submit">ready_to_submit</option>
             <option value="uploaded">uploaded</option>
             <option value="generated">generated</option>
-            <option value="ready_to_submit">ready_to_submit</option>
             <option value="submitted">submitted</option>
+            <option value="all">all</option>
           </select>
 
           <button onClick={loadQueue} className="sr-btn-primary" style={{ padding: "8px 14px" }}>
@@ -134,6 +146,7 @@ export default function OpsDashboard() {
           <table className="w-full text-sm">
             <thead className="bg-gray-100">
               <tr>
+                <th className="p-2 text-left">Fecha</th>
                 <th className="p-2 text-left">Case ID</th>
                 <th className="p-2">Estado</th>
                 <th className="p-2">Pago</th>
@@ -144,7 +157,8 @@ export default function OpsDashboard() {
             <tbody>
               {cases.map((c) => (
                 <tr key={c.case_id} className="border-t">
-                  <td className="p-2 font-mono text-xs">{c.case_id}</td>
+                  <td className="p-2">{formatDate(c.created_at)}</td>
+                  <td className="p-2 font-mono text-xs">{shortId(c.case_id)}</td>
                   <td className="p-2">{c.status}</td>
                   <td className="p-2">{c.payment_status || "—"}</td>
                   <td className="p-2">{c.contact_email || "-"}</td>
@@ -157,7 +171,7 @@ export default function OpsDashboard() {
               ))}
               {!cases.length && (
                 <tr>
-                  <td colSpan="5" className="p-4 text-center text-gray-500">
+                  <td colSpan="6" className="p-4 text-center text-gray-500">
                     No hay casos
                   </td>
                 </tr>
@@ -167,7 +181,7 @@ export default function OpsDashboard() {
         </div>
 
         <div className="mt-4 text-xs text-gray-500">
-          Tip: abre directamente un caso con <code>#/ops/case/&lt;case_id&gt;</code>
+          Ordenado por fecha de creación (más antiguos arriba).
         </div>
       </div>
     </div>
