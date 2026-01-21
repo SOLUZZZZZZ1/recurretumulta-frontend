@@ -11,6 +11,7 @@ import Inicio from "./pages/Inicio.jsx";
 import ComoFunciona from "./pages/ComoFunciona.jsx";
 import Precios from "./pages/Precios.jsx";
 import FAQ from "./pages/FAQ.jsx";
+import Gestorias from "./pages/Gestorias.jsx";
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/gestorias" element={<Gestorias />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
 
         {/* Post-pago */}
