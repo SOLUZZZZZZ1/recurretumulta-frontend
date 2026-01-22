@@ -1,3 +1,11 @@
 User-agent: *
 Allow: /
-Sitemap: https://mediazion.eu/sitemap.xml
+
+# Zonas internas (no indexar)
+Disallow: /gestorias
+Disallow: /ops
+
+# Opcional: si tienes endpoints expuestos públicamente en el mismo dominio
+Disallow: /api/
+
+Sitemap: https://www.recurretumulta.eu/sitemap.xml
