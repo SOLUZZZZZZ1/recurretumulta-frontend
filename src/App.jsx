@@ -42,7 +42,7 @@ export default function App() {
       <Navbar />
 
       <Routes>
-        <Route path="/" element={<div>OK</div>} />
+        <Route path="/" element={<Inicio />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/faq" element={<FAQ />} />
