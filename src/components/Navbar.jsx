@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import "./Navbar.css"; // si ya lo tenías, mantenlo
 
 export default function Navbar() {
   return (
@@ -11,25 +10,11 @@ export default function Navbar() {
       </div>
 
       <div className="navbar-right">
-        <Link to="/" className="navbar-link">
-          Inicio
-        </Link>
-
-        <Link to="/como-funciona" className="navbar-link">
-          Cómo funciona
-        </Link>
-
-        <Link to="/precios" className="navbar-link">
-          Precios
-        </Link>
-
-        <Link to="/faq" className="navbar-link">
-          FAQ
-        </Link>
-
-        <Link to="/contacto" className="navbar-link">
-          Contacto
-        </Link>
+        <Link to="/" className="navbar-link">Inicio</Link>
+        <Link to="/como-funciona" className="navbar-link">Cómo funciona</Link>
+        <Link to="/precios" className="navbar-link">Precios</Link>
+        <Link to="/faq" className="navbar-link">FAQ</Link>
+        <Link to="/contacto" className="navbar-link">Contacto</Link>
       </div>
     </nav>
   );
