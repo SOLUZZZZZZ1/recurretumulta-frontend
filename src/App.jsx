@@ -1,6 +1,6 @@
 // src/App.jsx — RecurreTuMulta (versión limpia MVP)
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import ResumenExpediente from "./pages/ResumenExpediente.jsx";
 
 import Navbar from "./components/Navbar.jsx";
@@ -28,6 +28,9 @@ import Privacidad from "./pages/Privacidad.jsx";
 import Cookies from "./pages/Cookies.jsx";
 
 export default function App() {
+  const location = useLocation();
+  const hideFooter = location.pathname === "/__reservas-restaurante";
+
   return (
     <div
       className="min-h-screen text-zinc-900"
@@ -66,7 +69,7 @@ export default function App() {
         <Route path="/cookies" element={<Cookies />} />
       </Routes>
 
-      <Footer />
+      {!hideFooter && <Footer />}
     </div>
   );
 }
