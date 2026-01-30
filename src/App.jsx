@@ -12,6 +12,7 @@ import ComoFunciona from "./pages/ComoFunciona.jsx";
 import Precios from "./pages/Precios.jsx";
 import FAQ from "./pages/FAQ.jsx";
 import Gestorias from "./pages/Gestorias.jsx";
+import ReservasRestaurante from "./pages/ReservasRestaurante.jsx";
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -55,6 +56,9 @@ export default function App() {
         {/* Operador */}
         <Route path="/ops" element={<OpsDashboard />} />
         <Route path="/ops/case/:caseId" element={<OpsCaseDetail />} />
+
+        {/* Libro de reservas (oculto) */}
+        <Route path="/__reservas-restaurante" element={<ReservasRestaurante />} />
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
