@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 
+
+function getRestaurantId() {
+  // Con HashRouter, el query puede estar en location.hash: "#/ruta?r=rest_002"
+  const hash = window.location.hash || "";
+  const qFromHash = hash.includes("?") ? hash.split("?")[1] : "";
+  const search = window.location.search || "";
+  const params = new URLSearchParams(qFromHash || search.replace(/^\?/, ""));
+  return (params.get("r") || "rest_001").trim() || "rest_001";
+}
+
 const emptyForm = () => ({
   reservation_time: "14:00",
   shift: "comida",
@@ -16,6 +26,7 @@ export default function ReservasRestaurante() {
   const [reservas, setReservas] = useState([]);
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [turno, setTurno] = useState("comida");
+  const [restaurantId, setRestaurantId] = useState(() => getRestaurantId());
   const [showCanceladas, setShowCanceladas] = useState(false);
 
   const [pin, setPin] = useState(() => sessionStorage.getItem("reservas_pin") || "");
@@ -26,6 +37,12 @@ export default function ReservasRestaurante() {
   const [form, setForm] = useState(emptyForm());
 
   const autorizado = Boolean(pin);
+
+  useEffect(() => {
+    const onHash = () => setRestaurantId(getRestaurantId());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   function normalizeRows(data) {
     if (Array.isArray(data)) return data;
@@ -39,7 +56,7 @@ export default function ReservasRestaurante() {
   async function cargarReservas() {
     if (!pin) return;
 
-    const r = await fetch(`/api/ops/restaurant-reservations?date=${fecha}&shift=${turno}`, {
+    const r = await fetch(`/api/ops/restaurant-reservations?date=${fecha}&shift=${turno}&restaurant_id=${encodeURIComponent(restaurantId)}`, {
       headers: { "x-reservas-pin": pin },
     });
 
@@ -55,7 +72,7 @@ export default function ReservasRestaurante() {
   useEffect(() => {
     cargarReservas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fecha, turno, pin]);
+  }, [fecha, turno, restaurantId, pin]);
 
   function confirmarPin() {
     if (!pinInput) return;
@@ -160,6 +177,7 @@ export default function ReservasRestaurante() {
     } else {
       // CREAR
       const payload = {
+        restaurant_id: restaurantId,
         reservation_date: fecha,
         reservation_time: form.reservation_time,
         shift: turno,
