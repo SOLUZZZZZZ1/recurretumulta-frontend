@@ -29,7 +29,7 @@ import Cookies from "./pages/Cookies.jsx";
 
 export default function App() {
   const location = useLocation();
-  const hideFooter = location.pathname === "/__reservas-restaurante";
+  const hideChrome = location.pathname === "/__reservas-restaurante";
 
   return (
     <div
@@ -42,7 +42,7 @@ export default function App() {
         backgroundPosition: "center center",
       }}
     >
-      <Navbar />
+      {!hideChrome && <Navbar />}
 
       <Routes>
         <Route path="/" element={<Inicio />} />
@@ -69,7 +69,7 @@ export default function App() {
         <Route path="/cookies" element={<Cookies />} />
       </Routes>
 
-      {!hideFooter && <Footer />}
+      {!hideChrome && <Footer />}
     </div>
   );
 }
