@@ -43,7 +43,12 @@ function statusPillClass(status) {
 
 function ExtrasIcons({ dog, celiac, notes }) {
   const hasNotes = Boolean((notes || "").trim());
-  return (
+  const visibleRows = useMemo(() => {
+  const base = Array.isArray(filtered) ? filtered : [];
+  return showCancelled ? base : base.filter((r) => String(r.status || "").toLowerCase() !== "cancelada");
+}, [filtered, showCancelled]);
+
+return (
     <div className="flex items-center gap-1 text-sm">
       {dog ? <span title="Perro">🐶</span> : <span className="text-zinc-300">·</span>}
       {celiac ? <span title="Celíaco">🌾</span> : <span className="text-zinc-300">·</span>}
@@ -296,6 +301,7 @@ export default function ReservasRestaurante() {
   const [err, setErr] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [query, setQuery] = useState("");
+  const [showCancelled, setShowCancelled] = useState(false);
 
   const timerRef = useRef(null);
 
@@ -347,7 +353,7 @@ export default function ReservasRestaurante() {
         throw new Error(t || `Error ${res.status}`);
       }
       const data = await res.json();
-      setRows(Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []));
+      setRows(Array.isArray(data.items) ? data.items : []);
     } catch (e) {
       setErr(String(e?.message || e));
     } finally {
@@ -490,7 +496,31 @@ export default function ReservasRestaurante() {
 
         {err ? <div className="mt-3 text-sm text-rose-700">{err}</div> : null}
 
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-3 flex flex-wrap items-center gap-2 print:hidden">
+  <span className="text-xs text-zinc-500 mr-1">Resumen:</span>
+  <span className="text-xs px-2 py-1 rounded-full border bg-white">Pendientes: <b>{counts.pendiente}</b></span>
+  <span className="text-xs px-2 py-1 rounded-full border bg-white">Llegaron: <b>{counts.llego}</b></span>
+  <span className="text-xs px-2 py-1 rounded-full border bg-white">No show: <b>{counts.no_show}</b></span>
+  <span className="text-xs px-2 py-1 rounded-full border bg-white">Canceladas: <b>{counts.cancelada}</b></span>
+  <button
+    onClick={() => setShowCancelled((v) => !v)}
+    className="text-xs px-2 py-1 rounded-full border bg-white hover:bg-zinc-50"
+    title="Mostrar/ocultar canceladas"
+  >
+    {showCancelled ? "Ocultar canceladas" : "Mostrar canceladas"}
+  </button>
+</div>
+
+<style>{`
+  @media print {
+    .print\:hidden { display: none !important; }
+    body { background: white !important; }
+    table { font-size: 11px; }
+    th, td { padding: 6px !important; }
+  }
+`}</style>
+
+<div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm border-separate" style={{ borderSpacing: "0 8px" }}>
             <thead className="text-xs text-zinc-600">
               <tr>
@@ -507,7 +537,7 @@ export default function ReservasRestaurante() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {visibleRows.map((r) => (
                 <tr key={r.id} className="bg-white rounded-xl shadow-sm border border-zinc-200">
                   <td className="px-2 py-3 font-medium">{fmtTimeHHMM(r.reservation_time)}</td>
                   <td className="px-2 py-3">{r.table_name || "—"}</td>
@@ -540,19 +570,22 @@ export default function ReservasRestaurante() {
                       ❌
                     </button>
                   </td>
-                  <td className="px-2 py-3">
-                    <button
-                      onClick={() => action(r.id, "cancel")}
-                      className="rounded-lg border border-zinc-200 px-2 py-1 hover:bg-zinc-50"
-                      title="Marcar: cancelada"
-                    >
-                      🚫
-                    </button>
-                  </td>
+<td className="px-2 py-3">
+  <button
+    onClick={() => {
+      if (!window.confirm("¿Cancelar esta reserva?")) return;
+      action(r.id, "cancel");
+    }}
+    className="rounded-lg border border-zinc-200 px-2 py-1 hover:bg-zinc-50"
+    title="Marcar: cancelada"
+  >
+    🚫
+  </button>
+</td>
                 </tr>
               ))}
 
-              {filtered.length === 0 ? (
+              {visibleRows.length === 0 ? (
                 <tr>
                   <td colSpan="10" className="text-center text-zinc-500 py-6">
                     No hay reservas para este día/turno.
