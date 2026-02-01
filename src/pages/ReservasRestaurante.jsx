@@ -43,7 +43,7 @@ function statusPillClass(status) {
 
 function ExtrasIcons({ dog, celiac, notes }) {
   const hasNotes = Boolean((notes || "").trim());
-  const visibleRows = useMemo(() => {
+  const visibles = useMemo(() => {
   const base = Array.isArray(filtered) ? filtered : [];
   return showCancelled ? base : base.filter((r) => String(r.status || "").toLowerCase() !== "cancelada");
 }, [filtered, showCancelled]);
@@ -537,7 +537,7 @@ export default function ReservasRestaurante() {
               </tr>
             </thead>
             <tbody>
-              {visibleRows.map((r) => (
+              {visibles.map((r) => (
                 <tr key={r.id} className="bg-white rounded-xl shadow-sm border border-zinc-200">
                   <td className="px-2 py-3 font-medium">{fmtTimeHHMM(r.reservation_time)}</td>
                   <td className="px-2 py-3">{r.table_name || "—"}</td>
@@ -585,7 +585,7 @@ export default function ReservasRestaurante() {
                 </tr>
               ))}
 
-              {visibleRows.length === 0 ? (
+              {visibles.length === 0 ? (
                 <tr>
                   <td colSpan="10" className="text-center text-zinc-500 py-6">
                     No hay reservas para este día/turno.
