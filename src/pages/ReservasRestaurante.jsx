@@ -36,6 +36,11 @@ export default function ReservasRestaurante() {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyForm());
 
+const [pinModalOpen, setPinModalOpen] = useState(false);
+const [newPin, setNewPin] = useState("");
+const [newPin2, setNewPin2] = useState("");
+
+
   const autorizado = Boolean(pin);
 
   useEffect(() => {
@@ -57,7 +62,7 @@ export default function ReservasRestaurante() {
     if (!pin) return;
 
     const r = await fetch(`/api/ops/restaurant-reservations?date=${fecha}&shift=${turno}&restaurant_id=${encodeURIComponent(restaurantId)}`, {
-      headers: { "x-reservas-pin": pin },
+      headers: { "x-reservas-pin": pin, "x-restaurant-id": restaurantId },
     });
 
     if (!r.ok) {
@@ -92,7 +97,7 @@ export default function ReservasRestaurante() {
   async function marcarLlegada(id) {
     await fetch(`/api/ops/restaurant-reservations/${id}/arrived`, {
       method: "POST",
-      headers: { "x-reservas-pin": pin },
+      headers: { "x-reservas-pin": pin, "x-restaurant-id": restaurantId },
     });
     cargarReservas();
   }
@@ -100,7 +105,7 @@ export default function ReservasRestaurante() {
   async function marcarNoShow(id) {
     await fetch(`/api/ops/restaurant-reservations/${id}/no-show`, {
       method: "POST",
-      headers: { "x-reservas-pin": pin },
+      headers: { "x-reservas-pin": pin, "x-restaurant-id": restaurantId },
     });
     cargarReservas();
   }
@@ -109,7 +114,7 @@ export default function ReservasRestaurante() {
     if (!confirm("¿Cancelar esta reserva?")) return;
     await fetch(`/api/ops/restaurant-reservations/${id}/cancel`, {
       method: "POST",
-      headers: { "x-reservas-pin": pin },
+      headers: { "x-reservas-pin": pin, "x-restaurant-id": restaurantId },
     });
     cargarReservas();
   }
@@ -166,7 +171,7 @@ export default function ReservasRestaurante() {
       };
       const r = await fetch(`/api/ops/restaurant-reservations/${editId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "x-reservas-pin": pin },
+        headers: { "Content-Type": "application/json", "x-reservas-pin": pin, "x-restaurant-id": restaurantId },
         body: JSON.stringify(payload),
       });
       if (!r.ok) {
@@ -192,7 +197,7 @@ export default function ReservasRestaurante() {
       };
       const r = await fetch(`/api/ops/restaurant-reservations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-reservas-pin": pin },
+        headers: { "Content-Type": "application/json", "x-reservas-pin": pin, "x-restaurant-id": restaurantId },
         body: JSON.stringify(payload),
       });
       if (!r.ok) {
@@ -254,6 +259,7 @@ export default function ReservasRestaurante() {
           <button onClick={abrirNueva} style={{ padding: "10px 12px", fontSize: 15, fontWeight: 700 }}>
             ➕ Añadir reserva
           </button>
+            <button onClick={abrirCambiarPin} className="btn">🔑 Cambiar PIN</button>
           <button onClick={bloquear} title="Bloquear" style={{ padding: "10px 12px" }}>
             🔒 Bloquear
           </button>
@@ -386,5 +392,34 @@ export default function ReservasRestaurante() {
         </div>
       )}
     </div>
+{pinModalOpen && (
+  <div className="modal-backdrop">
+    <div className="modal">
+      <h3>Cambiar PIN ({restaurantId})</h3>
+
+      <div className="grid">
+        <label>PIN actual</label>
+        <input type="password" value={pin} readOnly />
+
+        <label>Nuevo PIN</label>
+        <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
+
+        <label>Confirmar nuevo PIN</label>
+        <input type="password" value={newPin2} onChange={(e) => setNewPin2(e.target.value)} />
+      </div>
+
+      <div className="modal-actions">
+        <button className="btn" onClick={() => setPinModalOpen(false)}>Cancelar</button>
+        <button className="btn btn-primary" onClick={confirmarCambioPin}>Guardar PIN</button>
+      </div>
+
+      <p style={{ marginTop: 10, fontSize: 12, opacity: 0.8 }}>
+        Consejo: guarda el PIN en un lugar seguro.
+      </p>
+    </div>
+  </div>
+)}
+
+
   );
 }
