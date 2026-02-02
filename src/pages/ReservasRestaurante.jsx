@@ -262,6 +262,14 @@ export default function ReservasRestaurante() {
   if (!autorizado) {
     return (
       <div style={{ padding: 40, maxWidth: 420, margin: "0 auto" }}>
+      <style>{`
+        @media print {
+          button, input, select { display: none !important; }
+          table { width: 100% !important; }
+          body { background: white !important; }
+        }
+      `}</style>
+
         <h2>Acceso reservas</h2>
         <p style={{ marginTop: 8, opacity: 0.85 }}>
           Restaurante: <b>{restaurantId}</b> · PIN se guarda solo durante esta sesión.
@@ -309,6 +317,7 @@ export default function ReservasRestaurante() {
           <option value="comida">Comida</option>
           <option value="cena">Cena</option>
         </select>
+        <button onClick={() => window.print()} style={{ padding: "10px 12px" }}>🖨️ Imprimir</button>
         <button onClick={() => setShowCanceladas((v) => !v)}>
           {showCanceladas ? "Ocultar canceladas" : "Mostrar canceladas"}
         </button>
