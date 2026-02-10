@@ -14,6 +14,7 @@ import FAQ from "./pages/FAQ.jsx";
 import Gestorias from "./pages/Gestorias.jsx";
 import ReservasRestaurante from "./pages/ReservasRestaurante.jsx";
 import AdminRestaurantes from "./pages/AdminRestaurantes.jsx";
+import PartnerUpload from "./pages/PartnerUpload";
 
 
 // Pago (post-pago: datos + autorización)
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/gestorias" element={<Gestorias />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
+        <Route path="/partner/upload" element={<PartnerUpload />} />
 
         {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
