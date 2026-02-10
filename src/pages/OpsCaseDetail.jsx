@@ -19,12 +19,14 @@ function fmt(d) {
   }
 }
 
-function isPdf(kind) {
-  return String(kind || "").toLowerCase().includes("generated_pdf");
-}
-
-function isDocx(kind) {
-  return String(kind || "").toLowerCase().includes("generated_docx");
+function guessFilename(doc) {
+  const key = doc?.key || "";
+  const fromKey = key.split("/").pop();
+  if (fromKey) return fromKey;
+  const kind = (doc?.kind || "documento").toLowerCase();
+  if (kind.includes("pdf")) return "documento.pdf";
+  if (kind.includes("docx")) return "documento.docx";
+  return "documento.bin";
 }
 
 export default function OpsCaseDetail() {
@@ -35,6 +37,7 @@ export default function OpsCaseDetail() {
 
   const [loading, setLoading] = useState(false);
   const [runningAI, setRunningAI] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("ops_token") || "";
@@ -94,10 +97,53 @@ export default function OpsCaseDetail() {
         body: JSON.stringify({ case_id: caseId }),
       });
       setAiResult(data);
+      // refresca docs después de generar
+      await loadCase();
     } catch (e) {
       setError(e.message || "Error ejecutando Modo Dios");
     } finally {
       setRunningAI(false);
+    }
+  }
+
+  async function downloadDoc(doc) {
+    setError("");
+    if (!token) {
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
+      return;
+    }
+    if (!doc?.id) {
+      setError("Este documento no tiene id (no se puede descargar).");
+      return;
+    }
+
+    const url = `${API}/ops/documents/${encodeURIComponent(doc.id)}/download`;
+    const filename = guessFilename(doc);
+
+    setDownloadingId(doc.id);
+    try {
+      const r = await fetch(url, { headers });
+      if (!r.ok) {
+        // intenta leer JSON de error
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data?.detail || `Error descargando (HTTP ${r.status})`);
+      }
+
+      const blob = await r.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      setError(e.message || "Error descargando documento");
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -136,73 +182,47 @@ export default function OpsCaseDetail() {
 
         {!loading && documents.length > 0 && (
           <div style={{ display: "grid", gap: 10 }}>
-            {documents.map((d, i) => {
-              const canDownload = Boolean(d?.id);
-              const downloadUrl = canDownload
-                ? `${API}/ops/documents/${encodeURIComponent(d.id)}/download`
-                : "";
-
-              return (
-                <div
-                  key={d?.id || i}
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    padding: 10,
-                    background: "rgba(255,255,255,0.75)",
-                  }}
-                >
-                  <div className="sr-small" style={{ fontWeight: 800 }}>
-                    {d.kind || "documento"}
-                  </div>
-
-                  <div className="sr-small" style={{ color: "#6b7280", marginTop: 2 }}>
-                    {d.bucket}/{d.key}
-                  </div>
-
-                  <div className="sr-small" style={{ color: "#6b7280", marginTop: 2 }}>
-                    {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} ·{" "}
-                    {fmt(d.created_at)}
-                  </div>
-
-                  {/* ✅ NUEVO: Descarga segura desde OPS */}
-                  <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    {canDownload ? (
-                      <>
-                        <a
-                          href={downloadUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="sr-small"
-                          style={{
-                            color: "#2563eb",
-                            textDecoration: "underline",
-                            fontWeight: 700,
-                          }}
-                        >
-                          Descargar
-                        </a>
-
-                        {isPdf(d.kind) && (
-                          <span className="sr-small" style={{ color: "#6b7280" }}>
-                            (PDF)
-                          </span>
-                        )}
-                        {isDocx(d.kind) && (
-                          <span className="sr-small" style={{ color: "#6b7280" }}>
-                            (DOCX)
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="sr-small" style={{ color: "#991b1b" }}>
-                        ⚠️ No disponible para descarga (falta id en el backend).
-                      </span>
-                    )}
-                  </div>
+            {documents.map((d, i) => (
+              <div
+                key={d?.id || i}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 10,
+                  background: "rgba(255,255,255,0.75)",
+                }}
+              >
+                <div className="sr-small" style={{ fontWeight: 800 }}>
+                  {d.kind || "documento"}
                 </div>
-              );
-            })}
+
+                <div className="sr-small" style={{ color: "#6b7280" }}>
+                  {d.bucket}/{d.key}
+                </div>
+
+                <div className="sr-small" style={{ color: "#6b7280" }}>
+                  {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} ·{" "}
+                  {fmt(d.created_at)}
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    className="sr-btn-secondary"
+                    onClick={() => downloadDoc(d)}
+                    disabled={!d?.id || downloadingId === d?.id}
+                    style={{ padding: "8px 12px" }}
+                  >
+                    {downloadingId === d?.id ? "Descargando…" : "Descargar"}
+                  </button>
+
+                  {!d?.id && (
+                    <span className="sr-small" style={{ marginLeft: 10, color: "#991b1b" }}>
+                      (falta id: no descargable)
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
