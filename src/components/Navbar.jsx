@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import logo from "/rtm-navbar.png"; // si tu logo está en public con ese nombre
+import logo from "/rtm-navbar.png";
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -34,7 +34,7 @@ export default function Navbar() {
           gap: 14,
         }}
       >
-        {/* Left: logo */}
+        {/* Logo */}
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <img
             src={logo}
@@ -43,12 +43,23 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Right: tabs */}
-        <nav style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+        {/* Menú */}
+        <nav
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
           <Link to="/" style={linkStyle("/")}>Inicio</Link>
           <Link to="/como-funciona" style={linkStyle("/como-funciona")}>Cómo funciona</Link>
           <Link to="/precios" style={linkStyle("/precios")}>Precios</Link>
-          <Link to="/partners">Asesorías</Link>
+
+          {/* ✅ Asesorías apunta a /gestorias y usa el mismo estilo */}
+          <Link to="/gestorias" style={linkStyle("/gestorias")}>Asesorías</Link>
+
           <Link to="/faq" style={linkStyle("/faq")}>FAQ</Link>
           <Link to="/contacto" style={linkStyle("/contacto")}>Contacto</Link>
         </nav>
