@@ -15,6 +15,8 @@ import Gestorias from "./pages/Gestorias.jsx";
 import ReservasRestaurante from "./pages/ReservasRestaurante.jsx";
 import AdminRestaurantes from "./pages/AdminRestaurantes.jsx";
 import PartnerUpload from "./pages/PartnerUpload";
+import PartnerChangePassword from "./pages/PartnerChangePassword.jsx";
+
 
 
 // Pago (post-pago: datos + autorización)
@@ -55,6 +57,8 @@ export default function App() {
         <Route path="/gestorias" element={<Gestorias />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
         <Route path="/partner/upload" element={<PartnerUpload />} />
+        <Route path="/partner/change-password" element={<PartnerChangePassword />} />
+
 
         {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
