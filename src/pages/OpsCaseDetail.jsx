@@ -97,7 +97,6 @@ export default function OpsCaseDetail() {
         body: JSON.stringify({ case_id: caseId }),
       });
       setAiResult(data);
-      // refresca docs después de generar
       await loadCase();
     } catch (e) {
       setError(e.message || "Error ejecutando Modo Dios");
@@ -124,7 +123,6 @@ export default function OpsCaseDetail() {
     try {
       const r = await fetch(url, { headers });
       if (!r.ok) {
-        // intenta leer JSON de error
         const data = await r.json().catch(() => ({}));
         throw new Error(data?.detail || `Error descargando (HTTP ${r.status})`);
       }
@@ -156,9 +154,16 @@ export default function OpsCaseDetail() {
         <h1 className="sr-h2" style={{ margin: 0 }}>
           Expediente {caseId}
         </h1>
-        <Link to="/ops" className="sr-btn-secondary">
-          ← Volver a OPS
-        </Link>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link to="/ops" className="sr-btn-secondary">
+            ← Volver a OPS
+          </Link>
+
+          <Link to={`/ops/review/${caseId}`} className="sr-btn-primary">
+            Abrir modo operador PRO
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -205,7 +210,7 @@ export default function OpsCaseDetail() {
                   {fmt(d.created_at)}
                 </div>
 
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button
                     className="sr-btn-secondary"
                     onClick={() => downloadDoc(d)}
@@ -214,12 +219,6 @@ export default function OpsCaseDetail() {
                   >
                     {downloadingId === d?.id ? "Descargando…" : "Descargar"}
                   </button>
-
-                  {!d?.id && (
-                    <span className="sr-small" style={{ marginLeft: 10, color: "#991b1b" }}>
-                      (falta id: no descargable)
-                    </span>
-                  )}
                 </div>
               </div>
             ))}
@@ -232,13 +231,19 @@ export default function OpsCaseDetail() {
           Acciones
         </h3>
 
-        <button className="sr-btn-primary" onClick={runAI} disabled={runningAI}>
-          {runningAI ? "Analizando…" : "Generar recurso ahora (Modo Dios)"}
-        </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button className="sr-btn-primary" onClick={runAI} disabled={runningAI}>
+            {runningAI ? "Analizando…" : "Generar recurso ahora (Modo Dios)"}
+          </button>
 
-        <button className="sr-btn-secondary" onClick={loadCase} style={{ marginLeft: 10 }}>
-          Recargar
-        </button>
+          <button className="sr-btn-secondary" onClick={loadCase}>
+            Recargar
+          </button>
+
+          <Link to={`/ops/review/${caseId}`} className="sr-btn-secondary">
+            Revisar en PRO
+          </Link>
+        </div>
       </div>
 
       {aiResult && (
