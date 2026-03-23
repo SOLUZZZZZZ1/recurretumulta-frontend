@@ -17,8 +17,6 @@ import AdminRestaurantes from "./pages/AdminRestaurantes.jsx";
 import PartnerUpload from "./pages/PartnerUpload";
 import PartnerChangePassword from "./pages/PartnerChangePassword.jsx";
 
-
-
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
 import PagoCancel from "./pages/PagoCancel.jsx";
@@ -35,7 +33,9 @@ import Cookies from "./pages/Cookies.jsx";
 
 export default function App() {
   const location = useLocation();
-  const hideChrome = location.pathname === "/__reservas-restaurante";
+  const hideChrome =
+    location.pathname === "/__reservas-restaurante" ||
+    location.pathname === "/__admin-restaurantes";
 
   return (
     <div
@@ -60,7 +60,6 @@ export default function App() {
         <Route path="/partner/upload" element={<PartnerUpload />} />
         <Route path="/partner/change-password" element={<PartnerChangePassword />} />
 
-
         {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
         <Route path="/pago-cancel" element={<PagoCancel />} />
@@ -73,7 +72,6 @@ export default function App() {
         {/* Libro de reservas (oculto) */}
         <Route path="/__reservas-restaurante" element={<ReservasRestaurante />} />
         <Route path="/__admin-restaurantes" element={<AdminRestaurantes />} />
-
 
         {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
