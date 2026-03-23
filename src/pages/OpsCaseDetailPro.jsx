@@ -14,6 +14,7 @@ function StatCard({ label, value, tone = "slate" }) {
     amber: "bg-amber-50 border-amber-200 text-amber-900",
     rose: "bg-rose-50 border-rose-200 text-rose-900",
   };
+
   return (
     <div className={`rounded-2xl border p-4 shadow-sm ${tones[tone] || tones.slate}`}>
       <div className="text-sm opacity-70">{label}</div>
@@ -63,30 +64,31 @@ const demoCase = {
   fechaHecho: "2026-03-23",
   organismo: "DGT",
   hecho: "No respetar luz roja en intersección",
-  observacionesIA: "Clasificación robusta. Recurso generado. Conviene ver si la redacción del hecho viene de plantilla y si existe soporte gráfico o agente denunciante.",
+  observacionesIA:
+    "Clasificación robusta. Recurso generado. Conviene ver si la redacción del hecho viene de plantilla y si existe soporte gráfico o agente denunciante.",
   riesgo: "medio",
-  envioDgtReady: False,
+  envioDgtReady: false,
 };
 
-documents = [
-  {"name": "denuncia.pdf", "type": "PDF", "size": "1.8 MB", "ok": True},
-  {"name": "recurso_generado.docx", "type": "DOCX", "size": "280 KB", "ok": True},
-  {"name": "anexos_cliente.pdf", "type": "PDF", "size": "620 KB", "ok": True},
-]
+const documents = [
+  { name: "denuncia.pdf", type: "PDF", size: "1.8 MB", ok: true },
+  { name: "recurso_generado.docx", type: "DOCX", size: "280 KB", ok: true },
+  { name: "anexos_cliente.pdf", type: "PDF", size: "620 KB", ok: true },
+];
 
-events = [
-  {"ts": "18:03", "text": "Expediente creado"},
-  {"ts": "18:04", "text": "Clasificación IA: semáforo (0.94)"},
-  {"ts": "18:04", "text": "Recurso generado"},
-  {"ts": "18:05", "text": "Pendiente revisión operador"},
-]
+const events = [
+  { ts: "18:03", text: "Expediente creado" },
+  { ts: "18:04", text: "Clasificación IA: semáforo (0.94)" },
+  { ts: "18:04", text: "Recurso generado" },
+  { ts: "18:05", text: "Pendiente revisión operador" },
+];
 
-manualRules = [
+const manualRules = [
   "Mandar a revisión manual si familia = generic.",
   "Mandar a revisión manual si confidence < 0.90.",
   "Mandar a revisión manual si detecta señales extrañas como 'BASE MODIFICADA', 'DETALLE AGENTE', 'POINTS', OCR roto o mezcla de familias.",
   "Bloquear envío DGT hasta validación expresa del operador.",
-]
+];
 
 export default function OpsCaseDetailPro() {
   const [tab, setTab] = useState("revision");
@@ -160,7 +162,7 @@ export default function OpsCaseDetailPro() {
               key={id}
               onClick={() => setTab(id)}
               className={`rounded-2xl px-4 py-2 text-sm font-medium shadow-sm ${
-                tab === id ? "bg-slate-900 text-white" : "bg-white text-slate-700 border border-slate-200"
+                tab === id ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700"
               }`}
             >
               {label}
@@ -172,7 +174,11 @@ export default function OpsCaseDetailPro() {
           <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
             <Section
               title="Ficha del expediente"
-              right={<Badge type={manual ? "manual" : approved ? "ready" : "review"}>{manual ? "Manual" : approved ? "Aprobado" : "En revisión"}</Badge>}
+              right={
+                <Badge type={manual ? "manual" : approved ? "ready" : "review"}>
+                  {manual ? "Manual" : approved ? "Aprobado" : "En revisión"}
+                </Badge>
+              }
             >
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <Field label="Tipo" value={demoCase.tipo} />
@@ -228,7 +234,9 @@ export default function OpsCaseDetailPro() {
                 <div key={doc.name} className="flex items-center justify-between rounded-2xl border border-slate-200 p-4">
                   <div>
                     <div className="font-medium">{doc.name}</div>
-                    <div className="text-sm text-slate-500">{doc.type} · {doc.size}</div>
+                    <div className="text-sm text-slate-500">
+                      {doc.type} · {doc.size}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Ver</button>
