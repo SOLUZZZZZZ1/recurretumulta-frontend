@@ -26,6 +26,7 @@ import PagoCancel from "./pages/PagoCancel.jsx";
 // Operador
 import OpsDashboard from "./pages/OpsDashboard.jsx";
 import OpsCaseDetail from "./pages/OpsCaseDetail.jsx";
+import OpsCaseDetailPro from "./pages/OpsCaseDetailPro.jsx";
 
 // Legal
 import AvisoLegal from "./pages/AvisoLegal.jsx";
