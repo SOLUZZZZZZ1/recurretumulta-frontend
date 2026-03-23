@@ -67,6 +67,7 @@ export default function App() {
         {/* Operador */}
         <Route path="/ops" element={<OpsDashboard />} />
         <Route path="/ops/case/:caseId" element={<OpsCaseDetail />} />
+        <Route path="/ops/review/:caseId" element={<OpsCaseDetailPro />} />
 
         {/* Libro de reservas (oculto) */}
         <Route path="/__reservas-restaurante" element={<ReservasRestaurante />} />
