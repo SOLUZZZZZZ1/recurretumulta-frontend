@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-const API_BASE = https://recurretumulta-backend.onrender.com;
+const API_BASE = "https://recurretumulta-backend.onrender.com";
 
 function getToken() {
   return localStorage.getItem("ops_token") || "";
@@ -14,18 +14,24 @@ async function apiFetch(path) {
     },
   });
 
+  const text = await res.text();
+
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {
-      const data = await res.json();
+      const data = JSON.parse(text);
       detail = data?.detail || detail;
     } catch {
-      // ignore
+      if (text) detail = text.slice(0, 200);
     }
     throw new Error(detail);
   }
 
-  return res.json();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`La ruta ${path} no devolvió JSON válido`);
+  }
 }
 
 function pretty(value) {
@@ -98,13 +104,15 @@ export default function OpsCaseDetailPro() {
         body: JSON.stringify({ case_id: caseId }),
       });
 
+      const text = await res.text();
+
       if (!res.ok) {
         let detail = `HTTP ${res.status}`;
         try {
-          const data = await res.json();
+          const data = JSON.parse(text);
           detail = data?.detail || detail;
         } catch {
-          // ignore
+          if (text) detail = text.slice(0, 200);
         }
         throw new Error(detail);
       }
@@ -190,6 +198,7 @@ export default function OpsCaseDetailPro() {
                   <p><b>Eventos:</b> {events.length}</p>
                   <p><b>Documentos:</b> {documents.length}</p>
                   <p><b>Token OPS:</b> {getToken() ? "OK" : "No encontrado en localStorage"}</p>
+                  <p><b>API:</b> {API_BASE}</p>
                 </div>
               </section>
             </div>
