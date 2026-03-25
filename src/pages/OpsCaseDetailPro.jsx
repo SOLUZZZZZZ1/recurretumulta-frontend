@@ -59,33 +59,6 @@ function readAi(ai) {
   };
 }
 
-function StatCard({ title, value, tone = "default" }) {
-  const tones = {
-    default: "border-slate-200 bg-white",
-    success: "border-emerald-200 bg-emerald-50",
-    warn: "border-amber-200 bg-amber-50",
-    dark: "border-slate-800 bg-slate-900 text-white",
-  };
-  return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${tones[tone] || tones.default}`}>
-      <div className="text-xs uppercase tracking-wide opacity-70">{title}</div>
-      <div className="mt-2 text-2xl font-semibold">{value || "—"}</div>
-    </div>
-  );
-}
-
-function Section({ title, children, right = null }) {
-  return (
-    <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-        <h3 className="text-xl font-semibold text-slate-900">{title}</h3>
-        {right}
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
-  );
-}
-
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
@@ -202,10 +175,10 @@ export default function OpsCaseDetailPro() {
 
   const aiTone =
     ai.admisibilidad === "ADMISSIBLE"
-      ? "success"
+      ? "border-emerald-200 bg-emerald-50"
       : ai.admisibilidad === "NOT_ADMISSIBLE"
-      ? "warn"
-      : "default";
+      ? "border-amber-200 bg-amber-50"
+      : "border-slate-200 bg-white";
 
   return (
     <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
@@ -256,38 +229,58 @@ export default function OpsCaseDetailPro() {
       ) : null}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Familia" value={ai.familia || "—"} />
-        <StatCard title="Confianza" value={confianzaPct} />
-        <StatCard title="Admisibilidad" value={ai.admisibilidad || "—"} tone={aiTone} />
-        <StatCard title="Documentos" value={String(documents.length)} />
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-wide opacity-70">Familia</div>
+          <div className="mt-2 text-2xl font-semibold">{ai.familia || "—"}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-wide opacity-70">Confianza</div>
+          <div className="mt-2 text-2xl font-semibold">{confianzaPct}</div>
+        </div>
+        <div className={`rounded-2xl border p-4 shadow-sm ${aiTone}`}>
+          <div className="text-xs uppercase tracking-wide opacity-70">Admisibilidad</div>
+          <div className="mt-2 text-2xl font-semibold">{ai.admisibilidad || "—"}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs uppercase tracking-wide opacity-70">Documentos</div>
+          <div className="mt-2 text-2xl font-semibold">{String(documents.length)}</div>
+        </div>
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1.7fr_1fr]">
-        <Section title="Resultado IA">
-          {!aiResult ? (
-            <p className="text-slate-500">No hay resultado IA todavía.</p>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-xs uppercase tracking-wide text-slate-400">Hecho</div>
-                <div className="mt-2 text-lg font-semibold text-slate-900">{ai.hecho || "—"}</div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="text-xs uppercase tracking-wide text-slate-400">Familia</div>
-                  <div className="mt-2 font-semibold text-slate-900">{ai.familia || "—"}</div>
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h3 className="text-xl font-semibold text-slate-900">Resultado IA</h3>
+          </div>
+          <div className="p-5">
+            {!aiResult ? (
+              <p className="text-slate-500">No hay resultado IA todavía.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-wide text-slate-400">Hecho</div>
+                  <div className="mt-2 text-lg font-semibold text-slate-900">{ai.hecho || "—"}</div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="text-xs uppercase tracking-wide text-slate-400">Acción recomendada</div>
-                  <div className="mt-2 font-semibold text-slate-900">{ai.accion || "—"}</div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="text-xs uppercase tracking-wide text-slate-400">Familia</div>
+                    <div className="mt-2 font-semibold text-slate-900">{ai.familia || "—"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4">
+                    <div className="text-xs uppercase tracking-wide text-slate-400">Acción recomendada</div>
+                    <div className="mt-2 font-semibold text-slate-900">{ai.accion || "—"}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </Section>
+            )}
+          </div>
+        </div>
 
-        <Section title="Acciones rápidas">
-          <div className="space-y-3">
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h3 className="text-xl font-semibold text-slate-900">Acciones rápidas</h3>
+          </div>
+          <div className="p-5 space-y-3">
             <button onClick={runAI} disabled={runningAI} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50">
               Reejecutar IA
             </button>
@@ -298,42 +291,52 @@ export default function OpsCaseDetailPro() {
               Mandar a revisión manual
             </button>
           </div>
-        </Section>
+        </div>
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Section title={`Documentos (${documents.length})`}>
-          {documents.length === 0 ? (
-            <p className="text-slate-500">No hay documentos.</p>
-          ) : (
-            <div className="space-y-3">
-              {documents.map((d, i) => (
-                <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-4">
-                  <div className="font-semibold text-slate-900">{d.kind || "documento"}</div>
-                  <div className="mt-1 text-sm text-slate-500 break-all">{d.bucket}/{d.key}</div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h3 className="text-xl font-semibold text-slate-900">Documentos ({documents.length})</h3>
+          </div>
+          <div className="p-5">
+            {documents.length === 0 ? (
+              <p className="text-slate-500">No hay documentos.</p>
+            ) : (
+              <div className="space-y-3">
+                {documents.map((d, i) => (
+                  <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-4">
+                    <div className="font-semibold text-slate-900">{d.kind || "documento"}</div>
+                    <div className="mt-1 text-sm text-slate-500 break-all">{d.bucket}/{d.key}</div>
+                    <div className="mt-1 text-sm text-slate-500">
+                      {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-        <Section title={`Eventos (${events.length})`}>
-          {events.length === 0 ? (
-            <p className="text-slate-500">No hay eventos.</p>
-          ) : (
-            <div className="space-y-3">
-              {events.map((e, i) => (
-                <div key={e?.id || i} className="rounded-2xl border border-slate-200 p-4">
-                  <div className="font-semibold text-slate-900">{e.type || "evento"}</div>
-                  <div className="mt-1 text-sm text-slate-500">{fmt(e.created_at)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
+        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h3 className="text-xl font-semibold text-slate-900">Eventos ({events.length})</h3>
+          </div>
+          <div className="p-5">
+            {events.length === 0 ? (
+              <p className="text-slate-500">No hay eventos.</p>
+            ) : (
+              <div className="space-y-3">
+                {events.map((e, i) => (
+                  <div key={e?.id || i} className="rounded-2xl border border-slate-200 p-4">
+                    <div className="font-semibold text-slate-900">{e.type || "evento"}</div>
+                    <div className="mt-1 text-sm text-slate-500">{fmt(e.created_at)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {aiResult ? (
