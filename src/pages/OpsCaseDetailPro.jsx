@@ -1,153 +1,145 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
 
-const API_BASE = "https://recurretumulta-backend.onrender.com";
+const API = "/api";
 
-function getToken() {
-  return localStorage.getItem("ops_token") || "";
+async function fetchJson(url, options = {}) {
+  const r = await fetch(url, options);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.detail || `Error HTTP ${r.status}`);
+  return data;
 }
 
-async function apiFetch(path) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "X-Operator-Token": getToken(),
-    },
-  });
-
-  const text = await res.text();
-
-  if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
-    try {
-      const data = JSON.parse(text);
-      detail = data?.detail || detail;
-    } catch {
-      if (text) detail = text.slice(0, 200);
-    }
-    throw new Error(detail);
-  }
-
+function fmt(d) {
+  if (!d) return "—";
   try {
-    return JSON.parse(text);
+    return new Date(d).toLocaleString();
   } catch {
-    throw new Error(`La ruta ${path} no devolvió JSON válido`);
+    return String(d);
   }
 }
 
 function pretty(value) {
-  if (value === null || value === undefined || value === "") return "-";
+  if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "object") return JSON.stringify(value, null, 2);
   return String(value);
+}
+
+function guessFilename(doc) {
+  const key = doc?.key || "";
+  const fromKey = key.split("/").pop();
+  if (fromKey) return fromKey;
+  const kind = (doc?.kind || "documento").toLowerCase();
+  if (kind.includes("pdf")) return "documento.pdf";
+  if (kind.includes("docx")) return "documento.docx";
+  return "documento.bin";
 }
 
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
-  const [loading, setLoading] = useState(true);
-  const [runningIA, setRunningIA] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [aiResult, setAiResult] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [runningAI, setRunningAI] = useState(false);
   const [error, setError] = useState("");
 
-  const [events, setEvents] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [rawEventsError, setRawEventsError] = useState("");
-  const [rawDocsError, setRawDocsError] = useState("");
+  const token = localStorage.getItem("ops_token") || "";
+  const headers = { "X-Operator-Token": token };
 
-  async function loadData() {
-    setLoading(true);
+  async function loadCase() {
     setError("");
-    setRawEventsError("");
-    setRawDocsError("");
 
-    let eventsData = [];
-    let docsData = [];
-
-    try {
-      eventsData = await apiFetch(`/ops/cases/${caseId}/events`);
-      if (!Array.isArray(eventsData)) eventsData = [];
-    } catch (e) {
-      setRawEventsError(e.message || "No se pudieron cargar los eventos");
+    if (!token) {
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
+      return;
     }
 
+    setLoading(true);
     try {
-      docsData = await apiFetch(`/ops/cases/${caseId}/documents`);
-      if (!Array.isArray(docsData)) docsData = [];
-    } catch (e) {
-      setRawDocsError(e.message || "No se pudieron cargar los documentos");
-    }
+      const docsRes = await fetchJson(
+        `${API}/ops/cases/${encodeURIComponent(caseId)}/documents`,
+        { headers }
+      );
 
-    setEvents(eventsData);
-    setDocuments(docsData);
-    setLoading(false);
+      const evRes = await fetchJson(
+        `${API}/ops/cases/${encodeURIComponent(caseId)}/events`,
+        { headers }
+      );
+
+      const docs = docsRes.documents || docsRes.items || [];
+      const evs = evRes.events || evRes.items || [];
+
+      setDocuments(docs);
+      setEvents(evs);
+
+      const aiEvent = evs.find((e) => e.type === "ai_expediente_result");
+      setAiResult(aiEvent?.payload || null);
+    } catch (e) {
+      setError(e.message || "Error cargando expediente");
+      setDocuments([]);
+      setEvents([]);
+      setAiResult(null);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    if (caseId) loadData();
+    loadCase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
-  const aiEvent = useMemo(() => {
-    return events.find((e) => e?.type === "ai_expediente_result") || null;
-  }, [events]);
+  async function runAI() {
+    setError("");
 
-  const aiPayload = aiEvent?.payload || null;
+    if (!token) {
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
+      return;
+    }
 
-  async function runIA() {
+    setRunningAI(true);
     try {
-      setRunningIA(true);
-      setError("");
-
-      const res = await fetch(`${API_BASE}/ai/expediente/run`, {
+      const data = await fetchJson(`${API}/ai/expediente/run`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Operator-Token": getToken(),
-        },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ case_id: caseId }),
       });
 
-      const text = await res.text();
-
-      if (!res.ok) {
-        let detail = `HTTP ${res.status}`;
-        try {
-          const data = JSON.parse(text);
-          detail = data?.detail || detail;
-        } catch {
-          if (text) detail = text.slice(0, 200);
-        }
-        throw new Error(detail);
-      }
-
-      await loadData();
+      setAiResult(data);
+      await loadCase();
     } catch (e) {
-      setError(e.message || "No se pudo ejecutar la IA");
+      setError(e.message || "Error ejecutando IA");
     } finally {
-      setRunningIA(false);
+      setRunningAI(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-white text-black p-6">
-      <div className="mx-auto max-w-5xl">
+    <div className="min-h-screen bg-white p-6 text-zinc-900">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Modo operador PRO</h1>
+            <h1 className="text-3xl font-bold">Modo operador PRO</h1>
             <p className="mt-1 text-sm text-zinc-600">Expediente: {caseId}</p>
           </div>
 
           <div className="flex gap-2">
             <button
-              onClick={loadData}
+              onClick={loadCase}
               className="rounded bg-zinc-200 px-4 py-2 text-sm font-medium hover:bg-zinc-300"
             >
               Recargar
             </button>
 
             <button
-              onClick={runIA}
-              disabled={runningIA}
+              onClick={runAI}
+              disabled={runningAI}
               className="rounded bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
             >
-              {runningIA ? "Ejecutando IA..." : "Ejecutar IA"}
+              {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
             </button>
 
             <Link
@@ -173,21 +165,15 @@ export default function OpsCaseDetailPro() {
               <section className="rounded border p-4">
                 <h2 className="mb-3 text-lg font-semibold">Resultado IA</h2>
 
-                {!aiPayload ? (
+                {!aiResult ? (
                   <div className="text-sm text-zinc-600">
                     ⚠️ No hay resultado IA todavía
                   </div>
                 ) : (
                   <div className="space-y-2 text-sm">
-                    <p>
-                      <b>Familia:</b> {pretty(aiPayload.familia_detectada || aiPayload.familia)}
-                    </p>
-                    <p>
-                      <b>Confianza:</b> {pretty(aiPayload.confianza || aiPayload.confidence)}
-                    </p>
-                    <p>
-                      <b>Hecho:</b> {pretty(aiPayload.hecho || aiPayload.hecho_para_recurso)}
-                    </p>
+                    <p><b>Familia:</b> {pretty(aiResult.familia_detectada || aiResult.familia)}</p>
+                    <p><b>Confianza:</b> {pretty(aiResult.confianza || aiResult.confidence)}</p>
+                    <p><b>Hecho:</b> {pretty(aiResult.hecho || aiResult.hecho_para_recurso)}</p>
                   </div>
                 )}
               </section>
@@ -197,8 +183,7 @@ export default function OpsCaseDetailPro() {
                 <div className="space-y-2 text-sm">
                   <p><b>Eventos:</b> {events.length}</p>
                   <p><b>Documentos:</b> {documents.length}</p>
-                  <p><b>Token OPS:</b> {getToken() ? "OK" : "No encontrado en localStorage"}</p>
-                  <p><b>API:</b> {API_BASE}</p>
+                  <p><b>Token OPS:</b> {token ? "OK" : "No encontrado"}</p>
                 </div>
               </section>
             </div>
@@ -207,21 +192,15 @@ export default function OpsCaseDetailPro() {
               <section className="rounded border p-4">
                 <h2 className="mb-3 text-lg font-semibold">Documentos</h2>
 
-                {rawDocsError ? (
-                  <div className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-700">
-                    {rawDocsError}
-                  </div>
-                ) : null}
-
                 {documents.length === 0 ? (
                   <div className="text-sm text-zinc-600">No hay documentos</div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {documents.map((doc, i) => (
                       <div key={doc?.id || i} className="rounded border p-3 text-sm">
-                        <div><b>Nombre:</b> {pretty(doc?.filename || doc?.name)}</div>
-                        <div><b>Tipo:</b> {pretty(doc?.mime_type || doc?.type)}</div>
-                        <div><b>ID:</b> {pretty(doc?.id)}</div>
+                        <div><b>Nombre:</b> {guessFilename(doc)}</div>
+                        <div><b>Tipo:</b> {pretty(doc?.mime || doc?.mime_type || doc?.kind)}</div>
+                        <div><b>Fecha:</b> {fmt(doc?.created_at)}</div>
                       </div>
                     ))}
                   </div>
@@ -231,20 +210,14 @@ export default function OpsCaseDetailPro() {
               <section className="rounded border p-4">
                 <h2 className="mb-3 text-lg font-semibold">Eventos</h2>
 
-                {rawEventsError ? (
-                  <div className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-700">
-                    {rawEventsError}
-                  </div>
-                ) : null}
-
                 {events.length === 0 ? (
                   <div className="text-sm text-zinc-600">No hay eventos</div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {events.map((evt, i) => (
                       <div key={evt?.id || i} className="rounded border p-3 text-sm">
                         <div><b>Tipo:</b> {pretty(evt?.type)}</div>
-                        <div><b>Fecha:</b> {pretty(evt?.created_at)}</div>
+                        <div><b>Fecha:</b> {fmt(evt?.created_at)}</div>
                       </div>
                     ))}
                   </div>
@@ -254,11 +227,11 @@ export default function OpsCaseDetailPro() {
 
             <section className="mt-4 rounded border p-4">
               <h2 className="mb-3 text-lg font-semibold">Payload IA bruto</h2>
-              {!aiPayload ? (
+              {!aiResult ? (
                 <div className="text-sm text-zinc-600">No disponible</div>
               ) : (
                 <pre className="overflow-x-auto rounded bg-zinc-100 p-3 text-xs">
-                  {JSON.stringify(aiPayload, null, 2)}
+                  {JSON.stringify(aiResult, null, 2)}
                 </pre>
               )}
             </section>
