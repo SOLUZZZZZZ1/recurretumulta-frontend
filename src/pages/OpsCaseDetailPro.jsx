@@ -19,22 +19,6 @@ function fmt(d) {
   }
 }
 
-function pretty(value) {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "object") return JSON.stringify(value, null, 2);
-  return String(value);
-}
-
-function guessFilename(doc) {
-  const key = doc?.key || "";
-  const fromKey = key.split("/").pop();
-  if (fromKey) return fromKey;
-  const kind = (doc?.kind || "documento").toLowerCase();
-  if (kind.includes("pdf")) return "documento.pdf";
-  if (kind.includes("docx")) return "documento.docx";
-  return "documento.bin";
-}
-
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
@@ -53,22 +37,24 @@ export default function OpsCaseDetailPro() {
     setError("");
 
     if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
+      setError("Falta token de operador.");
       return;
     }
 
     setLoading(true);
+
     try {
       const docsRes = await fetchJson(
-        `${API}/ops/cases/${encodeURIComponent(caseId)}/documents`,
+        `${API}/ops/cases/${caseId}/documents`,
         { headers }
       );
 
       const evRes = await fetchJson(
-        `${API}/ops/cases/${encodeURIComponent(caseId)}/events`,
+        `${API}/ops/cases/${caseId}/events`,
         { headers }
       );
 
+      // 🔥 ESTO ES LA CLAVE
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
 
@@ -77,6 +63,7 @@ export default function OpsCaseDetailPro() {
 
       const aiEvent = evs.find((e) => e.type === "ai_expediente_result");
       setAiResult(aiEvent?.payload || null);
+
     } catch (e) {
       setError(e.message || "Error cargando expediente");
       setDocuments([]);
@@ -89,18 +76,18 @@ export default function OpsCaseDetailPro() {
 
   useEffect(() => {
     loadCase();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function runAI() {
     setError("");
 
     if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
+      setError("Falta token de operador.");
       return;
     }
 
     setRunningAI(true);
+
     try {
       const data = await fetchJson(`${API}/ai/expediente/run`, {
         method: "POST",
@@ -110,6 +97,7 @@ export default function OpsCaseDetailPro() {
 
       setAiResult(data);
       await loadCase();
+
     } catch (e) {
       setError(e.message || "Error ejecutando IA");
     } finally {
@@ -118,126 +106,75 @@ export default function OpsCaseDetailPro() {
   }
 
   return (
-    <div className="min-h-screen bg-white p-6 text-zinc-900">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold">Modo operador PRO</h1>
-            <p className="mt-1 text-sm text-zinc-600">Expediente: {caseId}</p>
-          </div>
+    <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
+      
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="sr-h2" style={{ margin: 0 }}>
+          Operador PRO — {caseId}
+        </h1>
 
-          <div className="flex gap-2">
-            <button
-              onClick={loadCase}
-              className="rounded bg-zinc-200 px-4 py-2 text-sm font-medium hover:bg-zinc-300"
-            >
-              Recargar
-            </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="sr-btn-secondary" onClick={loadCase}>
+            Recargar
+          </button>
 
-            <button
-              onClick={runAI}
-              disabled={runningAI}
-              className="rounded bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
-            >
-              {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
-            </button>
+          <button className="sr-btn-primary" onClick={runAI} disabled={runningAI}>
+            {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
+          </button>
 
-            <Link
-              to={`/ops/case/${caseId}`}
-              className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Volver al detalle normal
-            </Link>
-          </div>
+          <Link to={`/ops/case/${caseId}`} className="sr-btn-secondary">
+            Volver
+          </Link>
         </div>
+      </div>
 
-        {error ? (
-          <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-700">
-            {error}
-          </div>
-        ) : null}
+      {error && (
+        <div className="sr-card" style={{ marginTop: 14 }}>
+          <p style={{ color: "red" }}>❌ {error}</p>
+        </div>
+      )}
 
-        {loading ? (
-          <div className="rounded border p-4">Cargando datos del expediente...</div>
-        ) : (
+      {/* RESULTADO IA */}
+      <div className="sr-card" style={{ marginTop: 14 }}>
+        <h3>Resultado IA</h3>
+
+        {!aiResult && <p>⚠️ No hay resultado IA todavía</p>}
+
+        {aiResult && (
           <>
-            <div className="grid gap-4 md:grid-cols-2">
-              <section className="rounded border p-4">
-                <h2 className="mb-3 text-lg font-semibold">Resultado IA</h2>
-
-                {!aiResult ? (
-                  <div className="text-sm text-zinc-600">
-                    ⚠️ No hay resultado IA todavía
-                  </div>
-                ) : (
-                  <div className="space-y-2 text-sm">
-                    <p><b>Familia:</b> {pretty(aiResult.familia_detectada || aiResult.familia)}</p>
-                    <p><b>Confianza:</b> {pretty(aiResult.confianza || aiResult.confidence)}</p>
-                    <p><b>Hecho:</b> {pretty(aiResult.hecho || aiResult.hecho_para_recurso)}</p>
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded border p-4">
-                <h2 className="mb-3 text-lg font-semibold">Resumen técnico</h2>
-                <div className="space-y-2 text-sm">
-                  <p><b>Eventos:</b> {events.length}</p>
-                  <p><b>Documentos:</b> {documents.length}</p>
-                  <p><b>Token OPS:</b> {token ? "OK" : "No encontrado"}</p>
-                </div>
-              </section>
-            </div>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <section className="rounded border p-4">
-                <h2 className="mb-3 text-lg font-semibold">Documentos</h2>
-
-                {documents.length === 0 ? (
-                  <div className="text-sm text-zinc-600">No hay documentos</div>
-                ) : (
-                  <div className="space-y-3">
-                    {documents.map((doc, i) => (
-                      <div key={doc?.id || i} className="rounded border p-3 text-sm">
-                        <div><b>Nombre:</b> {guessFilename(doc)}</div>
-                        <div><b>Tipo:</b> {pretty(doc?.mime || doc?.mime_type || doc?.kind)}</div>
-                        <div><b>Fecha:</b> {fmt(doc?.created_at)}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded border p-4">
-                <h2 className="mb-3 text-lg font-semibold">Eventos</h2>
-
-                {events.length === 0 ? (
-                  <div className="text-sm text-zinc-600">No hay eventos</div>
-                ) : (
-                  <div className="space-y-3">
-                    {events.map((evt, i) => (
-                      <div key={evt?.id || i} className="rounded border p-3 text-sm">
-                        <div><b>Tipo:</b> {pretty(evt?.type)}</div>
-                        <div><b>Fecha:</b> {fmt(evt?.created_at)}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </div>
-
-            <section className="mt-4 rounded border p-4">
-              <h2 className="mb-3 text-lg font-semibold">Payload IA bruto</h2>
-              {!aiResult ? (
-                <div className="text-sm text-zinc-600">No disponible</div>
-              ) : (
-                <pre className="overflow-x-auto rounded bg-zinc-100 p-3 text-xs">
-                  {JSON.stringify(aiResult, null, 2)}
-                </pre>
-              )}
-            </section>
+            <p><b>Familia:</b> {aiResult.familia_detectada}</p>
+            <p><b>Confianza:</b> {aiResult.confianza}</p>
+            <p><b>Hecho:</b> {aiResult.hecho}</p>
           </>
         )}
       </div>
+
+      {/* DOCUMENTOS */}
+      <div className="sr-card" style={{ marginTop: 14 }}>
+        <h3>Documentos</h3>
+
+        {documents.length === 0 && <p>No hay documentos</p>}
+
+        {documents.map((d, i) => (
+          <div key={i}>
+            {d.kind} — {fmt(d.created_at)}
+          </div>
+        ))}
+      </div>
+
+      {/* EVENTOS */}
+      <div className="sr-card" style={{ marginTop: 14 }}>
+        <h3>Eventos</h3>
+
+        {events.length === 0 && <p>No hay eventos</p>}
+
+        {events.map((e, i) => (
+          <div key={i}>
+            {e.type} — {fmt(e.created_at)}
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
