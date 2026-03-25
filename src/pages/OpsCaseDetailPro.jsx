@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
 function getToken() {
-  return localStorage.getItem("operator_token") || "";
+  return localStorage.getItem("ops_token") || "";
 }
 
 async function apiFetch(path, options = {}) {
@@ -26,54 +26,55 @@ async function apiFetch(path, options = {}) {
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
-  const [caseData, setCaseData] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [aiResult, setAiResult] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [note, setNote] = useState("");
-  const [documentUrl, setDocumentUrl] = useState("");
 
-  async function loadCase() {
+  async function loadData() {
     try {
       setLoading(true);
-      const data = await apiFetch(`/ops/cases/${caseId}`);
-      setCaseData(data);
-    } catch (err) {
-      setError(err.message);
+
+      const docs = await apiFetch(`/ops/cases/${caseId}/documents`);
+      const evs = await apiFetch(`/ops/cases/${caseId}/events`);
+
+      setDocuments(docs);
+      setEvents(evs);
+
+      // 🔥 Buscar resultado IA
+      const ai = evs.find(e => e.type === "ai_expediente_result");
+      if (ai) {
+        setAiResult(ai.payload);
+      }
+
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadCase();
+    loadData();
   }, [caseId]);
 
-  async function approve() {
+  // 🚀 Ejecutar IA
+  async function runIA() {
     try {
       setBusy(true);
-      await apiFetch(`/ops/cases/${caseId}/approve`, {
-        method: "POST",
-        body: JSON.stringify({ note }),
-      });
-      await loadCase();
-      alert("Aprobado");
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
-  async function submitDGT() {
-    try {
-      setBusy(true);
-      const res = await apiFetch(`/ops/cases/${caseId}/submit`, {
+      await apiFetch(`/ai/expediente/run`, {
         method: "POST",
-        body: JSON.stringify({ document_url: documentUrl }),
+        body: JSON.stringify({ case_id: caseId }),
       });
-      alert("Enviado a DGT: " + res.dgt_id);
-      await loadCase();
+
+      await loadData();
+
+      alert("IA ejecutada");
+
     } catch (e) {
       setError(e.message);
     } finally {
@@ -87,7 +88,7 @@ export default function OpsCaseDetailPro() {
     <div className="p-6 max-w-5xl mx-auto">
 
       <h1 className="text-2xl font-bold mb-4">
-        Expediente {caseId}
+        Operador PRO — Expediente {caseId}
       </h1>
 
       {error && (
@@ -96,47 +97,49 @@ export default function OpsCaseDetailPro() {
         </div>
       )}
 
-      {/* INFO */}
-      <div className="border p-4 mb-4 rounded-xl">
-        <p><b>Familia:</b> {caseData?.familia_detectada}</p>
-        <p><b>Confianza:</b> {caseData?.confianza}</p>
-        <p><b>Hecho:</b> {caseData?.hecho}</p>
-        <p><b>Estado:</b> {caseData?.status}</p>
+      {/* DOCUMENTOS */}
+      <div className="border p-4 mb-4 rounded">
+        <h2 className="font-bold mb-2">Documentos</h2>
+        {documents.length === 0 && <p>No hay documentos</p>}
+        {documents.map((doc, i) => (
+          <div key={i} className="text-sm">
+            {doc.filename}
+          </div>
+        ))}
       </div>
 
-      {/* APROBAR */}
-      <div className="border p-4 mb-4 rounded-xl">
-        <textarea
-          className="w-full border p-2"
-          placeholder="Nota operador"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <button
-          onClick={approve}
-          disabled={busy}
-          className="mt-2 bg-black text-white px-4 py-2 rounded"
-        >
-          Aprobar
-        </button>
+      {/* IA RESULT */}
+      <div className="border p-4 mb-4 rounded">
+        <h2 className="font-bold mb-2">Resultado IA</h2>
+
+        {!aiResult && (
+          <button
+            onClick={runIA}
+            disabled={busy}
+            className="bg-black text-white px-4 py-2"
+          >
+            Ejecutar IA
+          </button>
+        )}
+
+        {aiResult && (
+          <>
+            <p><b>Familia:</b> {aiResult.familia_detectada}</p>
+            <p><b>Confianza:</b> {aiResult.confianza}</p>
+            <p><b>Hecho:</b> {aiResult.hecho}</p>
+          </>
+        )}
       </div>
 
-      {/* DGT */}
-      <div className="border p-4 rounded-xl">
-        <input
-          className="w-full border p-2"
-          placeholder="URL documento"
-          value={documentUrl}
-          onChange={(e) => setDocumentUrl(e.target.value)}
-        />
+      {/* EVENTOS */}
+      <div className="border p-4 rounded">
+        <h2 className="font-bold mb-2">Trazabilidad</h2>
 
-        <button
-          onClick={submitDGT}
-          disabled={busy}
-          className="mt-2 bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Enviar a DGT
-        </button>
+        {events.map((e, i) => (
+          <div key={i} className="text-xs mb-2">
+            {e.type} — {e.created_at}
+          </div>
+        ))}
       </div>
 
     </div>
