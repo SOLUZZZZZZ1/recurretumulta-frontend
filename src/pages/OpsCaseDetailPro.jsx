@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 
 const API = "/api";
@@ -19,6 +19,67 @@ function fmt(d) {
   }
 }
 
+function pretty(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function firstDefined(...values) {
+  for (const v of values) {
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return "";
+}
+
+function readAiFields(aiResult) {
+  if (!aiResult || typeof aiResult !== "object") {
+    return {
+      familia: "",
+      confianza: "",
+      hecho: "",
+      admissibility: "",
+      recommended: "",
+    };
+  }
+
+  return {
+    familia: firstDefined(
+      aiResult.familia_detectada,
+      aiResult.familia,
+      aiResult.family,
+      aiResult?.classification?.family,
+      aiResult?.classifier_result?.family,
+      aiResult?.resultado?.familia
+    ),
+    confianza: firstDefined(
+      aiResult.confianza,
+      aiResult.confidence,
+      aiResult?.classification?.confidence,
+      aiResult?.classifier_result?.confidence,
+      aiResult?.resultado?.confianza
+    ),
+    hecho: firstDefined(
+      aiResult.hecho,
+      aiResult.hecho_para_recurso,
+      aiResult.facts,
+      aiResult.detected_facts,
+      aiResult?.resultado?.hecho
+    ),
+    admissibility: firstDefined(
+      aiResult?.admissibility?.admissibility,
+      aiResult?.admissibility,
+      aiResult?.resultado?.admisibilidad
+    ),
+    recommended: firstDefined(
+      aiResult?.phase?.recommended_action?.action,
+      aiResult?.recommended_action?.action,
+      aiResult?.recommended_action,
+      aiResult?.resultado?.accion_recomendada
+    ),
+  };
+}
+
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
@@ -37,33 +98,30 @@ export default function OpsCaseDetailPro() {
     setError("");
 
     if (!token) {
-      setError("Falta token de operador.");
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
       return;
     }
 
     setLoading(true);
-
     try {
       const docsRes = await fetchJson(
-        `${API}/ops/cases/${caseId}/documents`,
+        `${API}/ops/cases/${encodeURIComponent(caseId)}/documents`,
         { headers }
       );
 
       const evRes = await fetchJson(
-        `${API}/ops/cases/${caseId}/events`,
+        `${API}/ops/cases/${encodeURIComponent(caseId)}/events`,
         { headers }
       );
 
-      // 🔥 ESTO ES LA CLAVE
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
 
       setDocuments(docs);
       setEvents(evs);
 
-      const aiEvent = evs.find((e) => e.type === "ai_expediente_result");
+      const aiEvent = [...evs].reverse().find((e) => e?.type === "ai_expediente_result");
       setAiResult(aiEvent?.payload || null);
-
     } catch (e) {
       setError(e.message || "Error cargando expediente");
       setDocuments([]);
@@ -76,18 +134,18 @@ export default function OpsCaseDetailPro() {
 
   useEffect(() => {
     loadCase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function runAI() {
     setError("");
 
     if (!token) {
-      setError("Falta token de operador.");
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
       return;
     }
 
     setRunningAI(true);
-
     try {
       const data = await fetchJson(`${API}/ai/expediente/run`, {
         method: "POST",
@@ -97,7 +155,6 @@ export default function OpsCaseDetailPro() {
 
       setAiResult(data);
       await loadCase();
-
     } catch (e) {
       setError(e.message || "Error ejecutando IA");
     } finally {
@@ -105,15 +162,16 @@ export default function OpsCaseDetailPro() {
     }
   }
 
+  const ai = useMemo(() => readAiFields(aiResult), [aiResult]);
+
   return (
     <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
-      
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="sr-h2" style={{ margin: 0 }}>
           Operador PRO — {caseId}
         </h1>
 
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button className="sr-btn-secondary" onClick={loadCase}>
             Recargar
           </button>
@@ -130,51 +188,130 @@ export default function OpsCaseDetailPro() {
 
       {error && (
         <div className="sr-card" style={{ marginTop: 14 }}>
-          <p style={{ color: "red" }}>❌ {error}</p>
+          <div className="sr-p" style={{ margin: 0, color: "#991b1b" }}>
+            ❌ {error}
+          </div>
         </div>
       )}
 
-      {/* RESULTADO IA */}
       <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3>Resultado IA</h3>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>
+          Resultado IA
+        </h3>
 
-        {!aiResult && <p>⚠️ No hay resultado IA todavía</p>}
-
-        {aiResult && (
+        {!aiResult ? (
+          <p className="sr-p">⚠️ No hay resultado IA todavía</p>
+        ) : (
           <>
-            <p><b>Familia:</b> {aiResult.familia_detectada}</p>
-            <p><b>Confianza:</b> {aiResult.confianza}</p>
-            <p><b>Hecho:</b> {aiResult.hecho}</p>
+            <p className="sr-p"><b>Familia:</b> {pretty(ai.familia)}</p>
+            <p className="sr-p"><b>Confianza:</b> {pretty(ai.confianza)}</p>
+            <p className="sr-p"><b>Hecho:</b> {pretty(ai.hecho)}</p>
+
+            {ai.admissibility ? (
+              <p className="sr-p"><b>Admisibilidad:</b> {pretty(ai.admissibility)}</p>
+            ) : null}
+
+            {ai.recommended ? (
+              <p className="sr-p"><b>Acción recomendada:</b> {pretty(ai.recommended)}</p>
+            ) : null}
           </>
         )}
       </div>
 
-      {/* DOCUMENTOS */}
       <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3>Documentos</h3>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>
+          Documentos
+        </h3>
 
-        {documents.length === 0 && <p>No hay documentos</p>}
+        {loading && <p className="sr-p">Cargando…</p>}
 
-        {documents.map((d, i) => (
-          <div key={i}>
-            {d.kind} — {fmt(d.created_at)}
+        {!loading && documents.length === 0 && (
+          <p className="sr-p">No hay documentos</p>
+        )}
+
+        {!loading && documents.length > 0 && (
+          <div style={{ display: "grid", gap: 10 }}>
+            {documents.map((d, i) => (
+              <div
+                key={d?.id || i}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 10,
+                  background: "rgba(255,255,255,0.75)",
+                }}
+              >
+                <div className="sr-small" style={{ fontWeight: 800 }}>
+                  {d.kind || "documento"}
+                </div>
+
+                <div className="sr-small" style={{ color: "#6b7280" }}>
+                  {d.bucket}/{d.key}
+                </div>
+
+                <div className="sr-small" style={{ color: "#6b7280" }}>
+                  {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
-      {/* EVENTOS */}
       <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3>Eventos</h3>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>
+          Eventos
+        </h3>
 
-        {events.length === 0 && <p>No hay eventos</p>}
+        {loading && <p className="sr-p">Cargando…</p>}
 
-        {events.map((e, i) => (
-          <div key={i}>
-            {e.type} — {fmt(e.created_at)}
+        {!loading && events.length === 0 && (
+          <p className="sr-p">No hay eventos</p>
+        )}
+
+        {!loading && events.length > 0 && (
+          <div style={{ display: "grid", gap: 10 }}>
+            {events.map((e, i) => (
+              <div
+                key={e?.id || i}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 10,
+                  background: "rgba(255,255,255,0.75)",
+                }}
+              >
+                <div className="sr-small" style={{ fontWeight: 800 }}>
+                  {e.type || "evento"}
+                </div>
+
+                <div className="sr-small" style={{ color: "#6b7280" }}>
+                  {fmt(e.created_at)}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
+      {aiResult && (
+        <div className="sr-card" style={{ marginTop: 14 }}>
+          <h3 className="sr-h3" style={{ marginTop: 0 }}>
+            Payload IA bruto
+          </h3>
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontSize: 12,
+              lineHeight: 1.5,
+              margin: 0,
+            }}
+          >
+            {JSON.stringify(aiResult, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
