@@ -6,312 +6,129 @@ const API = "/api";
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data?.detail || `Error HTTP ${r.status}`);
+  if (!r.ok) throw new Error(data?.detail || "Error");
   return data;
 }
 
-function fmt(d) {
-  if (!d) return "—";
-  try {
-    return new Date(d).toLocaleString();
-  } catch {
-    return String(d);
-  }
-}
-
-function pretty(value) {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
-
-function firstDefined(...values) {
-  for (const v of values) {
-    if (v !== undefined && v !== null && v !== "") return v;
-  }
-  return "";
-}
-
-function readAiFields(aiResult) {
-  if (!aiResult || typeof aiResult !== "object") {
-    return {
-      familia: "",
-      confianza: "",
-      hecho: "",
-      admissibility: "",
-      recommended: "",
-    };
-  }
-
-  return {
-    familia: firstDefined(
-      aiResult.familia_detectada,
-      aiResult.familia,
-      aiResult.family,
-      aiResult?.classification?.family,
-      aiResult?.classifier_result?.family,
-      aiResult?.resultado?.familia
-    ),
-    confianza: firstDefined(
-      aiResult.confianza,
-      aiResult.confidence,
-      aiResult?.classification?.confidence,
-      aiResult?.classifier_result?.confidence,
-      aiResult?.resultado?.confianza
-    ),
-    hecho: firstDefined(
-      aiResult.hecho,
-      aiResult.hecho_para_recurso,
-      aiResult.facts,
-      aiResult.detected_facts,
-      aiResult?.resultado?.hecho
-    ),
-    admissibility: firstDefined(
-      aiResult?.admissibility?.admissibility,
-      aiResult?.admissibility,
-      aiResult?.resultado?.admisibilidad
-    ),
-    recommended: firstDefined(
-      aiResult?.phase?.recommended_action?.action,
-      aiResult?.recommended_action?.action,
-      aiResult?.recommended_action,
-      aiResult?.resultado?.accion_recomendada
-    ),
-  };
+function first(...v) {
+  return v.find(x => x !== undefined && x !== null && x !== "") || "";
 }
 
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
-  const [documents, setDocuments] = useState([]);
+  const [docs, setDocs] = useState([]);
   const [events, setEvents] = useState([]);
-  const [aiResult, setAiResult] = useState(null);
+  const [ai, setAi] = useState(null);
 
   const [loading, setLoading] = useState(false);
-  const [runningAI, setRunningAI] = useState(false);
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
 
-  async function loadCase() {
-    setError("");
-
-    if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
-      return;
-    }
+  async function load() {
+    if (!token) return setError("Sin token OPS");
 
     setLoading(true);
     try {
-      const docsRes = await fetchJson(
-        `${API}/ops/cases/${encodeURIComponent(caseId)}/documents`,
-        { headers }
-      );
+      const d = await fetchJson(`${API}/ops/cases/${caseId}/documents`, { headers });
+      const e = await fetchJson(`${API}/ops/cases/${caseId}/events`, { headers });
 
-      const evRes = await fetchJson(
-        `${API}/ops/cases/${encodeURIComponent(caseId)}/events`,
-        { headers }
-      );
+      const docs = d.documents || d.items || [];
+      const evs = e.events || e.items || [];
 
-      const docs = docsRes.documents || docsRes.items || [];
-      const evs = evRes.events || evRes.items || [];
-
-      setDocuments(docs);
+      setDocs(docs);
       setEvents(evs);
 
-      const aiEvent = [...evs].reverse().find((e) => e?.type === "ai_expediente_result");
-      setAiResult(aiEvent?.payload || null);
-    } catch (e) {
-      setError(e.message || "Error cargando expediente");
-      setDocuments([]);
-      setEvents([]);
-      setAiResult(null);
+      const aiEvent = [...evs].reverse().find(x => x.type === "ai_expediente_result");
+      setAi(aiEvent?.payload || null);
+
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    loadCase();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseId]);
+  useEffect(() => { load(); }, [caseId]);
 
   async function runAI() {
-    setError("");
-
-    if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
-      return;
-    }
-
-    setRunningAI(true);
+    setRunning(true);
     try {
-      const data = await fetchJson(`${API}/ai/expediente/run`, {
+      await fetchJson(`${API}/ai/expediente/run`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ case_id: caseId }),
       });
-
-      setAiResult(data);
-      await loadCase();
+      await load();
     } catch (e) {
-      setError(e.message || "Error ejecutando IA");
+      setError(e.message);
     } finally {
-      setRunningAI(false);
+      setRunning(false);
     }
   }
 
-  const ai = useMemo(() => readAiFields(aiResult), [aiResult]);
+  async function approve() {
+    await fetchJson(`${API}/ops/cases/${caseId}/approve`, {
+      method: "POST",
+      headers,
+    });
+    alert("Aprobado");
+  }
+
+  async function manual() {
+    await fetchJson(`${API}/ops/cases/${caseId}/manual`, {
+      method: "POST",
+      headers,
+    });
+    alert("En revisión manual");
+  }
+
+  const familia = first(ai?.familia_detectada, ai?.familia, ai?.family);
+  const confianza = first(ai?.confianza, ai?.confidence);
+  const hecho = first(ai?.hecho, ai?.facts);
 
   return (
-    <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="sr-h2" style={{ margin: 0 }}>
-          Operador PRO — {caseId}
-        </h1>
+    <div className="p-6 max-w-5xl mx-auto">
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className="sr-btn-secondary" onClick={loadCase}>
-            Recargar
-          </button>
+      <div className="flex justify-between mb-6">
+        <h1 className="text-2xl font-bold">PRO — {caseId}</h1>
 
-          <button className="sr-btn-primary" onClick={runAI} disabled={runningAI}>
-            {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
-          </button>
-
-          <Link to={`/ops/case/${caseId}`} className="sr-btn-secondary">
-            Volver
-          </Link>
+        <div className="flex gap-2">
+          <button onClick={load}>Recargar</button>
+          <button onClick={runAI}>{running ? "..." : "IA"}</button>
+          <button onClick={approve}>Aprobar</button>
+          <button onClick={manual}>Manual</button>
+          <Link to={`/ops/case/${caseId}`}>Volver</Link>
         </div>
       </div>
 
-      {error && (
-        <div className="sr-card" style={{ marginTop: 14 }}>
-          <div className="sr-p" style={{ margin: 0, color: "#991b1b" }}>
-            ❌ {error}
-          </div>
-        </div>
-      )}
+      {error && <div style={{color:"red"}}>{error}</div>}
 
-      <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3 className="sr-h3" style={{ marginTop: 0 }}>
-          Resultado IA
-        </h3>
-
-        {!aiResult ? (
-          <p className="sr-p">⚠️ No hay resultado IA todavía</p>
-        ) : (
+      <div style={{border:"1px solid #ddd", padding:10, marginBottom:10}}>
+        <h3>Resultado IA</h3>
+        {!ai && <p>Sin IA</p>}
+        {ai && (
           <>
-            <p className="sr-p"><b>Familia:</b> {pretty(ai.familia)}</p>
-            <p className="sr-p"><b>Confianza:</b> {pretty(ai.confianza)}</p>
-            <p className="sr-p"><b>Hecho:</b> {pretty(ai.hecho)}</p>
-
-            {ai.admissibility ? (
-              <p className="sr-p"><b>Admisibilidad:</b> {pretty(ai.admissibility)}</p>
-            ) : null}
-
-            {ai.recommended ? (
-              <p className="sr-p"><b>Acción recomendada:</b> {pretty(ai.recommended)}</p>
-            ) : null}
+            <p><b>Familia:</b> {familia}</p>
+            <p><b>Confianza:</b> {confianza}</p>
+            <p><b>Hecho:</b> {hecho}</p>
           </>
         )}
       </div>
 
-      <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3 className="sr-h3" style={{ marginTop: 0 }}>
-          Documentos
-        </h3>
-
-        {loading && <p className="sr-p">Cargando…</p>}
-
-        {!loading && documents.length === 0 && (
-          <p className="sr-p">No hay documentos</p>
-        )}
-
-        {!loading && documents.length > 0 && (
-          <div style={{ display: "grid", gap: 10 }}>
-            {documents.map((d, i) => (
-              <div
-                key={d?.id || i}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 10,
-                  background: "rgba(255,255,255,0.75)",
-                }}
-              >
-                <div className="sr-small" style={{ fontWeight: 800 }}>
-                  {d.kind || "documento"}
-                </div>
-
-                <div className="sr-small" style={{ color: "#6b7280" }}>
-                  {d.bucket}/{d.key}
-                </div>
-
-                <div className="sr-small" style={{ color: "#6b7280" }}>
-                  {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <div style={{border:"1px solid #ddd", padding:10, marginBottom:10}}>
+        <h3>Documentos ({docs.length})</h3>
+        {docs.map((d,i)=><div key={i}>{d.kind}</div>)}
       </div>
 
-      <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3 className="sr-h3" style={{ marginTop: 0 }}>
-          Eventos
-        </h3>
-
-        {loading && <p className="sr-p">Cargando…</p>}
-
-        {!loading && events.length === 0 && (
-          <p className="sr-p">No hay eventos</p>
-        )}
-
-        {!loading && events.length > 0 && (
-          <div style={{ display: "grid", gap: 10 }}>
-            {events.map((e, i) => (
-              <div
-                key={e?.id || i}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 10,
-                  background: "rgba(255,255,255,0.75)",
-                }}
-              >
-                <div className="sr-small" style={{ fontWeight: 800 }}>
-                  {e.type || "evento"}
-                </div>
-
-                <div className="sr-small" style={{ color: "#6b7280" }}>
-                  {fmt(e.created_at)}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <div style={{border:"1px solid #ddd", padding:10}}>
+        <h3>Eventos ({events.length})</h3>
+        {events.map((e,i)=><div key={i}>{e.type}</div>)}
       </div>
 
-      {aiResult && (
-        <div className="sr-card" style={{ marginTop: 14 }}>
-          <h3 className="sr-h3" style={{ marginTop: 0 }}>
-            Payload IA bruto
-          </h3>
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              fontSize: 12,
-              lineHeight: 1.5,
-              margin: 0,
-            }}
-          >
-            {JSON.stringify(aiResult, null, 2)}
-          </pre>
-        </div>
-      )}
     </div>
   );
 }
