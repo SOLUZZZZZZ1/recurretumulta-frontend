@@ -27,25 +27,27 @@ function readAi(ai) {
   if (!ai || typeof ai !== "object") {
     return { familia: "", confianza: "", hecho: "", admisibilidad: "", accion: "" };
   }
+
   return {
     familia: first(
-      ai.familia_detectada,
-      ai.familia,
-      ai.family,
-      ai?.classification?.family,
-      ai?.classifier_result?.family
+      ai?.classifier_result?.family,
+      ai?.familia_detectada,
+      ai?.familia,
+      ai?.family,
+      ai?.classification?.family
     ),
     confianza: first(
-      ai.confianza,
-      ai.confidence,
-      ai?.classification?.confidence,
-      ai?.classifier_result?.confidence
+      ai?.classifier_result?.confidence,
+      ai?.confianza,
+      ai?.confidence,
+      ai?.classification?.confidence
     ),
     hecho: first(
-      ai.hecho,
-      ai.hecho_para_recurso,
-      ai.facts,
-      ai.detected_facts
+      ai?.arguments?.hecho,
+      ai?.hecho,
+      ai?.hecho_para_recurso,
+      ai?.facts,
+      ai?.detected_facts
     ),
     admisibilidad: first(
       ai?.admissibility?.admissibility,
@@ -106,7 +108,6 @@ export default function OpsCaseDetailPro() {
 
   useEffect(() => {
     loadCase();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function runAI() {
