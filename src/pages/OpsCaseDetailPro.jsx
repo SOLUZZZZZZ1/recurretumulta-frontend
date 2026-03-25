@@ -33,21 +33,18 @@ function readAi(ai) {
       ai?.classifier_result?.family,
       ai?.familia_detectada,
       ai?.familia,
-      ai?.family,
-      ai?.classification?.family
+      ai?.family
     ),
     confianza: first(
       ai?.classifier_result?.confidence,
       ai?.confianza,
-      ai?.confidence,
-      ai?.classification?.confidence
+      ai?.confidence
     ),
     hecho: first(
       ai?.arguments?.hecho,
       ai?.hecho,
       ai?.hecho_para_recurso,
-      ai?.facts,
-      ai?.detected_facts
+      ai?.facts
     ),
     admisibilidad: first(
       ai?.admissibility?.admissibility,
@@ -55,7 +52,6 @@ function readAi(ai) {
     ),
     accion: first(
       ai?.phase?.recommended_action?.action,
-      ai?.recommended_action?.action,
       ai?.recommended_action
     ),
   };
@@ -70,8 +66,6 @@ export default function OpsCaseDetailPro() {
 
   const [loading, setLoading] = useState(false);
   const [runningAI, setRunningAI] = useState(false);
-  const [busyApprove, setBusyApprove] = useState(false);
-  const [busyManual, setBusyManual] = useState(false);
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("ops_token") || "";
@@ -79,28 +73,23 @@ export default function OpsCaseDetailPro() {
 
   async function loadCase() {
     setError("");
-    if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
-      return;
-    }
     setLoading(true);
-    try {
-      const docsRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers });
-      const evRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers });
 
-      const docs = docsRes.documents || docsRes.items || [];
-      const evs = evRes.events || evRes.items || [];
+    try {
+      const docsRes = await fetchJson(`${API}/ops/cases/${caseId}/documents`, { headers });
+      const evRes = await fetchJson(`${API}/ops/cases/${caseId}/events`, { headers });
+
+      const docs = docsRes.documents || [];
+      const evs = evRes.events || [];
 
       setDocuments(docs);
       setEvents(evs);
 
-      const aiEvent = [...evs].reverse().find((e) => e?.type === "ai_expediente_result");
+      const aiEvent = [...evs].reverse().find(e => e.type === "ai_expediente_result");
       setAiResult(aiEvent?.payload || null);
+
     } catch (e) {
-      setError(e.message || "Error cargando expediente");
-      setDocuments([]);
-      setEvents([]);
-      setAiResult(null);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -111,249 +100,69 @@ export default function OpsCaseDetailPro() {
   }, [caseId]);
 
   async function runAI() {
-    setError("");
-    if (!token) return setError("Falta token de operador.");
     setRunningAI(true);
     try {
-      const data = await fetchJson(`${API}/ai/expediente/run`, {
+      await fetchJson(`${API}/ai/expediente/run`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ case_id: caseId }),
       });
-      setAiResult(data);
+
       await loadCase();
+
     } catch (e) {
-      setError(e.message || "Error ejecutando IA");
+      setError(e.message);
     } finally {
       setRunningAI(false);
     }
   }
 
-  async function approve() {
-    setError("");
-    if (!token) return setError("Falta token de operador.");
-    setBusyApprove(true);
-    try {
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/approve`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ note: "Aprobado desde PRO" }),
-      });
-      await loadCase();
-      alert("Expediente aprobado");
-    } catch (e) {
-      setError(e.message || "Error aprobando expediente");
-    } finally {
-      setBusyApprove(false);
-    }
-  }
-
-  async function manual() {
-    setError("");
-    if (!token) return setError("Falta token de operador.");
-    setBusyManual(true);
-    try {
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/manual`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ motivo: "Revisión manual desde PRO" }),
-      });
-      await loadCase();
-      alert("Expediente enviado a revisión manual");
-    } catch (e) {
-      setError(e.message || "Error enviando a revisión manual");
-    } finally {
-      setBusyManual(false);
-    }
-  }
-
   const ai = useMemo(() => readAi(aiResult), [aiResult]);
 
-  const confianzaNum = Number(ai.confianza);
-  const confianzaPct = Number.isFinite(confianzaNum)
-    ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
-    : ai.confianza || "—";
-
-  const aiTone =
-    ai.admisibilidad === "ADMISSIBLE"
-      ? "border-emerald-200 bg-emerald-50"
-      : ai.admisibilidad === "NOT_ADMISSIBLE"
-      ? "border-amber-200 bg-amber-50"
-      : "border-slate-200 bg-white";
+  const confianzaPct = ai.confianza
+    ? Number(ai.confianza) <= 1
+      ? `${Math.round(ai.confianza * 100)}%`
+      : `${ai.confianza}%`
+    : "—";
 
   return (
-    <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
-      <div className="rounded-[28px] bg-slate-950 px-6 py-6 text-white shadow-xl">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.35em] text-slate-300">Modo operador PRO</div>
-            <h1 className="mt-2 text-4xl font-semibold">Panel de validación</h1>
-            <p className="mt-3 text-sm text-slate-300 break-all">Expediente: {caseId}</p>
-          </div>
+    <div style={{ padding: 20, maxWidth: 900, margin: "auto" }}>
 
-          <div className="flex flex-wrap gap-3">
-            <button className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-900 hover:bg-slate-100" onClick={loadCase}>
-              {loading ? "Recargando..." : "Recargar"}
-            </button>
-            <button
-              className="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
-              onClick={runAI}
-              disabled={runningAI}
-            >
-              {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
-            </button>
-            <button
-              className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
-              onClick={approve}
-              disabled={busyApprove}
-            >
-              {busyApprove ? "Aprobando..." : "Aprobar"}
-            </button>
-            <button
-              className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
-              onClick={manual}
-              disabled={busyManual}
-            >
-              {busyManual ? "Enviando..." : "Manual"}
-            </button>
-            <Link to={`/ops/case/${caseId}`} className="rounded-2xl bg-slate-800 px-5 py-3 font-semibold text-white hover:bg-slate-700">
-              Volver
-            </Link>
-          </div>
-        </div>
+      <h2>OPS PRO — {caseId}</h2>
+
+      <div style={{ marginBottom: 20 }}>
+        <button onClick={loadCase}>Recargar</button>
+        <button onClick={runAI} disabled={runningAI}>
+          {runningAI ? "Ejecutando..." : "Ejecutar IA"}
+        </button>
+        <Link to={`/ops/case/${caseId}`}>Volver</Link>
       </div>
 
-      {error ? (
-        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </div>
-      ) : null}
+      {error && <div style={{ color: "red" }}>{error}</div>}
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-wide opacity-70">Familia</div>
-          <div className="mt-2 text-2xl font-semibold">{ai.familia || "—"}</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-wide opacity-70">Confianza</div>
-          <div className="mt-2 text-2xl font-semibold">{confianzaPct}</div>
-        </div>
-        <div className={`rounded-2xl border p-4 shadow-sm ${aiTone}`}>
-          <div className="text-xs uppercase tracking-wide opacity-70">Admisibilidad</div>
-          <div className="mt-2 text-2xl font-semibold">{ai.admisibilidad || "—"}</div>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs uppercase tracking-wide opacity-70">Documentos</div>
-          <div className="mt-2 text-2xl font-semibold">{String(documents.length)}</div>
-        </div>
+      <div style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}>
+        <h3>Resultado IA</h3>
+        <p><b>Familia:</b> {ai.familia}</p>
+        <p><b>Confianza:</b> {confianzaPct}</p>
+        <p><b>Hecho:</b> {ai.hecho}</p>
+        <p><b>Admisibilidad:</b> {ai.admisibilidad}</p>
+        <p><b>Acción:</b> {ai.accion}</p>
       </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-[1.7fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-xl font-semibold text-slate-900">Resultado IA</h3>
-          </div>
-          <div className="p-5">
-            {!aiResult ? (
-              <p className="text-slate-500">No hay resultado IA todavía.</p>
-            ) : (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs uppercase tracking-wide text-slate-400">Hecho</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-900">{ai.hecho || "—"}</div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <div className="text-xs uppercase tracking-wide text-slate-400">Familia</div>
-                    <div className="mt-2 font-semibold text-slate-900">{ai.familia || "—"}</div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <div className="text-xs uppercase tracking-wide text-slate-400">Acción recomendada</div>
-                    <div className="mt-2 font-semibold text-slate-900">{ai.accion || "—"}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-xl font-semibold text-slate-900">Acciones rápidas</h3>
-          </div>
-          <div className="p-5 space-y-3">
-            <button onClick={runAI} disabled={runningAI} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50">
-              Reejecutar IA
-            </button>
-            <button onClick={approve} disabled={busyApprove} className="w-full rounded-2xl border border-emerald-500 bg-emerald-500 px-4 py-3 text-left font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
-              Aprobar expediente
-            </button>
-            <button onClick={manual} disabled={busyManual} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50">
-              Mandar a revisión manual
-            </button>
-          </div>
-        </div>
+      <div style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}>
+        <h3>Documentos ({documents.length})</h3>
+        {documents.map((d, i) => (
+          <div key={i}>{d.kind}</div>
+        ))}
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-xl font-semibold text-slate-900">Documentos ({documents.length})</h3>
-          </div>
-          <div className="p-5">
-            {documents.length === 0 ? (
-              <p className="text-slate-500">No hay documentos.</p>
-            ) : (
-              <div className="space-y-3">
-                {documents.map((d, i) => (
-                  <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-4">
-                    <div className="font-semibold text-slate-900">{d.kind || "documento"}</div>
-                    <div className="mt-1 text-sm text-slate-500 break-all">{d.bucket}/{d.key}</div>
-                    <div className="mt-1 text-sm text-slate-500">
-                      {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-xl font-semibold text-slate-900">Eventos ({events.length})</h3>
-          </div>
-          <div className="p-5">
-            {events.length === 0 ? (
-              <p className="text-slate-500">No hay eventos.</p>
-            ) : (
-              <div className="space-y-3">
-                {events.map((e, i) => (
-                  <div key={e?.id || i} className="rounded-2xl border border-slate-200 p-4">
-                    <div className="font-semibold text-slate-900">{e.type || "evento"}</div>
-                    <div className="mt-1 text-sm text-slate-500">{fmt(e.created_at)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      <div style={{ border: "1px solid #ccc", padding: 10 }}>
+        <h3>Eventos ({events.length})</h3>
+        {events.map((e, i) => (
+          <div key={i}>{e.type}</div>
+        ))}
       </div>
 
-      {aiResult ? (
-        <div className="mt-5">
-          <details className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <summary className="cursor-pointer list-none px-5 py-4 text-xl font-semibold text-slate-900">
-              Payload IA bruto
-            </summary>
-            <div className="border-t border-slate-100 p-5">
-              <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-slate-700">
-                {JSON.stringify(aiResult, null, 2)}
-              </pre>
-            </div>
-          </details>
-        </div>
-      ) : null}
     </div>
   );
 }
