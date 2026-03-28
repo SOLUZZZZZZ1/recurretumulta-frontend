@@ -117,6 +117,27 @@ function Section({ title, children }) {
   );
 }
 
+function guessFilename(doc) {
+  const key = doc?.key || "";
+  const fromKey = key.split("/").pop();
+  if (fromKey) return fromKey;
+  const kind = (doc?.kind || "documento").toLowerCase();
+  if (kind.includes("pdf")) return "documento.pdf";
+  if (kind.includes("docx")) return "documento.docx";
+  return "documento.bin";
+}
+
+function scoreGeneratedDoc(doc) {
+  const kind = (doc?.kind || "").toLowerCase();
+  let score = 0;
+  if (kind.includes("pdf")) score += 100;
+  if (kind.includes("docx")) score += 80;
+  if (kind.includes("generated")) score += 60;
+  if (kind.includes("semaforo")) score += 10;
+  if (kind.includes("vehiculo")) score += 10;
+  return score;
+}
+
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
@@ -129,7 +150,14 @@ export default function OpsCaseDetailPro() {
   const [runningAI, setRunningAI] = useState(false);
   const [busyApprove, setBusyApprove] = useState(false);
   const [busyManual, setBusyManual] = useState(false);
+  const [busyRewrite, setBusyRewrite] = useState(false);
+  const [busyOverrideFamily, setBusyOverrideFamily] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
   const [error, setError] = useState("");
+
+  const [rewriteHecho, setRewriteHecho] = useState("");
+  const [rewriteMotivo, setRewriteMotivo] = useState("Corrección manual del hecho denunciado");
+  const [rewriteFamilia, setRewriteFamilia] = useState("");
 
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
@@ -152,7 +180,12 @@ export default function OpsCaseDetailPro() {
       setEvents(evs);
 
       const aiEvent = [...evs].find((e) => e?.type === "ai_expediente_result");
-      setAiResult(aiEvent?.payload || null);
+      const aiPayload = aiEvent?.payload || null;
+      setAiResult(aiPayload);
+
+      const parsed = readAi(aiPayload);
+      setRewriteHecho((prev) => prev || parsed.hecho || "");
+      setRewriteFamilia((prev) => prev || parsed.familia || "");
     } catch (e) {
       setError(e.message || "Error cargando expediente");
       setDocuments([]);
@@ -165,6 +198,7 @@ export default function OpsCaseDetailPro() {
 
   useEffect(() => {
     loadCase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function runAI() {
@@ -224,12 +258,107 @@ export default function OpsCaseDetailPro() {
     }
   }
 
+  async function rewriteAndRegenerate() {
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    if (!rewriteHecho.trim()) return setError("Escribe un hecho denunciado limpio.");
+    if (!rewriteMotivo.trim()) return setError("Indica el motivo de la corrección.");
+
+    setBusyRewrite(true);
+    try {
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/rewrite-hecho-and-regenerate`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hecho: rewriteHecho.trim(),
+          motivo: rewriteMotivo.trim(),
+          familia: rewriteFamilia.trim() || null,
+        }),
+      });
+      await loadCase();
+      alert("Hecho corregido y expediente regenerado");
+    } catch (e) {
+      setError(e.message || "Error regenerando desde hecho corregido");
+    } finally {
+      setBusyRewrite(false);
+    }
+  }
+
+  async function overrideFamilyAndRegenerate() {
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    if (!rewriteFamilia.trim()) return setError("Selecciona o escribe una familia.");
+    if (!rewriteMotivo.trim()) return setError("Indica el motivo.");
+
+    setBusyOverrideFamily(true);
+    try {
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/override-family-and-regenerate`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          familia: rewriteFamilia.trim(),
+          motivo: rewriteMotivo.trim(),
+        }),
+      });
+      await loadCase();
+      alert("Familia corregida y recurso regenerado");
+    } catch (e) {
+      setError(e.message || "Error regenerando por familia");
+    } finally {
+      setBusyOverrideFamily(false);
+    }
+  }
+
+  async function downloadDoc(doc) {
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    if (!doc?.id) return setError("Este documento no tiene id.");
+
+    setDownloadingId(doc.id);
+    try {
+      const url = `${API}/ops/documents/${encodeURIComponent(doc.id)}/download`;
+      const filename = guessFilename(doc);
+      const r = await fetch(url, { headers });
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data?.detail || `Error descargando (HTTP ${r.status})`);
+      }
+      const blob = await r.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      setError(e.message || "Error descargando documento");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   const ai = useMemo(() => readAi(aiResult), [aiResult]);
 
   const latestAiEvent = useMemo(
     () => events.find((e) => e?.type === "ai_expediente_result") || null,
     [events]
   );
+
+  const latestGeneratedDocs = useMemo(() => {
+    const sorted = [...documents].sort((a, b) => {
+      const da = new Date(a?.created_at || 0).getTime();
+      const db = new Date(b?.created_at || 0).getTime();
+      if (db !== da) return db - da;
+      return scoreGeneratedDoc(b) - scoreGeneratedDoc(a);
+    });
+
+    const pdf = sorted.find((d) => (d?.kind || "").toLowerCase().includes("pdf")) || null;
+    const docx = sorted.find((d) => (d?.kind || "").toLowerCase().includes("docx")) || null;
+
+    return { pdf, docx };
+  }, [documents]);
 
   const confianzaNum = Number(ai.confianza);
   const confianzaPct = Number.isFinite(confianzaNum)
@@ -328,17 +457,94 @@ export default function OpsCaseDetailPro() {
           )}
         </Section>
 
-        <Section title="Acciones rápidas">
+        <Section title="Último regenerado">
           <div className="space-y-3">
-            <button onClick={runAI} disabled={runningAI} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50">
-              Reejecutar IA
-            </button>
-            <button onClick={approve} disabled={busyApprove} className="w-full rounded-2xl border border-emerald-500 bg-emerald-500 px-4 py-3 text-left font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
-              Aprobar expediente
-            </button>
-            <button onClick={manual} disabled={busyManual} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50">
-              Mandar a revisión manual
-            </button>
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-xs uppercase tracking-wide text-slate-400">PDF</div>
+              <div className="mt-2 text-sm font-semibold text-slate-900">
+                {latestGeneratedDocs.pdf?.kind || "—"}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">{fmt(latestGeneratedDocs.pdf?.created_at)}</div>
+              <button
+                onClick={() => latestGeneratedDocs.pdf && downloadDoc(latestGeneratedDocs.pdf)}
+                disabled={!latestGeneratedDocs.pdf || downloadingId === latestGeneratedDocs.pdf?.id}
+                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                {downloadingId === latestGeneratedDocs.pdf?.id ? "Descargando PDF..." : "Descargar último PDF"}
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-xs uppercase tracking-wide text-slate-400">DOCX</div>
+              <div className="mt-2 text-sm font-semibold text-slate-900">
+                {latestGeneratedDocs.docx?.kind || "—"}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">{fmt(latestGeneratedDocs.docx?.created_at)}</div>
+              <button
+                onClick={() => latestGeneratedDocs.docx && downloadDoc(latestGeneratedDocs.docx)}
+                disabled={!latestGeneratedDocs.docx || downloadingId === latestGeneratedDocs.docx?.id}
+                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50"
+              >
+                {downloadingId === latestGeneratedDocs.docx?.id ? "Descargando DOCX..." : "Descargar último DOCX"}
+              </button>
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <div className="mt-5">
+        <Section title="Corrección experta desde panel">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Familia correcta</label>
+                <input
+                  value={rewriteFamilia}
+                  onChange={(e) => setRewriteFamilia(e.target.value)}
+                  placeholder="semaforo, vehiculo, movil..."
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Motivo</label>
+                <input
+                  value={rewriteMotivo}
+                  onChange={(e) => setRewriteMotivo(e.target.value)}
+                  placeholder="Explica por qué corriges"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500"
+                />
+              </div>
+
+              <button
+                onClick={overrideFamilyAndRegenerate}
+                disabled={busyOverrideFamily}
+                className="w-full rounded-2xl border border-amber-500 bg-amber-500 px-4 py-3 text-left font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {busyOverrideFamily ? "Regenerando por familia..." : "Corregir familia y regenerar"}
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Hecho denunciado limpio</label>
+                <textarea
+                  value={rewriteHecho}
+                  onChange={(e) => setRewriteHecho(e.target.value)}
+                  rows={7}
+                  placeholder="Ej.: No respetar la luz roja del semáforo"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500"
+                />
+              </div>
+
+              <button
+                onClick={rewriteAndRegenerate}
+                disabled={busyRewrite}
+                className="w-full rounded-2xl border border-emerald-500 bg-emerald-500 px-4 py-3 text-left font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {busyRewrite ? "Reanalizando y regenerando..." : "Corregir hecho y regenerar"}
+              </button>
+            </div>
           </div>
         </Section>
       </div>
@@ -356,6 +562,13 @@ export default function OpsCaseDetailPro() {
                   <div className="mt-1 text-sm text-slate-500">
                     {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}
                   </div>
+                  <button
+                    onClick={() => downloadDoc(d)}
+                    disabled={!d?.id || downloadingId === d?.id}
+                    className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {downloadingId === d?.id ? "Descargando..." : "Descargar"}
+                  </button>
                 </div>
               ))}
             </div>
