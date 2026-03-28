@@ -13,7 +13,7 @@ async function fetchJson(url, options = {}) {
 function fmt(d) {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleString();
+    return new Date(d).toLocaleString("es-ES");
   } catch {
     return String(d);
   }
@@ -22,6 +22,10 @@ function fmt(d) {
 function fmtDateOnly(d) {
   if (!d) return "—";
   try {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(d))) {
+      const [y, m, day] = String(d).split("-");
+      return `${day}/${m}/${y}`;
+    }
     return new Date(d).toLocaleDateString("es-ES");
   } catch {
     return String(d);
@@ -66,15 +70,61 @@ function readAi(ai) {
   };
 }
 
-function StatCard({ title, value, tone = "default" }) {
+function parseStructuredNote(note) {
+  const txt = String(note || "");
+  const out = {};
+  txt.split("|").forEach((piece) => {
+    const p = piece.trim();
+    const idx = p.indexOf("=");
+    if (idx > 0) out[p.slice(0, idx).trim()] = p.slice(idx + 1).trim();
+  });
+  return out;
+}
+
+function addDays(dateStr, days) {
+  if (!dateStr) return "";
+  const d = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function diffDays(deadlineStr) {
+  if (!deadlineStr) return null;
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const ddl = new Date(`${deadlineStr}T12:00:00`);
+  if (Number.isNaN(ddl.getTime())) return null;
+  return Math.round((ddl - todayMid) / 86400000);
+}
+
+function statusToneFromDays(daysLeft) {
+  if (daysLeft == null) return "default";
+  if (daysLeft < 0) return "danger";
+  if (daysLeft <= 5) return "warn";
+  return "success";
+}
+
+function labelFromDays(daysLeft, expiredText = "Fuera de plazo", dueTodayText = "Vence hoy") {
+  if (daysLeft == null) return "Sin plazo";
+  if (daysLeft < 0) return `${expiredText} (${Math.abs(daysLeft)} días)`;
+  if (daysLeft === 0) return dueTodayText;
+  return `${daysLeft} días restantes`;
+}
+
+function toneClasses(tone) {
   const tones = {
     default: "border-slate-200 bg-white",
     success: "border-emerald-200 bg-emerald-50",
     warn: "border-amber-200 bg-amber-50",
     danger: "border-rose-200 bg-rose-50",
   };
+  return tones[tone] || tones.default;
+}
+
+function StatCard({ title, value, tone = "default" }) {
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${tones[tone] || tones.default}`}>
+    <div className={`rounded-2xl border p-4 shadow-sm ${toneClasses(tone)}`}>
       <div className="text-xs uppercase tracking-wide opacity-70">{title}</div>
       <div className="mt-2 text-2xl font-semibold">{value || "—"}</div>
     </div>
@@ -111,23 +161,6 @@ function scoreGeneratedDoc(doc) {
   return score;
 }
 
-function addDays(dateStr, days) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr + "T12:00:00");
-  if (Number.isNaN(d.getTime())) return "";
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function diffDays(deadlineStr) {
-  if (!deadlineStr) return null;
-  const today = new Date();
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const ddl = new Date(deadlineStr + "T12:00:00");
-  if (Number.isNaN(ddl.getTime())) return null;
-  return Math.round((ddl - todayMid) / 86400000);
-}
-
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
@@ -154,6 +187,12 @@ export default function OpsCaseDetailPro() {
   const [notifiedAt, setNotifiedAt] = useState("");
   const [deadlineMain, setDeadlineMain] = useState("");
   const [deadlineNote, setDeadlineNote] = useState("Plazo principal de alegaciones/recurso");
+
+  const [submittedAtManual, setSubmittedAtManual] = useState("");
+  const [deadlineResponse, setDeadlineResponse] = useState("");
+  const [responseNote, setResponseNote] = useState("Plazo de respuesta tras presentación");
+  const [expedienteEstado, setExpedienteEstado] = useState("en_tramite");
+
   const [manualOrg, setManualOrg] = useState("");
   const [manualCanal, setManualCanal] = useState("registro_electronico");
   const [manualUrl, setManualUrl] = useState("");
@@ -197,12 +236,30 @@ export default function OpsCaseDetailPro() {
       const familyEv = [...evs].find((e) => e?.type === "operator_override_family");
       if (familyEv?.payload?.familia) setRewriteFamilia((prev) => prev || familyEv.payload.familia);
 
-      const presentedEv = [...evs].find((e) => e?.type === "manual_submitted");
-      if (presentedEv?.payload) {
-        setManualOrg((prev) => prev || presentedEv.payload.organismo || "");
-        setManualCanal((prev) => prev || presentedEv.payload.canal || "registro_electronico");
-        setManualUrl((prev) => prev || presentedEv.payload.url || "");
-        setManualJustificanteRef((prev) => prev || presentedEv.payload.justificante_ref || "");
+      const controlPlazoEv = [...evs].find((e) => e?.type === "operator_note" && String(e?.payload?.note || "").includes("CONTROL_PLAZO"));
+      if (controlPlazoEv?.payload?.note) {
+        const parsedNote = parseStructuredNote(controlPlazoEv.payload.note);
+        if (parsedNote.notified_at) setNotifiedAt(parsedNote.notified_at);
+        if (parsedNote.deadline_main) setDeadlineMain(parsedNote.deadline_main);
+        if (parsedNote.note) setDeadlineNote(parsedNote.note);
+      }
+
+      const postPresentEv = [...evs].find((e) => e?.type === "operator_note" && String(e?.payload?.note || "").includes("POST_PRESENTACION"));
+      if (postPresentEv?.payload?.note) {
+        const parsedNote = parseStructuredNote(postPresentEv.payload.note);
+        if (parsedNote.submitted_at) setSubmittedAtManual(parsedNote.submitted_at);
+        if (parsedNote.deadline_response) setDeadlineResponse(parsedNote.deadline_response);
+        if (parsedNote.note) setResponseNote(parsedNote.note);
+        if (parsedNote.estado) setExpedienteEstado(parsedNote.estado);
+      }
+
+      const presentedEv = [...evs].find((e) => e?.type === "operator_note" && String(e?.payload?.note || "").includes("MANUAL_SUBMITTED"));
+      if (presentedEv?.payload?.note) {
+        const parsedNote = parseStructuredNote(presentedEv.payload.note);
+        if (parsedNote.organismo) setManualOrg((prev) => prev || parsedNote.organismo);
+        if (parsedNote.canal) setManualCanal((prev) => prev || parsedNote.canal);
+        if (parsedNote.url) setManualUrl((prev) => prev || parsedNote.url);
+        if (parsedNote.justificante_ref) setManualJustificanteRef((prev) => prev || parsedNote.justificante_ref);
       }
 
       if (detailRes?.organismo) setManualOrg((prev) => prev || detailRes.organismo);
@@ -225,12 +282,11 @@ export default function OpsCaseDetailPro() {
     if (!token) return setError("Falta token de operador.");
     setRunningAI(true);
     try {
-      const data = await fetchJson(`${API}/ai/expediente/run`, {
+      await fetchJson(`${API}/ai/expediente/run`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ case_id: caseId }),
       });
-      setAiResult(data);
       await loadCase();
     } catch (e) {
       setError(e.message || "Error ejecutando IA");
@@ -357,6 +413,37 @@ export default function OpsCaseDetailPro() {
     }
   }
 
+  async function savePostPresentationControl() {
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    if (!submittedAtManual.trim()) return setError("Indica la fecha de presentación.");
+    if (!deadlineResponse.trim()) return setError("Indica la fecha límite de respuesta.");
+
+    setBusyDeadline(true);
+    try {
+      const note = [
+        "POST_PRESENTACION",
+        `submitted_at=${submittedAtManual || ""}`,
+        `deadline_response=${deadlineResponse || ""}`,
+        `estado=${expedienteEstado || "en_tramite"}`,
+        `note=${responseNote || ""}`,
+      ].join(" | ");
+
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/note`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+
+      await loadCase();
+      alert("Control post-presentación guardado");
+    } catch (e) {
+      setError(e.message || "Error guardando control post-presentación");
+    } finally {
+      setBusyDeadline(false);
+    }
+  }
+
   async function markManualPresented() {
     setError("");
     if (!token) return setError("Falta token de operador.");
@@ -365,7 +452,7 @@ export default function OpsCaseDetailPro() {
 
     setBusyPresented(true);
     try {
-      const metaNote = [
+      const note = [
         "MANUAL_SUBMITTED",
         `organismo=${manualOrg.trim()}`,
         `canal=${manualCanal.trim()}`,
@@ -377,7 +464,7 @@ export default function OpsCaseDetailPro() {
       await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/note`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ note: metaNote }),
+        body: JSON.stringify({ note }),
       }).catch(() => null);
 
       await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/submit`, {
@@ -388,6 +475,12 @@ export default function OpsCaseDetailPro() {
           force: true,
         }),
       });
+
+      if (!submittedAtManual) {
+        const today = new Date().toISOString().slice(0, 10);
+        setSubmittedAtManual(today);
+        if (!deadlineResponse) setDeadlineResponse(addDays(today, 30));
+      }
 
       await loadCase();
       alert("Expediente marcado como presentado manualmente");
@@ -458,18 +551,17 @@ export default function OpsCaseDetailPro() {
     ai.admisibilidad === "NOT_ADMISSIBLE" ? "warn" :
     "default";
 
-  const daysLeft = diffDays(deadlineMain);
-  const deadlineTone =
-    daysLeft == null ? "default" :
-    daysLeft < 0 ? "danger" :
-    daysLeft <= 5 ? "warn" :
-    "success";
+  const daysLeftInitial = diffDays(deadlineMain);
+  const initialTone = statusToneFromDays(daysLeftInitial);
+  const initialLabel = labelFromDays(daysLeftInitial);
 
-  const deadlineLabel =
-    daysLeft == null ? "Sin plazo" :
-    daysLeft < 0 ? `Fuera de plazo (${Math.abs(daysLeft)} días)` :
-    daysLeft === 0 ? "Vence hoy" :
-    `${daysLeft} días restantes`;
+  const daysLeftResponse = diffDays(deadlineResponse);
+  const responseTone = statusToneFromDays(daysLeftResponse);
+  const responseLabel =
+    daysLeftResponse == null ? "Sin control" :
+    daysLeftResponse < 0 ? `Silencio administrativo alcanzado (${Math.abs(daysLeftResponse)} días)` :
+    daysLeftResponse === 0 ? "Vence hoy respuesta" :
+    `${daysLeftResponse} días para respuesta`;
 
   return (
     <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
@@ -480,7 +572,6 @@ export default function OpsCaseDetailPro() {
             <h1 className="mt-2 text-4xl font-semibold">Panel de validación</h1>
             <p className="mt-3 text-sm text-slate-300 break-all">Expediente: {caseId}</p>
           </div>
-
           <div className="flex flex-wrap gap-3">
             <button className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-900 hover:bg-slate-100" onClick={loadCase}>
               {loading ? "Recargando..." : "Recargar"}
@@ -507,11 +598,12 @@ export default function OpsCaseDetailPro() {
         <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <StatCard title="Familia" value={ai.familia || "—"} />
         <StatCard title="Confianza" value={confianzaPct} />
         <StatCard title="Admisibilidad" value={ai.admisibilidad || "—"} tone={aiTone} />
-        <StatCard title="Plazo" value={deadlineLabel} tone={deadlineTone} />
+        <StatCard title="Plazo inicial" value={initialLabel} tone={initialTone} />
+        <StatCard title="Post-presentación" value={responseLabel} tone={responseTone} />
         <StatCard title="Documentos" value={String(documents.length)} />
       </div>
 
@@ -547,7 +639,6 @@ export default function OpsCaseDetailPro() {
                 {downloadingId === latestGeneratedDocs.pdf?.id ? "Descargando PDF..." : "Descargar último PDF"}
               </button>
             </div>
-
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-xs uppercase tracking-wide text-slate-400">DOCX</div>
               <div className="mt-2 text-sm font-semibold text-slate-900">{latestGeneratedDocs.docx?.kind || "—"}</div>
@@ -568,23 +659,19 @@ export default function OpsCaseDetailPro() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">Familia correcta</label>
                 <input value={rewriteFamilia} onChange={(e) => setRewriteFamilia(e.target.value)} placeholder="semaforo, vehiculo, movil..." className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
               </div>
-
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">Motivo</label>
                 <input value={rewriteMotivo} onChange={(e) => setRewriteMotivo(e.target.value)} placeholder="Explica por qué corriges" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
               </div>
-
               <button onClick={overrideFamilyAndRegenerate} disabled={busyOverrideFamily} className="w-full rounded-2xl border border-amber-500 bg-amber-500 px-4 py-3 text-left font-medium text-white hover:bg-amber-600 disabled:opacity-50">
                 {busyOverrideFamily ? "Regenerando por familia..." : "Corregir familia y regenerar"}
               </button>
             </div>
-
             <div className="space-y-3">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">Hecho denunciado limpio</label>
                 <textarea value={rewriteHecho} onChange={(e) => setRewriteHecho(e.target.value)} rows={7} placeholder="Ej.: No respetar la luz roja del semáforo" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
               </div>
-
               <button onClick={rewriteAndRegenerate} disabled={busyRewrite} className="w-full rounded-2xl border border-emerald-500 bg-emerald-500 px-4 py-3 text-left font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
                 {busyRewrite ? "Reanalizando y regenerando..." : "Corregir hecho y regenerar"}
               </button>
@@ -601,22 +688,19 @@ export default function OpsCaseDetailPro() {
               <input type="date" value={notifiedAt} onChange={(e) => { const v = e.target.value; setNotifiedAt(v); if (!deadlineMain) setDeadlineMain(addDays(v, 20)); }} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Fecha límite</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Fecha límite para recurrir</label>
               <input type="date" value={deadlineMain} onChange={(e) => setDeadlineMain(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
             </div>
           </div>
-
           <div className="mt-4">
             <label className="mb-2 block text-sm font-medium text-slate-700">Nota</label>
             <input value={deadlineNote} onChange={(e) => setDeadlineNote(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
           </div>
-
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <div className={`mt-4 rounded-2xl border p-4 text-sm text-slate-700 ${toneClasses(initialTone)}`}>
             <div><b>Notificada:</b> {fmtDateOnly(notifiedAt)}</div>
-            <div><b>Límite:</b> {fmtDateOnly(deadlineMain)}</div>
-            <div><b>Estado:</b> {deadlineLabel}</div>
+            <div><b>Límite recurso:</b> {fmtDateOnly(deadlineMain)}</div>
+            <div><b>Alerta:</b> {initialLabel}</div>
           </div>
-
           <button onClick={saveDeadlineControl} disabled={busyDeadline} className="mt-4 w-full rounded-2xl border border-slate-900 bg-slate-900 px-4 py-3 text-left font-medium text-white hover:bg-slate-800 disabled:opacity-50">
             {busyDeadline ? "Guardando plazo..." : "Guardar control de plazo"}
           </button>
@@ -650,15 +734,56 @@ export default function OpsCaseDetailPro() {
               <label className="mb-2 block text-sm font-medium text-slate-700">Nota</label>
               <input value={manualPresentedNote} onChange={(e) => setManualPresentedNote(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
             </div>
-
             <button onClick={markManualPresented} disabled={busyPresented} className="w-full rounded-2xl border border-blue-600 bg-blue-600 px-4 py-3 text-left font-medium text-white hover:bg-blue-700 disabled:opacity-50">
               {busyPresented ? "Marcando como presentado..." : "Marcar como presentado manualmente"}
             </button>
-
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
               Usa este bloque para dejar trazabilidad interna aunque la presentación real la hagas fuera del sistema.
             </div>
           </div>
+        </Section>
+      </div>
+
+      <div className="mt-5">
+        <Section title="Seguimiento tras presentación / silencio administrativo">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Fecha de presentación</label>
+              <input type="date" value={submittedAtManual} onChange={(e) => { const v = e.target.value; setSubmittedAtManual(v); if (!deadlineResponse) setDeadlineResponse(addDays(v, 30)); }} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Fecha límite de respuesta</label>
+              <input type="date" value={deadlineResponse} onChange={(e) => setDeadlineResponse(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Estado post-presentación</label>
+              <select value={expedienteEstado} onChange={(e) => setExpedienteEstado(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500">
+                <option value="en_tramite">En trámite</option>
+                <option value="respondido">Respondido</option>
+                <option value="silencio_administrativo">Silencio administrativo</option>
+                <option value="valorar_contencioso">Valorar contencioso</option>
+                <option value="cerrado">Cerrado</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Nota</label>
+              <input value={responseNote} onChange={(e) => setResponseNote(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+          </div>
+
+          <div className={`mt-4 rounded-2xl border p-4 text-sm text-slate-700 ${toneClasses(responseTone)}`}>
+            <div><b>Presentado:</b> {fmtDateOnly(submittedAtManual)}</div>
+            <div><b>Respuesta hasta:</b> {fmtDateOnly(deadlineResponse)}</div>
+            <div><b>Alerta:</b> {responseLabel}</div>
+            <div><b>Estado:</b> {expedienteEstado || "—"}</div>
+          </div>
+
+          <button onClick={savePostPresentationControl} disabled={busyDeadline} className="mt-4 w-full rounded-2xl border border-purple-600 bg-purple-600 px-4 py-3 text-left font-medium text-white hover:bg-purple-700 disabled:opacity-50">
+            {busyDeadline ? "Guardando seguimiento..." : "Guardar seguimiento post-presentación"}
+          </button>
         </Section>
       </div>
 
