@@ -19,6 +19,15 @@ function fmt(d) {
   }
 }
 
+function fmtDateOnly(d) {
+  if (!d) return "—";
+  try {
+    return new Date(d).toLocaleDateString("es-ES");
+  } catch {
+    return String(d);
+  }
+}
+
 function first(...v) {
   return v.find((x) => x !== undefined && x !== null && x !== "") || "";
 }
@@ -39,55 +48,20 @@ function readAi(ai) {
 
   return {
     familia: first(
-      cr.family,
-      cr.familia,
-      cr.label,
-      cl.family,
-      cl.familia,
-      tags.family,
-      tags.familia,
-      args.family,
-      args.familia,
-      ai.familia_detectada,
-      ai.familia,
-      ai.family,
-      res.familia
+      cr.family, cr.familia, cr.label, cl.family, cl.familia, tags.family, tags.familia,
+      args.family, args.familia, ai.familia_detectada, ai.familia, ai.family, res.familia
     ),
     confianza: first(
-      cr.confidence,
-      cr.score,
-      cr.probability,
-      cl.confidence,
-      cl.score,
-      args.confidence,
-      args.score,
-      ai.confianza,
-      ai.confidence,
-      res.confianza
+      cr.confidence, cr.score, cr.probability, cl.confidence, cl.score,
+      args.confidence, args.score, ai.confianza, ai.confidence, res.confianza
     ),
     hecho: first(
-      args.hecho,
-      args.hecho_imputado,
-      args.fact,
-      args.facts,
-      args.literal,
-      args.descripcion,
-      ai.hecho,
-      ai.hecho_para_recurso,
-      ai.facts,
-      ai.detected_facts,
-      res.hecho
+      args.hecho, args.hecho_imputado, args.fact, args.facts, args.literal, args.descripcion,
+      ai.hecho, ai.hecho_para_recurso, ai.facts, ai.detected_facts, res.hecho
     ),
-    admisibilidad: first(
-      adm.admissibility,
-      ai.admissibility,
-      res.admisibilidad
-    ),
+    admisibilidad: first(adm.admissibility, ai.admissibility, res.admisibilidad),
     accion: first(
-      phase?.recommended_action?.action,
-      rec.action,
-      ai.recommended_action,
-      res.accion_recomendada
+      phase?.recommended_action?.action, rec.action, ai.recommended_action, res.accion_recomendada
     ),
   };
 }
@@ -97,6 +71,7 @@ function StatCard({ title, value, tone = "default" }) {
     default: "border-slate-200 bg-white",
     success: "border-emerald-200 bg-emerald-50",
     warn: "border-amber-200 bg-amber-50",
+    danger: "border-rose-200 bg-rose-50",
   };
   return (
     <div className={`rounded-2xl border p-4 shadow-sm ${tones[tone] || tones.default}`}>
@@ -133,9 +108,24 @@ function scoreGeneratedDoc(doc) {
   if (kind.includes("pdf")) score += 100;
   if (kind.includes("docx")) score += 80;
   if (kind.includes("generated")) score += 60;
-  if (kind.includes("semaforo")) score += 10;
-  if (kind.includes("vehiculo")) score += 10;
   return score;
+}
+
+function addDays(dateStr, days) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T12:00:00");
+  if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function diffDays(deadlineStr) {
+  if (!deadlineStr) return null;
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const ddl = new Date(deadlineStr + "T12:00:00");
+  if (Number.isNaN(ddl.getTime())) return null;
+  return Math.round((ddl - todayMid) / 86400000);
 }
 
 export default function OpsCaseDetailPro() {
@@ -152,12 +142,23 @@ export default function OpsCaseDetailPro() {
   const [busyManual, setBusyManual] = useState(false);
   const [busyRewrite, setBusyRewrite] = useState(false);
   const [busyOverrideFamily, setBusyOverrideFamily] = useState(false);
+  const [busyDeadline, setBusyDeadline] = useState(false);
+  const [busyPresented, setBusyPresented] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
   const [error, setError] = useState("");
 
   const [rewriteHecho, setRewriteHecho] = useState("");
   const [rewriteMotivo, setRewriteMotivo] = useState("Corrección manual del hecho denunciado");
   const [rewriteFamilia, setRewriteFamilia] = useState("");
+
+  const [notifiedAt, setNotifiedAt] = useState("");
+  const [deadlineMain, setDeadlineMain] = useState("");
+  const [deadlineNote, setDeadlineNote] = useState("Plazo principal de alegaciones/recurso");
+  const [manualOrg, setManualOrg] = useState("");
+  const [manualCanal, setManualCanal] = useState("registro_electronico");
+  const [manualUrl, setManualUrl] = useState("");
+  const [manualJustificanteRef, setManualJustificanteRef] = useState("");
+  const [manualPresentedNote, setManualPresentedNote] = useState("Presentado manualmente por operador");
 
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
@@ -170,8 +171,11 @@ export default function OpsCaseDetailPro() {
     }
     setLoading(true);
     try {
-      const docsRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers });
-      const evRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers });
+      const [detailRes, docsRes, evRes] = await Promise.all([
+        fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}`, { headers }).catch(() => null),
+        fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers }),
+        fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers }),
+      ]);
 
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
@@ -186,6 +190,22 @@ export default function OpsCaseDetailPro() {
       const parsed = readAi(aiPayload);
       setRewriteHecho((prev) => prev || parsed.hecho || "");
       setRewriteFamilia((prev) => prev || parsed.familia || "");
+
+      const rewriteEv = [...evs].find((e) => e?.type === "operator_rewrite_hecho");
+      if (rewriteEv?.payload?.hecho) setRewriteHecho((prev) => prev || rewriteEv.payload.hecho);
+
+      const familyEv = [...evs].find((e) => e?.type === "operator_override_family");
+      if (familyEv?.payload?.familia) setRewriteFamilia((prev) => prev || familyEv.payload.familia);
+
+      const presentedEv = [...evs].find((e) => e?.type === "manual_submitted");
+      if (presentedEv?.payload) {
+        setManualOrg((prev) => prev || presentedEv.payload.organismo || "");
+        setManualCanal((prev) => prev || presentedEv.payload.canal || "registro_electronico");
+        setManualUrl((prev) => prev || presentedEv.payload.url || "");
+        setManualJustificanteRef((prev) => prev || presentedEv.payload.justificante_ref || "");
+      }
+
+      if (detailRes?.organismo) setManualOrg((prev) => prev || detailRes.organismo);
     } catch (e) {
       setError(e.message || "Error cargando expediente");
       setDocuments([]);
@@ -198,7 +218,6 @@ export default function OpsCaseDetailPro() {
 
   useEffect(() => {
     loadCase();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function runAI() {
@@ -309,6 +328,76 @@ export default function OpsCaseDetailPro() {
     }
   }
 
+  async function saveDeadlineControl() {
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    if (!deadlineMain.trim()) return setError("Indica la fecha límite.");
+
+    setBusyDeadline(true);
+    try {
+      const note = [
+        "CONTROL_PLAZO",
+        `notified_at=${notifiedAt || ""}`,
+        `deadline_main=${deadlineMain || ""}`,
+        `note=${deadlineNote || ""}`,
+      ].join(" | ");
+
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/note`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+
+      await loadCase();
+      alert("Control de plazo guardado");
+    } catch (e) {
+      setError(e.message || "Error guardando plazo");
+    } finally {
+      setBusyDeadline(false);
+    }
+  }
+
+  async function markManualPresented() {
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    if (!manualOrg.trim()) return setError("Indica el organismo.");
+    if (!manualCanal.trim()) return setError("Indica el canal.");
+
+    setBusyPresented(true);
+    try {
+      const metaNote = [
+        "MANUAL_SUBMITTED",
+        `organismo=${manualOrg.trim()}`,
+        `canal=${manualCanal.trim()}`,
+        `url=${manualUrl.trim()}`,
+        `justificante_ref=${manualJustificanteRef.trim()}`,
+        `note=${manualPresentedNote.trim()}`,
+      ].join(" | ");
+
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/note`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ note: metaNote }),
+      }).catch(() => null);
+
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/submit`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          document_url: manualUrl.trim() || `manual://${manualCanal.trim()}`,
+          force: true,
+        }),
+      });
+
+      await loadCase();
+      alert("Expediente marcado como presentado manualmente");
+    } catch (e) {
+      setError(e.message || "Error marcando presentación manual");
+    } finally {
+      setBusyPresented(false);
+    }
+  }
+
   async function downloadDoc(doc) {
     setError("");
     if (!token) return setError("Falta token de operador.");
@@ -353,26 +442,34 @@ export default function OpsCaseDetailPro() {
       if (db !== da) return db - da;
       return scoreGeneratedDoc(b) - scoreGeneratedDoc(a);
     });
-
-    const pdf = sorted.find((d) => (d?.kind || "").toLowerCase().includes("pdf")) || null;
-    const docx = sorted.find((d) => (d?.kind || "").toLowerCase().includes("docx")) || null;
-
-    return { pdf, docx };
+    return {
+      pdf: sorted.find((d) => (d?.kind || "").toLowerCase().includes("pdf")) || null,
+      docx: sorted.find((d) => (d?.kind || "").toLowerCase().includes("docx")) || null,
+    };
   }, [documents]);
 
   const confianzaNum = Number(ai.confianza);
   const confianzaPct = Number.isFinite(confianzaNum)
-    ? confianzaNum <= 1
-      ? `${Math.round(confianzaNum * 100)}%`
-      : `${Math.round(confianzaNum)}%`
+    ? confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`
     : ai.confianza || "—";
 
   const aiTone =
-    ai.admisibilidad === "ADMISSIBLE"
-      ? "success"
-      : ai.admisibilidad === "NOT_ADMISSIBLE"
-      ? "warn"
-      : "default";
+    ai.admisibilidad === "ADMISSIBLE" ? "success" :
+    ai.admisibilidad === "NOT_ADMISSIBLE" ? "warn" :
+    "default";
+
+  const daysLeft = diffDays(deadlineMain);
+  const deadlineTone =
+    daysLeft == null ? "default" :
+    daysLeft < 0 ? "danger" :
+    daysLeft <= 5 ? "warn" :
+    "success";
+
+  const deadlineLabel =
+    daysLeft == null ? "Sin plazo" :
+    daysLeft < 0 ? `Fuera de plazo (${Math.abs(daysLeft)} días)` :
+    daysLeft === 0 ? "Vence hoy" :
+    `${daysLeft} días restantes`;
 
   return (
     <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
@@ -388,25 +485,13 @@ export default function OpsCaseDetailPro() {
             <button className="rounded-2xl bg-white px-5 py-3 font-semibold text-slate-900 hover:bg-slate-100" onClick={loadCase}>
               {loading ? "Recargando..." : "Recargar"}
             </button>
-            <button
-              className="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
-              onClick={runAI}
-              disabled={runningAI}
-            >
+            <button className="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-600 disabled:opacity-50" onClick={runAI} disabled={runningAI}>
               {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
             </button>
-            <button
-              className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
-              onClick={approve}
-              disabled={busyApprove}
-            >
+            <button className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={approve} disabled={busyApprove}>
               {busyApprove ? "Aprobando..." : "Aprobar"}
             </button>
-            <button
-              className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
-              onClick={manual}
-              disabled={busyManual}
-            >
+            <button className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={manual} disabled={busyManual}>
               {busyManual ? "Enviando..." : "Manual"}
             </button>
             <Link to={`/ops/case/${caseId}`} className="rounded-2xl bg-slate-800 px-5 py-3 font-semibold text-white hover:bg-slate-700">
@@ -416,28 +501,23 @@ export default function OpsCaseDetailPro() {
         </div>
       </div>
 
-      {error ? (
-        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
 
       <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
         <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Familia" value={ai.familia || "—"} />
         <StatCard title="Confianza" value={confianzaPct} />
         <StatCard title="Admisibilidad" value={ai.admisibilidad || "—"} tone={aiTone} />
+        <StatCard title="Plazo" value={deadlineLabel} tone={deadlineTone} />
         <StatCard title="Documentos" value={String(documents.length)} />
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1.7fr_1fr]">
         <Section title="Resultado IA">
-          {!aiResult ? (
-            <p className="text-slate-500">No hay resultado IA todavía.</p>
-          ) : (
+          {!aiResult ? <p className="text-slate-500">No hay resultado IA todavía.</p> : (
             <div className="space-y-4">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-xs uppercase tracking-wide text-slate-400">Hecho</div>
@@ -461,30 +541,18 @@ export default function OpsCaseDetailPro() {
           <div className="space-y-3">
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-xs uppercase tracking-wide text-slate-400">PDF</div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">
-                {latestGeneratedDocs.pdf?.kind || "—"}
-              </div>
+              <div className="mt-2 text-sm font-semibold text-slate-900">{latestGeneratedDocs.pdf?.kind || "—"}</div>
               <div className="mt-1 text-xs text-slate-500">{fmt(latestGeneratedDocs.pdf?.created_at)}</div>
-              <button
-                onClick={() => latestGeneratedDocs.pdf && downloadDoc(latestGeneratedDocs.pdf)}
-                disabled={!latestGeneratedDocs.pdf || downloadingId === latestGeneratedDocs.pdf?.id}
-                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50"
-              >
+              <button onClick={() => latestGeneratedDocs.pdf && downloadDoc(latestGeneratedDocs.pdf)} disabled={!latestGeneratedDocs.pdf || downloadingId === latestGeneratedDocs.pdf?.id} className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50">
                 {downloadingId === latestGeneratedDocs.pdf?.id ? "Descargando PDF..." : "Descargar último PDF"}
               </button>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-xs uppercase tracking-wide text-slate-400">DOCX</div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">
-                {latestGeneratedDocs.docx?.kind || "—"}
-              </div>
+              <div className="mt-2 text-sm font-semibold text-slate-900">{latestGeneratedDocs.docx?.kind || "—"}</div>
               <div className="mt-1 text-xs text-slate-500">{fmt(latestGeneratedDocs.docx?.created_at)}</div>
-              <button
-                onClick={() => latestGeneratedDocs.docx && downloadDoc(latestGeneratedDocs.docx)}
-                disabled={!latestGeneratedDocs.docx || downloadingId === latestGeneratedDocs.docx?.id}
-                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50"
-              >
+              <button onClick={() => latestGeneratedDocs.docx && downloadDoc(latestGeneratedDocs.docx)} disabled={!latestGeneratedDocs.docx || downloadingId === latestGeneratedDocs.docx?.id} className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left font-medium hover:bg-slate-50 disabled:opacity-50">
                 {downloadingId === latestGeneratedDocs.docx?.id ? "Descargando DOCX..." : "Descargar último DOCX"}
               </button>
             </div>
@@ -498,29 +566,15 @@ export default function OpsCaseDetailPro() {
             <div className="space-y-3">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">Familia correcta</label>
-                <input
-                  value={rewriteFamilia}
-                  onChange={(e) => setRewriteFamilia(e.target.value)}
-                  placeholder="semaforo, vehiculo, movil..."
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500"
-                />
+                <input value={rewriteFamilia} onChange={(e) => setRewriteFamilia(e.target.value)} placeholder="semaforo, vehiculo, movil..." className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">Motivo</label>
-                <input
-                  value={rewriteMotivo}
-                  onChange={(e) => setRewriteMotivo(e.target.value)}
-                  placeholder="Explica por qué corriges"
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500"
-                />
+                <input value={rewriteMotivo} onChange={(e) => setRewriteMotivo(e.target.value)} placeholder="Explica por qué corriges" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
               </div>
 
-              <button
-                onClick={overrideFamilyAndRegenerate}
-                disabled={busyOverrideFamily}
-                className="w-full rounded-2xl border border-amber-500 bg-amber-500 px-4 py-3 text-left font-medium text-white hover:bg-amber-600 disabled:opacity-50"
-              >
+              <button onClick={overrideFamilyAndRegenerate} disabled={busyOverrideFamily} className="w-full rounded-2xl border border-amber-500 bg-amber-500 px-4 py-3 text-left font-medium text-white hover:bg-amber-600 disabled:opacity-50">
                 {busyOverrideFamily ? "Regenerando por familia..." : "Corregir familia y regenerar"}
               </button>
             </div>
@@ -528,20 +582,10 @@ export default function OpsCaseDetailPro() {
             <div className="space-y-3">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">Hecho denunciado limpio</label>
-                <textarea
-                  value={rewriteHecho}
-                  onChange={(e) => setRewriteHecho(e.target.value)}
-                  rows={7}
-                  placeholder="Ej.: No respetar la luz roja del semáforo"
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500"
-                />
+                <textarea value={rewriteHecho} onChange={(e) => setRewriteHecho(e.target.value)} rows={7} placeholder="Ej.: No respetar la luz roja del semáforo" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
               </div>
 
-              <button
-                onClick={rewriteAndRegenerate}
-                disabled={busyRewrite}
-                className="w-full rounded-2xl border border-emerald-500 bg-emerald-500 px-4 py-3 text-left font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
-              >
+              <button onClick={rewriteAndRegenerate} disabled={busyRewrite} className="w-full rounded-2xl border border-emerald-500 bg-emerald-500 px-4 py-3 text-left font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
                 {busyRewrite ? "Reanalizando y regenerando..." : "Corregir hecho y regenerar"}
               </button>
             </div>
@@ -550,23 +594,84 @@ export default function OpsCaseDetailPro() {
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <Section title="Control de plazos">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Fecha de notificación</label>
+              <input type="date" value={notifiedAt} onChange={(e) => { const v = e.target.value; setNotifiedAt(v); if (!deadlineMain) setDeadlineMain(addDays(v, 20)); }} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Fecha límite</label>
+              <input type="date" value={deadlineMain} onChange={(e) => setDeadlineMain(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-medium text-slate-700">Nota</label>
+            <input value={deadlineNote} onChange={(e) => setDeadlineNote(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <div><b>Notificada:</b> {fmtDateOnly(notifiedAt)}</div>
+            <div><b>Límite:</b> {fmtDateOnly(deadlineMain)}</div>
+            <div><b>Estado:</b> {deadlineLabel}</div>
+          </div>
+
+          <button onClick={saveDeadlineControl} disabled={busyDeadline} className="mt-4 w-full rounded-2xl border border-slate-900 bg-slate-900 px-4 py-3 text-left font-medium text-white hover:bg-slate-800 disabled:opacity-50">
+            {busyDeadline ? "Guardando plazo..." : "Guardar control de plazo"}
+          </button>
+        </Section>
+
+        <Section title="Presentación manual">
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Organismo</label>
+              <input value={manualOrg} onChange={(e) => setManualOrg(e.target.value)} placeholder="Ej.: Ayuntamiento de Burgos" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Canal</label>
+              <select value={manualCanal} onChange={(e) => setManualCanal(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500">
+                <option value="registro_electronico">Registro electrónico</option>
+                <option value="sede_electronica">Sede electrónica</option>
+                <option value="dgt">DGT</option>
+                <option value="correo_administrativo">Correo administrativo</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">URL de presentación</label>
+              <input value={manualUrl} onChange={(e) => setManualUrl(e.target.value)} placeholder="Pega la URL de la sede o del registro" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Referencia justificante</label>
+              <input value={manualJustificanteRef} onChange={(e) => setManualJustificanteRef(e.target.value)} placeholder="CSV, número de registro o nota interna" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Nota</label>
+              <input value={manualPresentedNote} onChange={(e) => setManualPresentedNote(e.target.value)} className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500" />
+            </div>
+
+            <button onClick={markManualPresented} disabled={busyPresented} className="w-full rounded-2xl border border-blue-600 bg-blue-600 px-4 py-3 text-left font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+              {busyPresented ? "Marcando como presentado..." : "Marcar como presentado manualmente"}
+            </button>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              Usa este bloque para dejar trazabilidad interna aunque la presentación real la hagas fuera del sistema.
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <Section title={`Documentos (${documents.length})`}>
-          {documents.length === 0 ? (
-            <p className="text-slate-500">No hay documentos.</p>
-          ) : (
+          {documents.length === 0 ? <p className="text-slate-500">No hay documentos.</p> : (
             <div className="space-y-3">
               {documents.map((d, i) => (
                 <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-4">
                   <div className="font-semibold text-slate-900">{d.kind || "documento"}</div>
                   <div className="mt-1 text-sm text-slate-500 break-all">{d.bucket}/{d.key}</div>
-                  <div className="mt-1 text-sm text-slate-500">
-                    {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}
-                  </div>
-                  <button
-                    onClick={() => downloadDoc(d)}
-                    disabled={!d?.id || downloadingId === d?.id}
-                    className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
-                  >
+                  <div className="mt-1 text-sm text-slate-500">{d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}</div>
+                  <button onClick={() => downloadDoc(d)} disabled={!d?.id || downloadingId === d?.id} className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50 disabled:opacity-50">
                     {downloadingId === d?.id ? "Descargando..." : "Descargar"}
                   </button>
                 </div>
@@ -576,24 +681,15 @@ export default function OpsCaseDetailPro() {
         </Section>
 
         <Section title={`Eventos (${events.length})`}>
-          {events.length === 0 ? (
-            <p className="text-slate-500">No hay eventos.</p>
-          ) : (
+          {events.length === 0 ? <p className="text-slate-500">No hay eventos.</p> : (
             <div className="space-y-3">
               {events.map((e, i) => (
                 <div key={`${e?.type || "evento"}-${i}`} className="rounded-2xl border border-slate-200 p-4">
-                  <button
-                    type="button"
-                    onClick={() => setOpenEvent(openEvent === i ? null : i)}
-                    className="w-full text-left"
-                  >
+                  <button type="button" onClick={() => setOpenEvent(openEvent === i ? null : i)} className="w-full text-left">
                     <div className="font-semibold text-slate-900">{e.type || "evento"}</div>
                     <div className="mt-1 text-sm text-slate-500">{fmt(e.created_at)}</div>
-                    <div className="mt-2 text-xs text-blue-600">
-                      {openEvent === i ? "Ocultar detalle" : "Ver detalle"}
-                    </div>
+                    <div className="mt-2 text-xs text-blue-600">{openEvent === i ? "Ocultar detalle" : "Ver detalle"}</div>
                   </button>
-
                   {openEvent === i ? (
                     <div className="mt-3 rounded-2xl bg-slate-50 p-3">
                       <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-slate-700">
@@ -611,9 +707,7 @@ export default function OpsCaseDetailPro() {
       {aiResult ? (
         <div className="mt-5">
           <details className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <summary className="cursor-pointer list-none px-5 py-4 text-xl font-semibold text-slate-900">
-              Payload IA bruto
-            </summary>
+            <summary className="cursor-pointer list-none px-5 py-4 text-xl font-semibold text-slate-900">Payload IA bruto</summary>
             <div className="border-t border-slate-100 p-5">
               <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-6 text-slate-700">
                 {JSON.stringify(aiResult, null, 2)}
