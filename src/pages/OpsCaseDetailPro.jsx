@@ -209,6 +209,13 @@ export default function OpsCaseDetailPro() {
     canalRevisado: false,
   });
 
+  const checklistOk =
+    checklist.pdfLeido &&
+    checklist.hechoRevisado &&
+    checklist.familiaRevisada &&
+    checklist.plazosRevisados &&
+    checklist.canalRevisado;
+
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
 
@@ -589,7 +596,7 @@ export default function OpsCaseDetailPro() {
             <button className="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-600 disabled:opacity-50" onClick={runAI} disabled={runningAI}>
               {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
             </button>
-            <button className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={approve} disabled={busyApprove}>
+            <button className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={approve} disabled={busyApprove || !checklistOk}>
               {busyApprove ? "Aprobando..." : "Aprobar"}
             </button>
             <button className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={manual} disabled={busyManual}>
@@ -714,6 +721,11 @@ export default function OpsCaseDetailPro() {
             setChecklist((prev) => ({ ...prev, [key]: value }))
           }
         />
+        {!checklistOk ? (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            ⚠️ Completa el checklist antes de aprobar el expediente.
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
