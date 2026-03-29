@@ -191,6 +191,8 @@ export default function Gestorias() {
       <main className="sr-container py-12" style={{ minHeight: "calc(100vh - 160px)" }}>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <h1 className="sr-h1">Portal asesorías</h1>
+        <div style={{ marginBottom: 12 }}>
+      <button className
           <div className="sr-small" style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <span>Partner: <b>{partnerName || "—"}</b></span>
             <button className="sr-btn-secondary" onClick={logout}>Salir</button>
