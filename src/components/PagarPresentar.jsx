@@ -39,6 +39,8 @@ export default function PagarPresentar({ caseId }) {
 
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
+      } else {
+        throw new Error("No se recibió la URL de pago.");
       }
     } catch (e) {
       setErr(e.message);
@@ -47,15 +49,62 @@ export default function PagarPresentar({ caseId }) {
     }
   }
 
-  // NO PAGADO
+  if (!caseId) {
+    return (
+      <div className="sr-card mt-6">
+        <h3 className="sr-h3">Falta el expediente</h3>
+        <p className="sr-p">No se ha podido identificar el expediente.</p>
+      </div>
+    );
+  }
+
+  if (!status?.authorized) {
+    return (
+      <div className="sr-card mt-6">
+        <h3 className="sr-h3">Autorización necesaria</h3>
+
+        <p className="sr-p">
+          Antes de pagar necesitamos tu autorización expresa para actuar en tu nombre y
+          presentar el recurso correctamente.
+        </p>
+
+        <div className="sr-card" style={{ marginTop: 12 }}>
+          <div className="sr-small" style={{ fontWeight: 800 }}>
+            Orden del proceso
+          </div>
+          <div className="sr-small" style={{ marginTop: 6 }}>
+            1. Autorizar presentación
+          </div>
+          <div className="sr-small">
+            2. Pagar
+          </div>
+          <div className="sr-small">
+            3. Presentar y obtener justificante
+          </div>
+        </div>
+
+        <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 14 }}>
+          <button
+            className="sr-btn-primary"
+            onClick={() => {
+              window.location.href = `/#/autorizar?case=${encodeURIComponent(caseId)}`;
+            }}
+          >
+            Autorizar primero
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!status || status.payment_status !== "paid") {
     return (
       <div className="sr-card mt-6">
         <h3 className="sr-h3">Presentar por nosotros</h3>
 
         <p className="sr-p">
-          Pagas solo si presentamos el recurso en tu nombre y te entregamos el
-          justificante oficial.
+          Ya tenemos tu autorización. Ahora puedes pagar para que presentemos el recurso
+          en tu nombre y te entreguemos el justificante oficial.
         </p>
 
         {quote && quote.ok && (
@@ -64,67 +113,42 @@ export default function PagarPresentar({ caseId }) {
               Tu precio
             </div>
             <div className="sr-small">
-              Presentación del recurso:{" "}
-              <b>{(quote.base_cents / 100).toFixed(2)} €</b>
+              Presentación del recurso: <b>{(quote.base_cents / 100).toFixed(2)} €</b>
             </div>
             <div className="sr-small">
-              Documentos extra ({quote.docs_extra} ×{" "}
-              {(quote.extra_cents / 100).toFixed(2)} €):{" "}
-              <b>
-                {((quote.docs_extra * quote.extra_cents) / 100).toFixed(2)} €
-              </b>
+              Documentos extra ({quote.docs_extra} × {(quote.extra_cents / 100).toFixed(2)} €):{" "}
+              <b>{((quote.docs_extra * quote.extra_cents) / 100).toFixed(2)} €</b>
             </div>
             <div className="sr-small" style={{ marginTop: 6 }}>
               Total: <b>{(quote.total_cents / 100).toFixed(2)} €</b>
             </div>
             <div className="sr-small" style={{ marginTop: 6, color: "#6b7280" }}>
-              El importe se calcula automáticamente según la documentación del
-              expediente.
+              El importe se calcula automáticamente según la documentación del expediente.
             </div>
           </div>
         )}
 
         {err && (
-          <div className="sr-small" style={{ color: "#991b1b" }}>
+          <div className="sr-small" style={{ color: "#991b1b", marginTop: 10 }}>
             ❌ {err}
           </div>
         )}
 
-        <button className="sr-btn-primary" onClick={pagar} disabled={loading}>
-          {loading ? "Redirigiendo…" : "Pagar y presentar"}
-        </button>
+        <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 14 }}>
+          <button className="sr-btn-primary" onClick={pagar} disabled={loading}>
+            {loading ? "Redirigiendo…" : "Pagar y presentar"}
+          </button>
+        </div>
       </div>
     );
   }
 
-  // PAGADO PERO NO AUTORIZADO
-  if (status.payment_status === "paid" && !status.authorized) {
-    return (
-      <div className="sr-card mt-6">
-        <h3 className="sr-h3">Último paso</h3>
-        <p className="sr-p">
-          Para poder presentar el recurso necesitamos confirmar tus datos y tu
-          autorización.
-        </p>
-        <button
-          className="sr-btn-primary"
-          onClick={() => {
-            window.location.href = `/#/pago-ok?case=${encodeURIComponent(caseId)}`;
-          }}
-        >
-          Continuar
-        </button>
-      </div>
-    );
-  }
-
-  // PAGADO + AUTORIZADO
   return (
     <div className="sr-card mt-6">
       <h3 className="sr-h3">Expediente en curso</h3>
       <p className="sr-p">
-        Pago y autorización registrados correctamente. Nuestro equipo procederá
-        a presentar el recurso y te avisaremos por email.
+        Pago y autorización registrados correctamente. Nuestro equipo puede presentar el
+        recurso y avisarte cuando esté presentado.
       </p>
     </div>
   );
