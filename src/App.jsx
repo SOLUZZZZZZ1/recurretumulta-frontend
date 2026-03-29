@@ -1,6 +1,6 @@
 // src/App.jsx — RecurreTuMulta (versión limpia MVP)
 import React from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import ResumenExpediente from "./pages/ResumenExpediente.jsx";
 
 import Navbar from "./components/Navbar.jsx";
@@ -16,6 +16,7 @@ import ReservasRestaurante from "./pages/ReservasRestaurante.jsx";
 import AdminRestaurantes from "./pages/AdminRestaurantes.jsx";
 import PartnerUpload from "./pages/PartnerUpload";
 import PartnerChangePassword from "./pages/PartnerChangePassword.jsx";
+import PartnerPanelExpedientes from "./pages/PartnerPanelExpedientes.jsx";
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -33,6 +34,7 @@ import Cookies from "./pages/Cookies.jsx";
 
 export default function App() {
   const location = useLocation();
+
   const hideChrome =
     location.pathname === "/__reservas-restaurante" ||
     location.pathname === "/__admin-restaurantes";
@@ -59,6 +61,7 @@ export default function App() {
         <Route path="/resumen" element={<ResumenExpediente />} />
         <Route path="/partner/upload" element={<PartnerUpload />} />
         <Route path="/partner/change-password" element={<PartnerChangePassword />} />
+        <Route path="/partner/panel" element={<PartnerPanelExpedientes />} />
 
         {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
@@ -69,6 +72,10 @@ export default function App() {
         <Route path="/ops/case/:caseId" element={<OpsCaseDetail />} />
         <Route path="/ops/review/:caseId" element={<OpsCaseDetailPro />} />
 
+        {/* Alias seguros para evitar página en blanco si entras por otra URL */}
+        <Route path="/ops/case/:caseId/review" element={<OpsCaseDetailPro />} />
+        <Route path="/ops/pro/:caseId" element={<OpsCaseDetailPro />} />
+
         {/* Libro de reservas (oculto) */}
         <Route path="/__reservas-restaurante" element={<ReservasRestaurante />} />
         <Route path="/__admin-restaurantes" element={<AdminRestaurantes />} />
@@ -77,6 +84,9 @@ export default function App() {
         <Route path="/aviso-legal" element={<AvisoLegal />} />
         <Route path="/privacidad" element={<Privacidad />} />
         <Route path="/cookies" element={<Cookies />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       {!hideChrome && <Footer />}
