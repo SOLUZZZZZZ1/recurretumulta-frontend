@@ -201,6 +201,14 @@ export default function OpsCaseDetailPro() {
   const [manualJustificanteRef, setManualJustificanteRef] = useState("");
   const [manualPresentedNote, setManualPresentedNote] = useState("Presentado manualmente por operador");
 
+  const [checklist, setChecklist] = useState({
+    pdfLeido: false,
+    hechoRevisado: false,
+    familiaRevisada: false,
+    plazosRevisados: false,
+    canalRevisado: false,
+  });
+
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
 
@@ -680,6 +688,32 @@ export default function OpsCaseDetailPro() {
             </div>
           </div>
         </Section>
+      </div>
+
+      <div className="mt-5">
+        <Section title="Guía rápida para operador">
+          <div className="space-y-4">
+            {OPS_HELP.map((block, i) => (
+              <div key={i} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="font-semibold text-slate-900">{block.title}</div>
+                <ul className="mt-2 list-disc pl-5 text-sm text-slate-700 space-y-1">
+                  {block.items.map((it, j) => (
+                    <li key={j}>{it}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <div className="mt-5">
+        <ChecklistAprobacion
+          {...checklist}
+          onToggle={(key, value) =>
+            setChecklist((prev) => ({ ...prev, [key]: value }))
+          }
+        />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
