@@ -18,6 +18,8 @@ import PartnerUpload from "./pages/PartnerUpload";
 import PartnerChangePassword from "./pages/PartnerChangePassword.jsx";
 import PartnerPanelExpedientes from "./pages/PartnerPanelExpedientes.jsx";
 import SolicitarAltaGestoria from "./pages/SolicitarAltaGestoria.jsx";
+import AdminCrearAsesoria from "./pages/AdminCrearAsesoria.jsx";
+
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -64,6 +66,7 @@ export default function App() {
         <Route path="/partner/change-password" element={<PartnerChangePassword />} />
         <Route path="/partner/panel" element={<PartnerPanelExpedientes />} />
         <Route path="/gestorias/alta" element={<SolicitarAltaGestoria />} />
+        <Route path="/admin/crear-asesoria" element={<AdminCrearAsesoria />} />
 
         {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
