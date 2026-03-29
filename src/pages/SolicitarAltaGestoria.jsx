@@ -1,56 +1,45 @@
 import React, { useState } from "react";
 
+const API = "/api";
+
 export default function SolicitarAltaGestoria() {
-  const [form, setForm] = useState({
-    empresa: "",
-    contacto: "",
-    email: "",
-    telefono: "",
-    provincia: "",
-    volumen: "",
-    mensaje: "",
-  });
+  const [form, setForm] = useState({});
+  const [msg, setMsg] = useState("");
 
   function setField(k, v) {
-    setForm((prev) => ({ ...prev, [k]: v }));
+    setForm(prev => ({ ...prev, [k]: v }));
   }
 
-  function enviar() {
-    const body = `
-Empresa: ${form.empresa}
-Contacto: ${form.contacto}
-Email: ${form.email}
-Teléfono: ${form.telefono}
-Provincia: ${form.provincia}
-Volumen: ${form.volumen}
+  async function enviar() {
+    try {
+      await fetch(`${API}/partner/signup`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(form)
+      });
 
-Mensaje:
-${form.mensaje}
-    `;
-
-    window.location.href =
-      "mailto:soporte@recurretumulta.eu?subject=Alta asesoría&body=" +
-      encodeURIComponent(body);
+      setMsg("Solicitud enviada correctamente ✔");
+    } catch {
+      setMsg("Error al enviar solicitud");
+    }
   }
 
   return (
     <div className="sr-container py-12">
-      <h1 className="sr-h1">Solicitud de alta asesorías</h1>
+      <h1>Alta asesorías</h1>
 
-      <div className="sr-card" style={{ maxWidth: 600 }}>
-        <input placeholder="Nombre de la asesoría" onChange={(e)=>setField("empresa",e.target.value)} />
-        <input placeholder="Persona de contacto" onChange={(e)=>setField("contacto",e.target.value)} />
-        <input placeholder="Email" onChange={(e)=>setField("email",e.target.value)} />
-        <input placeholder="Teléfono" onChange={(e)=>setField("telefono",e.target.value)} />
-        <input placeholder="Provincia" onChange={(e)=>setField("provincia",e.target.value)} />
-        <input placeholder="Expedientes/mes" onChange={(e)=>setField("volumen",e.target.value)} />
+      <input placeholder="Empresa" onChange={e=>setField("empresa",e.target.value)} />
+      <input placeholder="Contacto" onChange={e=>setField("contacto",e.target.value)} />
+      <input placeholder="Email" onChange={e=>setField("email",e.target.value)} />
+      <input placeholder="Teléfono" onChange={e=>setField("telefono",e.target.value)} />
+      <input placeholder="Provincia" onChange={e=>setField("provincia",e.target.value)} />
+      <input placeholder="Expedientes/mes" onChange={e=>setField("volumen",e.target.value)} />
 
-        <textarea placeholder="Mensaje" onChange={(e)=>setField("mensaje",e.target.value)} />
+      <textarea placeholder="Mensaje" onChange={e=>setField("mensaje",e.target.value)} />
 
-        <button className="sr-btn-primary mt-4" onClick={enviar}>
-          Solicitar alta
-        </button>
-      </div>
+      <button onClick={enviar}>Solicitar alta</button>
+
+      {msg && <div>{msg}</div>}
     </div>
   );
 }
