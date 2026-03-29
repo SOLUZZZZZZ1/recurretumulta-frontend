@@ -27,11 +27,9 @@ export default function Gestorias() {
 
   const inputRef = useRef(null);
 
-  // Cliente (contacto)
   const [clientEmail, setClientEmail] = useState("");
   const [clientName, setClientName] = useState("");
 
-  // Interesado (para el recurso)
   const [nombre, setNombre] = useState("");
   const [dni, setDni] = useState("");
   const [domicilio, setDomicilio] = useState("");
@@ -45,20 +43,13 @@ export default function Gestorias() {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    // si está marcado must_change en local, obligamos a cambiar
     if (mustChange) nav("/partner/change-password");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function logout() {
-    localStorage.removeItem("partner_token");
-    localStorage.removeItem("partner_name");
-    localStorage.removeItem("partner_email");
-    localStorage.removeItem("partner_must_change");
+    localStorage.clear();
     setToken("");
     setPartnerName("");
-    setEmail("");
-    setPassword("");
   }
 
   async function login() {
@@ -67,22 +58,9 @@ export default function Gestorias() {
     try {
       const data = await fetchJson(`${API}/partner/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ email, password }),
       });
-
-      // Guardar email para cambio de password si hace falta
-      localStorage.setItem("partner_email", email.trim().toLowerCase());
-
-      // Si obliga cambio, redirigir
-      if (data?.must_change_password) {
-        localStorage.setItem("partner_must_change", "1");
-        setPassword("");
-        nav("/partner/change-password");
-        return;
-      }
-
-      localStorage.setItem("partner_must_change", "0");
 
       localStorage.setItem("partner_token", data.token);
       localStorage.setItem("partner_name", data.partner_name || "");
@@ -90,7 +68,7 @@ export default function Gestorias() {
       setPartnerName(data.partner_name || "");
       setPassword("");
     } catch (e) {
-      setLoginErr(e.message || "No se pudo iniciar sesión");
+      setLoginErr(e.message);
     } finally {
       setLogging(false);
     }
@@ -101,173 +79,102 @@ export default function Gestorias() {
   }
 
   function onFilesSelected(list) {
-    const arr = Array.from(list || []).slice(0, 5);
-    setFiles(arr);
-    setMsg("");
-    setErr("");
+    setFiles(Array.from(list || []).slice(0, 5));
   }
 
   async function submitCase() {
-    setMsg("");
     setErr("");
+    if (!clientEmail || !clientName || !nombre || !dni || !files.length || !confirm) {
+      setErr("Completa todos los campos obligatorios");
+      return;
+    }
 
-    if (!clientEmail.trim()) return setErr("Email del cliente obligatorio.");
-    if (!clientName.trim()) return setErr("Nombre del cliente obligatorio.");
-    if (!nombre.trim()) return setErr("Nombre del interesado obligatorio.");
-    if (!dni.trim()) return setErr("DNI/NIE del interesado obligatorio.");
-    if (!files.length) return setErr("Sube al menos un documento.");
-    if (!confirm) return setErr("Debes confirmar que el cliente ha sido informado.");
+    const fd = new FormData();
+    fd.append("client_email", clientEmail);
+    fd.append("client_name", clientName);
 
-    const interesado = {
-      nombre: nombre.trim(),
-      dni: dni.trim(),
-      domicilio: domicilio.trim(),
-      localidad: localidad.trim(),
-    };
+    fd.append("interesado_json", JSON.stringify({
+      nombre, dni, domicilio, localidad
+    }));
 
-    setSending(true);
+    fd.append("confirm_client_informed", "true");
+    files.forEach(f => fd.append("files", f));
+
     try {
-      const fd = new FormData();
-      fd.append("client_email", clientEmail.trim());
-      fd.append("client_name", clientName.trim());
-      fd.append("interesado_json", JSON.stringify(interesado));
-      if (note.trim()) fd.append("partner_note", note.trim());
-      fd.append("confirm_client_informed", "true");
-      files.forEach((f) => fd.append("files", f));
-
       const r = await fetch(`${API}/partner/cases`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: fd,
+        body: fd
       });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data?.detail || "Error al enviar expediente");
 
-      setMsg(`✅ Expediente enviado (case_id: ${data.case_id}).`);
-      setClientEmail("");
-      setClientName("");
-      setNombre("");
-      setDni("");
-      setDomicilio("");
-      setLocalidad("");
-      setNote("");
-      setConfirm(false);
-      setFiles([]);
-      if (inputRef.current) inputRef.current.value = "";
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail);
+
+      setMsg("Expediente creado ✔");
     } catch (e) {
-      setErr(e.message || "No se pudo enviar el expediente.");
-    } finally {
-      setSending(false);
+      setErr(e.message);
     }
   }
 
   if (!authed) {
     return (
-      <>
-        <Seo title="Asesorías · RecurreTuMulta" description="Acceso profesional para asesorías y gestorías." canonical="https://www.recurretumulta.eu/gestorias" />
-        <main className="sr-container py-12" style={{ minHeight: "calc(100vh - 160px)" }}>
-          <h1 className="sr-h1 mb-4">Acceso profesional para asesorías</h1>
-          <div className="sr-card" style={{ maxWidth: 560 }}>
-            <p className="sr-p" style={{ marginTop: 0 }}>
-              Portal B2B · <b>Facturación mensual</b>.
-            </p>
-            <div style={{ display: "grid", gap: 10 }}>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-              <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contraseña" type="password" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-              {loginErr && <div className="sr-small" style={{ color: "#991b1b" }}>❌ {loginErr}</div>}
-              <button className="sr-btn-primary" onClick={login} disabled={logging}>
-                {logging ? "Entrando…" : "Entrar"}
-              </button>
-            </div>
-          </div>
-        </main>
-      </>
+      <main className="sr-container py-12">
+        <h1>Acceso asesorías</h1>
+
+        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email"/>
+        <input value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" type="password"/>
+
+        <button onClick={login}>{logging ? "Entrando..." : "Entrar"}</button>
+
+        {loginErr && <div style={{color:"red"}}>{loginErr}</div>}
+
+        {/* 🔥 SOLICITAR ALTA */}
+        <div style={{marginTop:20}}>
+          <button onClick={()=>{
+            window.location.href = "mailto:soporte@recurretumulta.eu?subject=Alta asesoría";
+          }}>
+            Solicitar alta
+          </button>
+        </div>
+      </main>
     );
   }
 
   return (
-    <>
-      <Seo title="Asesorías · RecurreTuMulta" description="Portal profesional para asesorías." canonical="https://www.recurretumulta.eu/gestorias" />
-      <main className="sr-container py-12" style={{ minHeight: "calc(100vh - 160px)" }}>
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <h1 className="sr-h1">Portal asesorías</h1>
-        <div style={{ marginBottom: 12 }}>
-      <button className
-          <div className="sr-small" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span>Partner: <b>{partnerName || "—"}</b></span>
-            <button className="sr-btn-secondary" onClick={logout}>Salir</button>
-          </div>
-        </div>
+    <main className="sr-container py-12">
 
-        <div className="sr-card">
-          <h2 className="sr-h2" style={{ marginTop: 0 }}>Subir expediente</h2>
+      <h1>Portal asesorías</h1>
 
-          <div className="sr-card" style={{ background: "rgba(255,255,255,0.7)" }}>
-            <div className="sr-small" style={{ fontWeight: 800 }}>Datos del cliente</div>
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-              <input value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} placeholder="Email del cliente" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-              <input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Nombre del cliente" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-            </div>
-          </div>
+      <button onClick={()=>nav("/partner/panel")}>
+        Ver mis expedientes
+      </button>
 
-          <div className="sr-card" style={{ marginTop: 12, background: "rgba(255,255,255,0.7)" }}>
-            <div className="sr-small" style={{ fontWeight: 800 }}>Datos del interesado</div>
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-              <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre y apellidos" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-              <input value={dni} onChange={(e) => setDni(e.target.value)} placeholder="DNI / NIE" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-              <input value={domicilio} onChange={(e) => setDomicilio(e.target.value)} placeholder="Domicilio" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-              <input value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Localidad" style={{ padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-            </div>
-          </div>
+      <button onClick={logout}>Salir</button>
 
-          <div className="sr-card" style={{ marginTop: 12, background: "rgba(255,255,255,0.7)" }}>
-            <div className="sr-small" style={{ fontWeight: 800 }}>Documentos</div>
+      <h2>Subir expediente</h2>
 
-            <input ref={inputRef} type="file" multiple accept="application/pdf,image/*" style={{ display: "none" }} onChange={(e) => onFilesSelected(e.target.files)} />
+      <input placeholder="Email cliente" onChange={e=>setClientEmail(e.target.value)}/>
+      <input placeholder="Nombre cliente" onChange={e=>setClientName(e.target.value)}/>
 
-            <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 10 }}>
-              <button className="sr-btn-primary" type="button" onClick={pickFiles}>
-                Añadir documentos (máx. 5)
-              </button>
+      <input placeholder="Nombre interesado" onChange={e=>setNombre(e.target.value)}/>
+      <input placeholder="DNI" onChange={e=>setDni(e.target.value)}/>
+      <input placeholder="Domicilio" onChange={e=>setDomicilio(e.target.value)}/>
+      <input placeholder="Localidad" onChange={e=>setLocalidad(e.target.value)}/>
 
-              {files.length > 0 && (
-                <span className="sr-small" style={{ color: "#6b7280" }}>
-                  {files.length} archivo(s) seleccionado(s)
-                </span>
-              )}
-            </div>
+      <input ref={inputRef} type="file" multiple style={{display:"none"}} onChange={e=>onFilesSelected(e.target.files)}/>
 
-            {files.length > 0 && (
-              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-                {files.map((f, idx) => (<div key={idx} className="sr-small">• {f.name}</div>))}
-              </div>
-            )}
-          </div>
+      <button onClick={pickFiles}>Añadir documentos</button>
 
-          <div className="sr-card" style={{ marginTop: 12, background: "rgba(255,255,255,0.7)" }}>
-            <div className="sr-small" style={{ fontWeight: 800 }}>Observaciones internas (opcional)</div>
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota interna (opcional)" style={{ marginTop: 8, width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 12 }} />
-          </div>
+      <label>
+        <input type="checkbox" onChange={e=>setConfirm(e.target.checked)}/>
+        Confirmo autorización
+      </label>
 
-          <div className="sr-card" style={{ marginTop: 12, background: "rgba(255,255,255,0.7)" }}>
-            <label className="sr-small" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} style={{ marginTop: 3 }} />
-              <span>
-                Confirmo que el cliente ha sido informado y autoriza la tramitación.
-              </span>
-            </label>
-          </div>
+      <button onClick={submitCase}>Enviar expediente</button>
 
-          {err && <div className="sr-small" style={{ marginTop: 12, color: "#991b1b" }}>❌ {err}</div>}
-          {msg && <div className="sr-small" style={{ marginTop: 12, color: "#166534" }}>{msg}</div>}
+      {msg && <div style={{color:"green"}}>{msg}</div>}
+      {err && <div style={{color:"red"}}>{err}</div>}
 
-          <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 14 }}>
-            <button className="sr-btn-primary" onClick={submitCase} disabled={sending}>
-              {sending ? "Enviando…" : "Enviar expediente"}
-            </button>
-          </div>
-        </div>
-      </main>
-    </>
+    </main>
   );
 }
