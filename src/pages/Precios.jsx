@@ -6,7 +6,7 @@ export default function Precios() {
     <>
       <Seo
         title="Precios · RecurreTuMulta"
-        description="Análisis gratuito. Pagas solo si presentamos el recurso por ti."
+        description="Análisis gratuito. Pagas solo si presentamos el recurso."
         canonical="https://www.recurretumulta.eu/precios"
       />
 
@@ -15,7 +15,7 @@ export default function Precios() {
 
         <p className="sr-p" style={{ maxWidth: 900, marginBottom: 18 }}>
           En RecurreTuMulta el análisis del expediente es <b>gratuito</b>. Solo
-          pagas si decides que presentemos el recurso por ti ante la
+          pagas si decides que presentemos el recurso ante la
           Administración.
         </p>
 
@@ -23,7 +23,7 @@ export default function Precios() {
           <h2 className="sr-h2">Presentación del recurso</h2>
 
           <p className="sr-p" style={{ fontSize: 28, fontWeight: 800, marginBottom: 10 }}>
-            Desde 29,90 €
+            Desde 20,00 €
           </p>
 
           <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18, marginTop: 0 }}>
