@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -21,6 +20,14 @@ const FAMILY_OPTIONS = [
 
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.detail || `Error HTTP ${r.status}`);
+  return data;
+}
+
+async function fetchJsonAllow404(url, options = {}) {
+  const r = await fetch(url, options);
+  if (r.status === 404) return { __not_found__: true };
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data?.detail || `Error HTTP ${r.status}`);
   return data;
@@ -365,15 +372,19 @@ export default function OpsCaseDetailPro() {
     try {
       const docsRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers });
       const evRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers });
-      const detailRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}`, { headers });
-      const overridesRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/ai-overrides`, { headers });
+
+      const detailRes = await fetchJsonAllow404(`${API}/ops/cases/${encodeURIComponent(caseId)}`, { headers });
+      const overridesRes = await fetchJsonAllow404(`${API}/ops/cases/${encodeURIComponent(caseId)}/ai-overrides`, { headers });
 
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
       const aiEvent = pickLatestAiEvent(evs);
+
       const payload = {
         ...(aiEvent?.payload || {}),
-        ai_overrides: overridesRes?.overrides || detailRes?.ai_overrides || {},
+        ai_overrides: overridesRes?.__not_found__
+          ? (detailRes?.ai_overrides || {})
+          : (overridesRes?.overrides || detailRes?.ai_overrides || {}),
       };
 
       setDocuments(docs);
@@ -469,7 +480,7 @@ export default function OpsCaseDetailPro() {
 
     setBusySave(true);
     try {
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/save-ai-overrides`, {
+      const saveRes = await fetch(`${API}/ops/cases/${encodeURIComponent(caseId)}/save-ai-overrides`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -478,6 +489,14 @@ export default function OpsCaseDetailPro() {
           motivo: saveReason,
         }),
       });
+
+      if (saveRes.status === 404) {
+        setError("El backend aún no tiene activa la ruta save-ai-overrides. Hay que desplegar el router nuevo.");
+        return;
+      }
+
+      const data = await saveRes.json().catch(() => ({}));
+      if (!saveRes.ok) throw new Error(data?.detail || `Error HTTP ${saveRes.status}`);
 
       await loadCase({ silent: true });
       setSaveMsg("✅ Cambios IA guardados en backend.");
@@ -664,7 +683,7 @@ export default function OpsCaseDetailPro() {
                   className="mt-2 min-h-[90px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold leading-6 text-slate-900 outline-none"
                 />
                 <div className="mt-2 text-xs text-slate-500">
-                  Puedes corregir el hecho imputado y guardarlo en backend.
+                  Puedes corregir el hecho imputado y guardarlo en backend cuando esté activa la ruta.
                 </div>
               </div>
 
@@ -684,7 +703,7 @@ export default function OpsCaseDetailPro() {
                     ))}
                   </select>
                   <div className="mt-2 text-xs text-slate-500">
-                    Esta familia se guardará en servidor, no solo en tu PC.
+                    Si backend nuevo no está desplegado, la pantalla seguirá funcionando.
                   </div>
                 </div>
 
@@ -697,7 +716,7 @@ export default function OpsCaseDetailPro() {
                     placeholder="Ej.: OCR defectuoso / familia corregida por operador"
                   />
                   <div className="mt-2 text-xs text-slate-500">
-                    Se guarda auditado en evento y en interested_data.
+                    Se usará cuando la ruta backend esté activa.
                   </div>
                 </div>
               </div>
