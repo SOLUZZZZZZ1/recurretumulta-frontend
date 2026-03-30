@@ -1,7 +1,23 @@
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 const API = "/api";
+
+const FAMILY_OPTIONS = [
+  { value: "velocidad", label: "⚡ Velocidad" },
+  { value: "movil", label: "📱 Móvil" },
+  { value: "auriculares", label: "🎧 Auriculares" },
+  { value: "cinturon", label: "🪢 Cinturón" },
+  { value: "semaforo", label: "🚦 Semáforo" },
+  { value: "marcas_viales", label: "🛣️ Marcas viales" },
+  { value: "casco", label: "🪖 Casco" },
+  { value: "seguro", label: "🛡️ Seguro" },
+  { value: "itv", label: "🧰 ITV" },
+  { value: "condiciones_vehiculo", label: "🚗 Condiciones vehículo" },
+  { value: "carril", label: "↔️ Carril" },
+  { value: "atencion", label: "👀 Atención" },
+];
 
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
@@ -148,6 +164,7 @@ function readAi(ai) {
   }
 
   const familia = firstNonEmpty(
+    ai.ai_overrides?.familia,
     getByPath(ai, "classifier_result.family"),
     getByPath(ai, "classifier_result.familia"),
     getByPath(ai, "classification.family"),
@@ -171,6 +188,7 @@ function readAi(ai) {
   );
 
   const hecho = firstNonEmpty(
+    ai.ai_overrides?.hecho,
     getByPath(ai, "arguments.hecho"),
     getByPath(ai, "arguments.hecho_imputado"),
     getByPath(ai, "result.hecho"),
@@ -253,15 +271,41 @@ function InfoPill({ children, tone = "default" }) {
 }
 
 function DownloadButton({ docId }) {
+  const token = localStorage.getItem("ops_token") || "";
+
+  async function handleDownload() {
+    try {
+      const res = await fetch(`${API}/ops/documents/${encodeURIComponent(docId)}/download`, {
+        headers: { "X-Operator-Token": token },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || "Error descargando documento");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "documento";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e.message || "Error descargando documento");
+    }
+  }
+
   return (
-    <a
-      href={`${API}/ops/documents/${encodeURIComponent(docId)}/download`}
-      target="_blank"
-      rel="noreferrer"
+    <button
+      type="button"
+      onClick={handleDownload}
       className="inline-flex rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
     >
       Descargar
-    </a>
+    </button>
   );
 }
 
@@ -277,10 +321,14 @@ export default function OpsCaseDetailPro() {
   const [runningAI, setRunningAI] = useState(false);
   const [busyApprove, setBusyApprove] = useState(false);
   const [busyManual, setBusyManual] = useState(false);
+  const [busySave, setBusySave] = useState(false);
   const [pollingMsg, setPollingMsg] = useState("");
   const [error, setError] = useState("");
+  const [saveMsg, setSaveMsg] = useState("");
 
   const [hechoEdit, setHechoEdit] = useState("");
+  const [familiaEdit, setFamiliaEdit] = useState("");
+  const [saveReason, setSaveReason] = useState("Corrección operador");
   const [checkPdf, setCheckPdf] = useState(false);
   const [checkHecho, setCheckHecho] = useState(false);
   const [checkFamilia, setCheckFamilia] = useState(false);
@@ -304,7 +352,10 @@ export default function OpsCaseDetailPro() {
   }
 
   async function loadCase({ silent = false } = {}) {
-    if (!silent) setError("");
+    if (!silent) {
+      setError("");
+      setSaveMsg("");
+    }
     if (!token) {
       setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
       return { docs: [], evs: [], aiEvent: null };
@@ -314,14 +365,20 @@ export default function OpsCaseDetailPro() {
     try {
       const docsRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers });
       const evRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers });
+      const detailRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}`, { headers });
+      const overridesRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/ai-overrides`, { headers });
 
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
       const aiEvent = pickLatestAiEvent(evs);
+      const payload = {
+        ...(aiEvent?.payload || {}),
+        ai_overrides: overridesRes?.overrides || detailRes?.ai_overrides || {},
+      };
 
       setDocuments(docs);
       setEvents(evs);
-      setAiResult(aiEvent?.payload || null);
+      setAiResult(payload);
 
       return { docs, evs, aiEvent };
     } catch (e) {
@@ -373,6 +430,7 @@ export default function OpsCaseDetailPro() {
 
   async function runAI() {
     setError("");
+    setSaveMsg("");
     setPollingMsg("");
     if (!token) return setError("Falta token de operador.");
 
@@ -398,6 +456,36 @@ export default function OpsCaseDetailPro() {
       }
     } finally {
       setRunningAI(false);
+    }
+  }
+
+  async function saveAiChanges() {
+    setError("");
+    setSaveMsg("");
+    if (!token) return setError("Falta token de operador.");
+    if (!saveReason || saveReason.trim().length < 3) {
+      return setError("Indica un motivo de al menos 3 caracteres.");
+    }
+
+    setBusySave(true);
+    try {
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/save-ai-overrides`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          familia: familiaEdit || null,
+          hecho: hechoEdit || null,
+          motivo: saveReason,
+        }),
+      });
+
+      await loadCase({ silent: true });
+      setSaveMsg("✅ Cambios IA guardados en backend.");
+      setTimeout(() => setSaveMsg(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error guardando cambios IA");
+    } finally {
+      setBusySave(false);
     }
   }
 
@@ -443,7 +531,8 @@ export default function OpsCaseDetailPro() {
 
   useEffect(() => {
     setHechoEdit(ai.hecho || "");
-  }, [ai.hecho]);
+    setFamiliaEdit(ai.familia || "");
+  }, [ai.hecho, ai.familia]);
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
 
@@ -461,7 +550,7 @@ export default function OpsCaseDetailPro() {
       ? "warn"
       : "default";
 
-  const familyTone = ai.familia ? "info" : "default";
+  const familyTone = familiaEdit ? "info" : "default";
   const actionTone = toneForAction(ai.accion);
 
   const checklistOk = [checkPdf, checkHecho, checkFamilia, checkPlazos, checkCanal].filter(Boolean).length;
@@ -491,6 +580,13 @@ export default function OpsCaseDetailPro() {
               disabled={runningAI}
             >
               {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
+            </button>
+            <button
+              className="min-w-[146px] rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              onClick={saveAiChanges}
+              disabled={busySave}
+            >
+              {busySave ? "Guardando..." : "Guardar cambios IA"}
             </button>
             <button
               className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50"
@@ -528,12 +624,18 @@ export default function OpsCaseDetailPro() {
         </div>
       ) : null}
 
+      {saveMsg ? (
+        <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {saveMsg}
+        </div>
+      ) : null}
+
       <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
         <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard title="Familia" value={`${infractionEmoji(ai.familia)} ${infractionLabel(ai.familia)}`} tone={familyTone} compact />
+        <StatCard title="Familia" value={`${infractionEmoji(familiaEdit)} ${infractionLabel(familiaEdit)}`} tone={familyTone} compact />
         <StatCard title="Confianza" value={confianzaPct} compact />
         <StatCard title="Admisibilidad" value={ai.admisibilidad || "—"} tone={aiTone} compact />
         <StatCard title="Acción" value={shortText(ai.accion, 42)} tone={actionTone} compact />
@@ -545,7 +647,7 @@ export default function OpsCaseDetailPro() {
           title="Resultado IA"
           right={
             <div className="flex items-center gap-2">
-              <InfoPill tone={familyTone}>{infractionEmoji(ai.familia)} {infractionLabel(ai.familia)}</InfoPill>
+              <InfoPill tone={familyTone}>{infractionEmoji(familiaEdit)} {infractionLabel(familiaEdit)}</InfoPill>
               <InfoPill tone={aiTone}>{ai.admisibilidad || "—"}</InfoPill>
             </div>
           }
@@ -562,23 +664,48 @@ export default function OpsCaseDetailPro() {
                   className="mt-2 min-h-[90px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold leading-6 text-slate-900 outline-none"
                 />
                 <div className="mt-2 text-xs text-slate-500">
-                  Puedes variar visualmente el hecho imputado para revisarlo mejor antes de aprobar o pasar a manual.
+                  Puedes corregir el hecho imputado y guardarlo en backend.
                 </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <div className="text-[11px] uppercase tracking-wide text-slate-400">Familia</div>
-                  <div className="mt-2 text-sm font-semibold text-slate-900">
-                    {infractionEmoji(ai.familia)} {infractionLabel(ai.familia)}
+                  <select
+                    value={familiaEdit}
+                    onChange={(e) => setFamiliaEdit(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none"
+                  >
+                    <option value="">Selecciona familia</option>
+                    {FAMILY_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-2 text-xs text-slate-500">
+                    Esta familia se guardará en servidor, no solo en tu PC.
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="text-[11px] uppercase tracking-wide text-slate-400">Acción recomendada</div>
-                  <div className="mt-2 max-h-24 overflow-auto text-sm font-medium leading-6 text-slate-900">
-                    {ai.accion || "—"}
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">Motivo del cambio</div>
+                  <input
+                    value={saveReason}
+                    onChange={(e) => setSaveReason(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none"
+                    placeholder="Ej.: OCR defectuoso / familia corregida por operador"
+                  />
+                  <div className="mt-2 text-xs text-slate-500">
+                    Se guarda auditado en evento y en interested_data.
                   </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <div className="text-[11px] uppercase tracking-wide text-slate-400">Acción recomendada</div>
+                <div className="mt-2 max-h-24 overflow-auto text-sm font-medium leading-6 text-slate-900">
+                  {ai.accion || "—"}
                 </div>
               </div>
             </div>
