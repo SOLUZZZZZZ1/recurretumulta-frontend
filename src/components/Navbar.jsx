@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import logo from "/rtm-navbar.png";
+import logo from "/rtm LOGO.png";
 
 export default function Navbar() {
   const { pathname } = useLocation();
