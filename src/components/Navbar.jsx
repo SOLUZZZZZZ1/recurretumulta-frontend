@@ -7,7 +7,7 @@ export default function Navbar() {
   const linkStyle = (to) => ({
     color: "white",
     textDecoration: "none",
-    fontWeight: pathname === to ? 700 : 500,
+    fontWeight: pathname === to ? 800 : 600,
     opacity: pathname === to ? 1 : 0.95,
     padding: "8px 10px",
     borderRadius: 10,
