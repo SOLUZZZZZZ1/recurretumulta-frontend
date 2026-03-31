@@ -27,7 +27,20 @@ async function fetchJson(url, options = {}) {
 
 function fmt(d) {
   if (!d) return "—";
-  try { return new Date(d).toLocaleString(); } catch { return String(d); }
+  try {
+    return new Date(d).toLocaleString();
+  } catch {
+    return String(d);
+  }
+}
+
+function fmtDateOnly(d) {
+  if (!d) return "—";
+  try {
+    return new Date(d).toLocaleDateString();
+  } catch {
+    return String(d);
+  }
 }
 
 function firstNonEmpty(...values) {
@@ -50,6 +63,7 @@ function deepFindFirst(obj, wantedKeys) {
   function walk(node) {
     if (node == null || typeof node !== "object" || seen.has(node)) return undefined;
     seen.add(node);
+
     if (Array.isArray(node)) {
       for (const item of node) {
         const found = walk(item);
@@ -57,12 +71,14 @@ function deepFindFirst(obj, wantedKeys) {
       }
       return undefined;
     }
+
     for (const key of wantedKeys) {
       if (Object.prototype.hasOwnProperty.call(node, key)) {
         const value = node[key];
         if (value !== undefined && value !== null && String(value).trim() !== "") return value;
       }
     }
+
     for (const value of Object.values(node)) {
       const found = walk(value);
       if (found !== undefined && found !== null && String(found).trim() !== "") return found;
@@ -140,51 +156,135 @@ function toneForAction(value) {
 }
 
 function readAi(ai) {
-  if (!ai || typeof ai !== "object") return { familia: "", confianza: "", hecho: "", admisibilidad: "", accion: "" };
+  if (!ai || typeof ai !== "object") {
+    return { familia: "", confianza: "", hecho: "", admisibilidad: "", accion: "" };
+  }
+
   const familia = firstNonEmpty(
     ai.ai_overrides?.familia,
     getByPath(ai, "classifier_result.family"),
     getByPath(ai, "classifier_result.familia"),
     getByPath(ai, "classification.family"),
     getByPath(ai, "classification.familia"),
-    ai.familia, ai.family, ai.familia_resuelta, ai.tipo_infraccion,
+    ai.familia,
+    ai.family,
+    ai.familia_resuelta,
+    ai.tipo_infraccion,
     deepFindFirst(ai, ["family", "familia", "familia_correcta", "detected_family"])
   );
+
   const confianza = firstNonEmpty(
     getByPath(ai, "classifier_result.confidence"),
     getByPath(ai, "classifier_result.score"),
     getByPath(ai, "classification.confidence"),
     getByPath(ai, "classification.score"),
-    ai.confianza, ai.confidence, ai.tipo_infraccion_confidence,
+    ai.confianza,
+    ai.confidence,
+    ai.tipo_infraccion_confidence,
     deepFindFirst(ai, ["confidence", "confianza", "score", "probability"])
   );
+
   const hecho = firstNonEmpty(
     ai.ai_overrides?.hecho,
     getByPath(ai, "arguments.hecho"),
     getByPath(ai, "arguments.hecho_imputado"),
     getByPath(ai, "result.hecho"),
-    ai.hecho, ai.hecho_para_recurso, ai.hecho_imputado,
+    ai.hecho,
+    ai.hecho_para_recurso,
+    ai.hecho_imputado,
     deepFindFirst(ai, ["hecho", "hecho_imputado", "fact", "facts", "literal", "descripcion"])
   );
+
   const admisibilidad = firstNonEmpty(
     getByPath(ai, "admissibility.admissibility"),
     getByPath(ai, "result.admissibility"),
-    ai.admissibility, ai.admisibilidad, ai.admissibility_panel,
+    ai.admissibility,
+    ai.admisibilidad,
+    ai.admissibility_panel,
     deepFindFirst(ai, ["admissibility", "admisibilidad", "status"])
   );
+
   const accion = firstNonEmpty(
     getByPath(ai, "phase.recommended_action.action"),
     getByPath(ai, "recommended_action.action"),
     getByPath(ai, "result.recommended_action"),
-    ai.recommended_action, ai.accion_recomendada, ai.accion_panel,
+    ai.recommended_action,
+    ai.accion_recomendada,
+    ai.accion_panel,
     deepFindFirst(ai, ["recommended_action", "accion_recomendada", "action"])
   );
+
   return {
     familia: typeof familia === "object" ? JSON.stringify(familia) : String(familia || ""),
     confianza: typeof confianza === "object" ? "" : String(confianza || ""),
     hecho: typeof hecho === "object" ? JSON.stringify(hecho) : String(hecho || ""),
     admisibilidad: typeof admisibilidad === "object" ? "" : String(admisibilidad || ""),
     accion: normalizeAction(compactAction(accion)),
+  };
+}
+
+function extractDeadlines(ai, detail, events) {
+  const beforeDate = firstNonEmpty(
+    getByPath(ai, "deadlines.before_resource_deadline"),
+    getByPath(detail, "deadlines.before_resource_deadline"),
+    deepFindFirst(ai, ["before_resource_deadline"]),
+    deepFindFirst(detail, ["before_resource_deadline"])
+  );
+
+  const afterDate = firstNonEmpty(
+    getByPath(ai, "deadlines.after_resource_deadline"),
+    getByPath(detail, "deadlines.after_resource_deadline"),
+    deepFindFirst(ai, ["after_resource_deadline"]),
+    deepFindFirst(detail, ["after_resource_deadline"])
+  );
+
+  const beforeText = firstNonEmpty(
+    getByPath(ai, "deadlines.before_text"),
+    getByPath(detail, "deadlines.before_text"),
+    deepFindFirst(ai, ["before_text"]),
+    deepFindFirst(detail, ["before_text"])
+  );
+
+  const afterText = firstNonEmpty(
+    getByPath(ai, "deadlines.after_text"),
+    getByPath(detail, "deadlines.after_text"),
+    deepFindFirst(ai, ["after_text"]),
+    deepFindFirst(detail, ["after_text"])
+  );
+
+  const lastSubmitted = [...(events || [])].find((e) => e?.type === "submitted_to_dgt");
+  const submittedAt = lastSubmitted?.payload?.submitted_at || lastSubmitted?.created_at || "";
+
+  return { beforeDate, afterDate, beforeText, afterText, submittedAt };
+}
+
+function extractSendInfo(ai, detail, events) {
+  const destination = firstNonEmpty(
+    getByPath(ai, "delivery.destination"),
+    getByPath(detail, "delivery.destination"),
+    deepFindFirst(ai, ["destination"]),
+    deepFindFirst(detail, ["destination"])
+  );
+
+  const address = firstNonEmpty(
+    getByPath(ai, "delivery.address"),
+    getByPath(detail, "delivery.address"),
+    deepFindFirst(ai, ["address"]),
+    deepFindFirst(detail, ["address"])
+  );
+
+  const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt");
+
+  return {
+    destination,
+    address,
+    submissions: submittedEvents.map((e, idx) => ({
+      id: `${e?.type || "submit"}-${idx}`,
+      submittedAt: e?.payload?.submitted_at || e?.created_at || "",
+      dgtId: e?.payload?.dgt_id || "",
+      documentUrl: e?.payload?.document_url || "",
+      mode: e?.payload?.mode || "",
+    })),
   };
 }
 
@@ -198,7 +298,9 @@ function StatCard({ title, value, tone = "default", compact = false }) {
   return (
     <div className={`rounded-2xl border px-4 py-3 shadow-sm ${tones[tone] || tones.default}`}>
       <div className="text-[11px] uppercase tracking-wide opacity-70">{title}</div>
-      <div className={`mt-2 font-semibold break-words ${compact ? "text-sm leading-5" : "text-lg leading-tight"}`}>{value || "—"}</div>
+      <div className={`mt-2 font-semibold break-words ${compact ? "text-sm leading-5" : "text-lg leading-tight"}`}>
+        {value || "—"}
+      </div>
     </div>
   );
 }
@@ -229,7 +331,9 @@ function DownloadButton({ docId }) {
   const token = localStorage.getItem("ops_token") || "";
   async function handleDownload() {
     try {
-      const res = await fetch(`${API}/ops/documents/${encodeURIComponent(docId)}/download`, { headers: { "X-Operator-Token": token } });
+      const res = await fetch(`${API}/ops/documents/${encodeURIComponent(docId)}/download`, {
+        headers: { "X-Operator-Token": token },
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.detail || "Error descargando documento");
@@ -247,15 +351,22 @@ function DownloadButton({ docId }) {
       alert(e.message || "Error descargando documento");
     }
   }
-  return <button type="button" onClick={handleDownload} className="inline-flex rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Descargar</button>;
+  return (
+    <button type="button" onClick={handleDownload} className="inline-flex rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+      Descargar
+    </button>
+  );
 }
 
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
+
   const [documents, setDocuments] = useState([]);
   const [events, setEvents] = useState([]);
   const [aiResult, setAiResult] = useState(null);
+  const [detail, setDetail] = useState(null);
   const [openEvent, setOpenEvent] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [runningAI, setRunningAI] = useState(false);
   const [busyApprove, setBusyApprove] = useState(false);
@@ -263,18 +374,25 @@ export default function OpsCaseDetailPro() {
   const [busySave, setBusySave] = useState(false);
   const [busyFamilyRegenerate, setBusyFamilyRegenerate] = useState(false);
   const [busyHechoRegenerate, setBusyHechoRegenerate] = useState(false);
+  const [busySubmit, setBusySubmit] = useState(false);
   const [pollingMsg, setPollingMsg] = useState("");
   const [error, setError] = useState("");
   const [saveMsg, setSaveMsg] = useState("");
+
   const [hechoEdit, setHechoEdit] = useState("");
   const [familiaEdit, setFamiliaEdit] = useState("");
   const [saveReason, setSaveReason] = useState("Corrección operador");
+  const [selectedDocumentId, setSelectedDocumentId] = useState("");
+  const [submitForce, setSubmitForce] = useState(false);
+
   const [checkPdf, setCheckPdf] = useState(false);
   const [checkHecho, setCheckHecho] = useState(false);
   const [checkFamilia, setCheckFamilia] = useState(false);
   const [checkPlazos, setCheckPlazos] = useState(false);
   const [checkCanal, setCheckCanal] = useState(false);
+
   const pollTimerRef = useRef(null);
+
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
 
@@ -290,41 +408,63 @@ export default function OpsCaseDetailPro() {
   }
 
   async function loadCase({ silent = false } = {}) {
-    if (!silent) { setError(""); setSaveMsg(""); }
+    if (!silent) {
+      setError("");
+      setSaveMsg("");
+    }
     if (!token) {
       setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
       return { docs: [], evs: [], aiEvent: null };
     }
     if (!silent) setLoading(true);
+
     try {
       const docsRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers });
       const evRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers });
       const detailRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}`, { headers });
       const overridesRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/ai-overrides`, { headers });
+
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
       const aiEvent = pickLatestAiEvent(evs);
       const payload = { ...(aiEvent?.payload || {}), ai_overrides: overridesRes?.overrides || detailRes?.ai_overrides || {} };
+
       setDocuments(docs);
       setEvents(evs);
+      setDetail(detailRes || null);
       setAiResult(payload);
+
+      if ((!selectedDocumentId || !docs.some((d) => d?.id === selectedDocumentId)) && docs.length) {
+        const preferred = docs.find((d) => String(d?.kind || "").toLowerCase().includes("pdf")) || docs[0];
+        setSelectedDocumentId(preferred?.id || "");
+      }
+
       return { docs, evs, aiEvent };
     } catch (e) {
       if (!silent) setError(e.message || "Error cargando expediente");
-      if (!silent) { setDocuments([]); setEvents([]); setAiResult(null); }
+      if (!silent) {
+        setDocuments([]);
+        setEvents([]);
+        setAiResult(null);
+        setDetail(null);
+      }
       return { docs: [], evs: [], aiEvent: null };
     } finally {
       if (!silent) setLoading(false);
     }
   }
 
-  useEffect(() => { loadCase(); return () => clearPollTimer(); }, [caseId]);
+  useEffect(() => {
+    loadCase();
+    return () => clearPollTimer();
+  }, [caseId]);
 
   async function pollForAiResult() {
     clearPollTimer();
     const start = Date.now();
     const maxMs = 180000;
     const intervalMs = 6000;
+
     async function step() {
       const { aiEvent } = await loadCase({ silent: true });
       if (aiEvent) {
@@ -333,21 +473,27 @@ export default function OpsCaseDetailPro() {
         setTimeout(() => setPollingMsg(""), 2500);
         return;
       }
+
       if (Date.now() - start > maxMs) {
         setPollingMsg("");
         setError("La IA parece haber tardado demasiado. Recarga el expediente para comprobar si terminó.");
         clearPollTimer();
         return;
       }
+
       setPollingMsg("La IA sigue procesando. Comprobando resultado…");
       pollTimerRef.current = setTimeout(step, intervalMs);
     }
+
     await step();
   }
 
   async function runAI() {
-    setError(""); setSaveMsg(""); setPollingMsg("");
+    setError("");
+    setSaveMsg("");
+    setPollingMsg("");
     if (!token) return setError("Falta token de operador.");
+
     setRunningAI(true);
     try {
       await fetchJson(`${API}/ai/expediente/run`, {
@@ -373,7 +519,8 @@ export default function OpsCaseDetailPro() {
   }
 
   async function saveAiChanges() {
-    setError(""); setSaveMsg("");
+    setError("");
+    setSaveMsg("");
     if (!token) return setError("Falta token de operador.");
     if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
     setBusySave(true);
@@ -394,7 +541,8 @@ export default function OpsCaseDetailPro() {
   }
 
   async function regenerateFamily() {
-    setError(""); setSaveMsg("");
+    setError("");
+    setSaveMsg("");
     if (!token) return setError("Falta token de operador.");
     if (!familiaEdit) return setError("Selecciona una familia.");
     if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
@@ -416,7 +564,8 @@ export default function OpsCaseDetailPro() {
   }
 
   async function regenerateHecho() {
-    setError(""); setSaveMsg("");
+    setError("");
+    setSaveMsg("");
     if (!token) return setError("Falta token de operador.");
     if (!hechoEdit || hechoEdit.trim().length < 5) return setError("El hecho debe tener al menos 5 caracteres.");
     if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
@@ -434,6 +583,30 @@ export default function OpsCaseDetailPro() {
       setError(e.message || "Error regenerando por hecho");
     } finally {
       setBusyHechoRegenerate(false);
+    }
+  }
+
+  async function submitResource() {
+    setError("");
+    setSaveMsg("");
+    if (!token) return setError("Falta token de operador.");
+    if (!selectedDocumentId) return setError("Selecciona un documento para enviar.");
+
+    setBusySubmit(true);
+    try {
+      const documentUrl = `${API}/ops/documents/${encodeURIComponent(selectedDocumentId)}/download`;
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/submit`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ document_url: documentUrl, force: submitForce }),
+      });
+      await loadCase();
+      setSaveMsg("✅ Recurso enviado y guardado en historial.");
+      setTimeout(() => setSaveMsg(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error enviando recurso");
+    } finally {
+      setBusySubmit(false);
     }
   }
 
@@ -476,10 +649,20 @@ export default function OpsCaseDetailPro() {
   }
 
   const ai = useMemo(() => readAi(aiResult), [aiResult]);
-  useEffect(() => { setHechoEdit(ai.hecho || ""); setFamiliaEdit(ai.familia || ""); }, [ai.hecho, ai.familia]);
+  const deadlines = useMemo(() => extractDeadlines(aiResult, detail, events), [aiResult, detail, events]);
+  const sendInfo = useMemo(() => extractSendInfo(aiResult, detail, events), [aiResult, detail, events]);
+
+  useEffect(() => {
+    setHechoEdit(ai.hecho || "");
+    setFamiliaEdit(ai.familia || "");
+  }, [ai.hecho, ai.familia]);
+
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
   const confianzaNum = Number(ai.confianza);
-  const confianzaPct = Number.isFinite(confianzaNum) ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`) : ai.confianza || "—";
+  const confianzaPct = Number.isFinite(confianzaNum)
+    ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
+    : ai.confianza || "—";
+
   const aiTone = ai.admisibilidad === "ADMISSIBLE" ? "success" : ai.admisibilidad === "NOT_ADMISSIBLE" ? "warn" : "default";
   const familyTone = familiaEdit ? "info" : "default";
   const actionTone = toneForAction(ai.accion);
@@ -497,12 +680,24 @@ export default function OpsCaseDetailPro() {
             <p className="mt-2 text-xs text-slate-300 break-all">Expediente: {caseId}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="min-w-[118px] rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100" onClick={() => loadCase()}>{loading ? "Recargando..." : "Recargar"}</button>
-            <button className="min-w-[146px] rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50" onClick={runAI} disabled={runningAI}>{runningAI ? "Ejecutando IA..." : "Ejecutar IA"}</button>
-            <button className="min-w-[146px] rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50" onClick={saveAiChanges} disabled={busySave}>{busySave ? "Guardando..." : "Guardar cambios IA"}</button>
-            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={approve} disabled={busyApprove}>{busyApprove ? "Aprobando..." : "Aprobar"}</button>
-            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={manual} disabled={busyManual}>{busyManual ? "Enviando..." : "Manual"}</button>
-            <Link to={`/ops/case/${caseId}`} className="min-w-[118px] rounded-xl bg-slate-800 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">Volver</Link>
+            <button className="min-w-[118px] rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100" onClick={() => loadCase()}>
+              {loading ? "Recargando..." : "Recargar"}
+            </button>
+            <button className="min-w-[146px] rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50" onClick={runAI} disabled={runningAI}>
+              {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
+            </button>
+            <button className="min-w-[146px] rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50" onClick={saveAiChanges} disabled={busySave}>
+              {busySave ? "Guardando..." : "Guardar cambios IA"}
+            </button>
+            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={approve} disabled={busyApprove}>
+              {busyApprove ? "Aprobando..." : "Aprobar"}
+            </button>
+            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={manual} disabled={busyManual}>
+              {busyManual ? "Enviando..." : "Manual"}
+            </button>
+            <Link to={`/ops/case/${caseId}`} className="min-w-[118px] rounded-xl bg-slate-800 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">
+              Volver
+            </Link>
           </div>
         </div>
       </div>
@@ -511,7 +706,9 @@ export default function OpsCaseDetailPro() {
       {pollingMsg ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{pollingMsg}</div> : null}
       {saveMsg ? <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{saveMsg}</div> : null}
 
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm"><b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}</div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+        <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
+      </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Familia" value={`${infractionEmoji(familiaEdit)} ${infractionLabel(familiaEdit)}`} tone={familyTone} compact />
@@ -549,8 +746,12 @@ export default function OpsCaseDetailPro() {
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <button type="button" onClick={regenerateFamily} disabled={busyFamilyRegenerate} className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">{busyFamilyRegenerate ? "Regenerando familia..." : "Familia + regenerar"}</button>
-                <button type="button" onClick={regenerateHecho} disabled={busyHechoRegenerate} className="rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white hover:bg-fuchsia-700 disabled:opacity-50">{busyHechoRegenerate ? "Regenerando hecho..." : "Hecho + regenerar"}</button>
+                <button type="button" onClick={regenerateFamily} disabled={busyFamilyRegenerate} className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  {busyFamilyRegenerate ? "Regenerando familia..." : "Familia + regenerar"}
+                </button>
+                <button type="button" onClick={regenerateHecho} disabled={busyHechoRegenerate} className="rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white hover:bg-fuchsia-700 disabled:opacity-50">
+                  {busyHechoRegenerate ? "Regenerando hecho..." : "Hecho + regenerar"}
+                </button>
               </div>
 
               <div className="rounded-2xl border border-slate-200 p-4">
@@ -566,7 +767,9 @@ export default function OpsCaseDetailPro() {
             <div className="space-y-2.5">
               {latestThreeDocs.map((d, i) => (
                 <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-slate-400">{(d.kind || "documento").includes("pdf") ? "PDF" : (d.kind || "documento").includes("docx") ? "DOCX" : "DOC"}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                    {(d.kind || "documento").includes("pdf") ? "PDF" : (d.kind || "documento").includes("docx") ? "DOCX" : "DOC"}
+                  </div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">{d.kind || "documento"}</div>
                   <div className="mt-1 text-xs text-slate-500">{fmt(d.created_at)}</div>
                   <div className="mt-2">{d.id ? <DownloadButton docId={d.id} /> : null}</div>
@@ -574,6 +777,84 @@ export default function OpsCaseDetailPro() {
               ))}
             </div>
           )}
+        </Section>
+      </div>
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <Section title="Plazos" right={<InfoPill tone="warn">antes / después</InfoPill>}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Plazo antes del recurso</div>
+              <div className="mt-2 text-base font-semibold text-slate-900">{fmtDateOnly(deadlines.beforeDate)}</div>
+              <div className="mt-2 text-xs text-slate-500">{deadlines.beforeText || "—"}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Plazo después del recurso</div>
+              <div className="mt-2 text-base font-semibold text-slate-900">{fmtDateOnly(deadlines.afterDate)}</div>
+              <div className="mt-2 text-xs text-slate-500">{deadlines.afterText || "—"}</div>
+            </div>
+          </div>
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            Último envío registrado: {deadlines.submittedAt ? fmt(deadlines.submittedAt) : "todavía no enviado"}.
+          </div>
+        </Section>
+
+        <Section title="Envío de recursos" right={<InfoPill tone="info">historial guardado</InfoPill>}>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Dirección / canal de envío</div>
+              <div className="mt-2 text-sm font-semibold text-slate-900">{sendInfo.destination || "—"}</div>
+              <div className="mt-2 text-xs text-slate-500 whitespace-pre-wrap">{sendInfo.address || "—"}</div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Documento a enviar</div>
+              <select
+                value={selectedDocumentId}
+                onChange={(e) => setSelectedDocumentId(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none"
+              >
+                <option value="">Selecciona documento</option>
+                {documents.map((d, i) => (
+                  <option key={d?.id || i} value={d?.id || ""}>
+                    {(d.kind || "documento")} · {fmt(d.created_at)}
+                  </option>
+                ))}
+              </select>
+
+              <label className="mt-3 flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" checked={submitForce} onChange={() => setSubmitForce(!submitForce)} />
+                Forzar envío aunque no esté en ready_to_submit
+              </label>
+
+              <button
+                type="button"
+                onClick={submitResource}
+                disabled={busySubmit}
+                className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {busySubmit ? "Enviando recurso..." : "Enviar recurso"}
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Historial de envíos</div>
+              {sendInfo.submissions.length === 0 ? (
+                <div className="mt-2 text-sm text-slate-500">No hay envíos registrados todavía.</div>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {sendInfo.submissions.map((s) => (
+                    <div key={s.id} className="rounded-xl border border-slate-200 p-3 text-sm">
+                      <div className="font-semibold text-slate-900">{fmt(s.submittedAt)}</div>
+                      <div className="mt-1 text-xs text-slate-500">ID externo: {s.dgtId || "—"}</div>
+                      <div className="mt-1 text-xs text-slate-500">Modo: {s.mode || "—"}</div>
+                      <div className="mt-1 break-all text-xs text-slate-500">{s.documentUrl || "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </Section>
       </div>
 
@@ -590,7 +871,7 @@ export default function OpsCaseDetailPro() {
 
         <Section title="Guía rápida operador">
           <div className="space-y-3 text-sm text-slate-700">
-            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Orden correcto del trabajo</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Revisar el hecho denunciado y la familia detectada.</li><li>Descargar y leer el último PDF regenerado antes de aprobar.</li><li>Si hay duda de encaje jurídico o de prueba, usar Manual.</li><li>Si todo está correcto, aprobar y continuar con la presentación.</li></ul></div>
+            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Orden correcto del trabajo</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Revisar el hecho denunciado y la familia detectada.</li><li>Descargar y leer el último PDF regenerado antes de aprobar.</li><li>Comprobar plazos antes y después del recurso.</li><li>Si todo está correcto, enviar y quedará guardado en historial.</li></ul></div>
             <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo tocar el hecho imputado</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Si ves ruido OCR o texto mezclado.</li><li>Si el hecho está jurídicamente bien pero mal redactado.</li><li>Si quieres una versión más limpia para revisión interna.</li></ul></div>
             <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo usar Manual</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Cuando la familia no convence.</li><li>Cuando el PDF final no refleja bien el caso.</li><li>Cuando falte prueba, plazo o canal claro de presentación.</li></ul></div>
           </div>
@@ -606,7 +887,7 @@ export default function OpsCaseDetailPro() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-slate-900">{d.kind || "documento"}</div>
-                      <div className="mt-1 text-xs text-slate-500 break-all">{d.bucket}/{d.key}</div>
+                      <div className="mt-1 text-xs text-slate-500 break-all">{d.bucket || d.b2_bucket || "—"}/{d.key || d.b2_key || "—"}</div>
                       <div className="mt-1 text-xs text-slate-500">{d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} · {fmt(d.created_at)}</div>
                     </div>
                     {d.id ? <DownloadButton docId={d.id} /> : null}
