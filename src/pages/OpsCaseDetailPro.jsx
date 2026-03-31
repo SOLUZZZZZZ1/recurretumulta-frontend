@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 const API = "/api";
+
 const FAMILY_OPTIONS = [
   { value: "velocidad", label: "⚡ Velocidad" },
   { value: "movil", label: "📱 Móvil" },
@@ -16,6 +17,7 @@ const FAMILY_OPTIONS = [
   { value: "carril", label: "↔️ Carril" },
   { value: "atencion", label: "👀 Atención" },
 ];
+
 const SEND_CHANNEL_OPTIONS = [
   { value: "ventanilla_electronica", label: "Ventanilla electrónica" },
   { value: "registro_electronico", label: "Registro electrónico" },
@@ -26,6 +28,7 @@ const SEND_CHANNEL_OPTIONS = [
   { value: "csv_notificacion", label: "Validación por CSV / expediente" },
   { value: "manual_otro", label: "Otro canal manual" },
 ];
+
 const ENTITY_OPTIONS = [
   { value: "dgt", label: "Dirección General de Tráfico (DGT)" },
   { value: "jefatura_trafico", label: "Jefatura Provincial de Tráfico" },
@@ -40,37 +43,319 @@ const ENTITY_OPTIONS = [
   { value: "guardia_civil", label: "Guardia Civil" },
   { value: "otra_entidad", label: "Otra entidad" },
 ];
+
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data?.detail || `Error HTTP ${r.status}`);
   return data;
 }
-function fmt(d){ if(!d) return "—"; try{return new Date(d).toLocaleString();}catch{return String(d);} }
-function fmtDateOnly(d){ if(!d) return ""; try{ const dt=new Date(d); if(Number.isNaN(dt.getTime())) return ""; const yyyy=dt.getFullYear(); const mm=String(dt.getMonth()+1).padStart(2,"0"); const dd=String(dt.getDate()).padStart(2,"0"); return `${yyyy}-${mm}-${dd}`;}catch{return "";} }
-function firstNonEmpty(...values){ for(const v of values){ if(v!==undefined && v!==null && String(v).trim()!=="") return v; } return ""; }
-function getByPath(obj,path){ try{return path.split(".").reduce((acc,key)=>(acc==null?undefined:acc[key]),obj);}catch{return undefined;} }
-function deepFindFirst(obj,wantedKeys){ const seen=new Set(); function walk(node){ if(node==null||typeof node!=="object"||seen.has(node)) return undefined; seen.add(node); if(Array.isArray(node)){ for(const item of node){ const found=walk(item); if(found!==undefined&&found!==null&&String(found).trim()!=="") return found;} return undefined;} for(const key of wantedKeys){ if(Object.prototype.hasOwnProperty.call(node,key)){ const value=node[key]; if(value!==undefined&&value!==null&&String(value).trim()!=="") return value; } } for(const value of Object.values(node)){ const found=walk(value); if(found!==undefined&&found!==null&&String(found).trim()!=="") return found; } return undefined;} return walk(obj); }
-function compactAction(value){ if(!value) return ""; if(typeof value==="string") return value; if(typeof value==="object") return value.action||value.accion||value.name||value.title||JSON.stringify(value); return String(value); }
-function normalizeAction(value){ if(!value) return ""; if(typeof value==="object") return value.action||value.accion||value.name||value.title||JSON.stringify(value); const text=String(value); try{ const parsed=JSON.parse(text); if(parsed&&typeof parsed==="object") return parsed.action||parsed.accion||parsed.name||parsed.title||text; }catch{} return text; }
-function shortText(value,max=72){ const text=String(value||"").trim(); if(!text) return "—"; return text.length>max?`${text.slice(0,max)}…`:text; }
-function infractionLabel(value){ const map={velocidad:"Velocidad",movil:"Móvil",auriculares:"Auriculares",cinturon:"Cinturón",semaforo:"Semáforo",marcas_viales:"Marcas viales",casco:"Casco",seguro:"Seguro",itv:"ITV",condiciones_vehiculo:"Condiciones vehículo",carril:"Carril",atencion:"Atención"}; return map[value]||value||"—"; }
-function infractionEmoji(value){ const map={velocidad:"⚡",movil:"📱",auriculares:"🎧",cinturon:"🪢",semaforo:"🚦",marcas_viales:"🛣️",casco:"🪖",seguro:"🛡️",itv:"🧰",condiciones_vehiculo:"🚗",carril:"↔️",atencion:"👀"}; return map[value]||"📄"; }
-function toneForAction(value){ const v=String(value||"").toUpperCase(); if(v.includes("ALEGACIONES")||v.includes("RECURSO")) return "info"; if(v.includes("ARCHIVO")) return "success"; return "default"; }
-function readAi(ai){ if(!ai||typeof ai!=="object"){ return {familia:"",confianza:"",hecho:"",admisibilidad:"",accion:""}; } const familia=firstNonEmpty(ai.ai_overrides?.familia,getByPath(ai,"classifier_result.family"),getByPath(ai,"classifier_result.familia"),ai.familia,ai.family,ai.familia_resuelta,ai.tipo_infraccion,deepFindFirst(ai,["family","familia","familia_correcta","detected_family"])); const confianza=firstNonEmpty(getByPath(ai,"classifier_result.confidence"),getByPath(ai,"classifier_result.score"),ai.confianza,ai.confidence,ai.tipo_infraccion_confidence,deepFindFirst(ai,["confidence","confianza","score","probability"])); const hecho=firstNonEmpty(ai.ai_overrides?.hecho,getByPath(ai,"arguments.hecho"),getByPath(ai,"arguments.hecho_imputado"),ai.hecho,ai.hecho_para_recurso,ai.hecho_imputado,deepFindFirst(ai,["hecho","hecho_imputado","fact","facts","literal","descripcion"])); const admisibilidad=firstNonEmpty(getByPath(ai,"admissibility.admissibility"),ai.admissibility,ai.admisibilidad,deepFindFirst(ai,["admissibility","admisibilidad","status"])); const accion=firstNonEmpty(getByPath(ai,"phase.recommended_action.action"),getByPath(ai,"recommended_action.action"),ai.recommended_action,ai.accion_recomendada,ai.accion_panel,deepFindFirst(ai,["recommended_action","accion_recomendada","action"])); return {familia:String(familia||""),confianza:String(confianza||""),hecho:String(hecho||""),admisibilidad:String(admisibilidad||""),accion:normalizeAction(compactAction(accion))}; }
-function extractDeadlines(ai,detail,events){ const beforeDate=firstNonEmpty(getByPath(ai,"deadlines.before_resource_deadline"),getByPath(detail,"deadlines.before_resource_deadline"),deepFindFirst(ai,["before_resource_deadline"]),deepFindFirst(detail,["before_resource_deadline"])); const afterDate=firstNonEmpty(getByPath(ai,"deadlines.after_resource_deadline"),getByPath(detail,"deadlines.after_resource_deadline"),deepFindFirst(ai,["after_resource_deadline"]),deepFindFirst(detail,["after_resource_deadline"])); const beforeText=firstNonEmpty(getByPath(ai,"deadlines.before_text"),getByPath(detail,"deadlines.before_text"),deepFindFirst(ai,["before_text"]),deepFindFirst(detail,["before_text"])); const afterText=firstNonEmpty(getByPath(ai,"deadlines.after_text"),getByPath(detail,"deadlines.after_text"),deepFindFirst(ai,["after_text"]),deepFindFirst(detail,["after_text"])); const lastSubmitted=[...(events||[])].find((e)=>e?.type==="submitted_to_dgt"); const submittedAt=lastSubmitted?.payload?.submitted_at||lastSubmitted?.created_at||""; return {beforeDate,afterDate,beforeText,afterText,submittedAt}; }
-function extractSendInfo(ai,detail,events){ const destination=firstNonEmpty(getByPath(ai,"delivery.destination"),getByPath(detail,"delivery.destination"),deepFindFirst(ai,["destination"]),deepFindFirst(detail,["destination"])); const address=firstNonEmpty(getByPath(ai,"delivery.address"),getByPath(detail,"delivery.address"),deepFindFirst(ai,["address"]),deepFindFirst(detail,["address"])); const channel=firstNonEmpty(getByPath(ai,"delivery.channel"),getByPath(detail,"delivery.channel"),deepFindFirst(ai,["channel"]),deepFindFirst(detail,["channel"])); const entity=firstNonEmpty(getByPath(ai,"delivery.entity"),getByPath(detail,"delivery.entity"),deepFindFirst(ai,["entity"]),deepFindFirst(detail,["entity"])); const planningEvents=(events||[]).filter((e)=>e?.type==="operator_planning_saved"); const submittedEvents=(events||[]).filter((e)=>e?.type==="submitted_to_dgt"); return {destination,address,channel,entity,planningEvents:planningEvents.map((e,idx)=>({id:`${e?.type||"planning"}-${idx}`,at:e?.payload?.at||e?.created_at||"",motivo:e?.payload?.motivo||""})),submissions:submittedEvents.map((e,idx)=>({id:`${e?.type||"submit"}-${idx}`,submittedAt:e?.payload?.submitted_at||e?.created_at||"",dgtId:e?.payload?.dgt_id||"",documentUrl:e?.payload?.document_url||"",mode:e?.payload?.mode||""}))}; }
-function StatCard({ title, value, tone = "default", compact = false }) {
-  const tones = { default:"border-slate-200 bg-white", success:"border-emerald-200 bg-emerald-50", warn:"border-amber-200 bg-amber-50", info:"border-blue-200 bg-blue-50" };
-  return <div className={`rounded-2xl border px-4 py-3 shadow-sm ${tones[tone]||tones.default}`}><div className="text-[11px] uppercase tracking-wide opacity-70">{title}</div><div className={`mt-2 font-semibold break-words ${compact?"text-sm leading-5":"text-lg leading-tight"}`}>{value||"—"}</div></div>;
+
+function fmt(d) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleString(); } catch { return String(d); }
 }
-function Section({ title, children, right = null }) { return <div className="rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3"><h3 className="text-lg font-semibold text-slate-900">{title}</h3>{right}</div><div className="p-4">{children}</div></div>; }
-function InfoPill({ children, tone = "default" }) { const tones={default:"bg-slate-100 text-slate-700",success:"bg-emerald-100 text-emerald-700",warn:"bg-amber-100 text-amber-700",info:"bg-blue-100 text-blue-700"}; return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${tones[tone]||tones.default}`}>{children}</span>; }
+
+function fmtDateOnly(d) {
+  if (!d) return "";
+  try {
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return "";
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  } catch {
+    return "";
+  }
+}
+
+function firstNonEmpty(...values) {
+  for (const v of values) {
+    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+  }
+  return "";
+}
+
+function getByPath(obj, path) {
+  try {
+    return path.split(".").reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+  } catch {
+    return undefined;
+  }
+}
+
+function deepFindFirst(obj, wantedKeys) {
+  const seen = new Set();
+  function walk(node) {
+    if (node == null || typeof node !== "object" || seen.has(node)) return undefined;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = walk(item);
+        if (found !== undefined && found !== null && String(found).trim() !== "") return found;
+      }
+      return undefined;
+    }
+    for (const key of wantedKeys) {
+      if (Object.prototype.hasOwnProperty.call(node, key)) {
+        const value = node[key];
+        if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+      }
+    }
+    for (const value of Object.values(node)) {
+      const found = walk(value);
+      if (found !== undefined && found !== null && String(found).trim() !== "") return found;
+    }
+    return undefined;
+  }
+  return walk(obj);
+}
+
+function compactAction(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return value.action || value.accion || value.name || value.title || JSON.stringify(value);
+  return String(value);
+}
+
+function normalizeAction(value) {
+  if (!value) return "";
+  if (typeof value === "object") return value.action || value.accion || value.name || value.title || JSON.stringify(value);
+  const text = String(value);
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object") return parsed.action || parsed.accion || parsed.name || parsed.title || text;
+  } catch {}
+  return text;
+}
+
+function shortText(value, max = 72) {
+  const text = String(value || "").trim();
+  if (!text) return "—";
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function infractionLabel(value) {
+  const map = {
+    velocidad: "Velocidad",
+    movil: "Móvil",
+    auriculares: "Auriculares",
+    cinturon: "Cinturón",
+    semaforo: "Semáforo",
+    marcas_viales: "Marcas viales",
+    casco: "Casco",
+    seguro: "Seguro",
+    itv: "ITV",
+    condiciones_vehiculo: "Condiciones vehículo",
+    carril: "Carril",
+    atencion: "Atención",
+  };
+  return map[value] || value || "—";
+}
+
+function infractionEmoji(value) {
+  const map = {
+    velocidad: "⚡",
+    movil: "📱",
+    auriculares: "🎧",
+    cinturon: "🪢",
+    semaforo: "🚦",
+    marcas_viales: "🛣️",
+    casco: "🪖",
+    seguro: "🛡️",
+    itv: "🧰",
+    condiciones_vehiculo: "🚗",
+    carril: "↔️",
+    atencion: "👀",
+  };
+  return map[value] || "📄";
+}
+
+function toneForAction(value) {
+  const v = String(value || "").toUpperCase();
+  if (v.includes("ALEGACIONES") || v.includes("RECURSO")) return "info";
+  if (v.includes("ARCHIVO")) return "success";
+  return "default";
+}
+
+function readAi(ai) {
+  if (!ai || typeof ai !== "object") {
+    return { familia: "", confianza: "", hecho: "", admisibilidad: "", accion: "" };
+  }
+
+  const familia = firstNonEmpty(
+    ai.ai_overrides?.familia,
+    getByPath(ai, "classifier_result.family"),
+    getByPath(ai, "classifier_result.familia"),
+    ai.familia,
+    ai.family,
+    ai.familia_resuelta,
+    ai.tipo_infraccion,
+    deepFindFirst(ai, ["family", "familia", "familia_correcta", "detected_family"])
+  );
+
+  const confianza = firstNonEmpty(
+    getByPath(ai, "classifier_result.confidence"),
+    getByPath(ai, "classifier_result.score"),
+    ai.confianza,
+    ai.confidence,
+    ai.tipo_infraccion_confidence,
+    deepFindFirst(ai, ["confidence", "confianza", "score", "probability"])
+  );
+
+  const hecho = firstNonEmpty(
+    ai.ai_overrides?.hecho,
+    getByPath(ai, "arguments.hecho"),
+    getByPath(ai, "arguments.hecho_imputado"),
+    ai.hecho,
+    ai.hecho_para_recurso,
+    ai.hecho_imputado,
+    deepFindFirst(ai, ["hecho", "hecho_imputado", "fact", "facts", "literal", "descripcion"])
+  );
+
+  const admisibilidad = firstNonEmpty(
+    getByPath(ai, "admissibility.admissibility"),
+    ai.admissibility,
+    ai.admisibilidad,
+    deepFindFirst(ai, ["admissibility", "admisibilidad", "status"])
+  );
+
+  const accion = firstNonEmpty(
+    getByPath(ai, "phase.recommended_action.action"),
+    getByPath(ai, "recommended_action.action"),
+    ai.recommended_action,
+    ai.accion_recomendada,
+    ai.accion_panel,
+    deepFindFirst(ai, ["recommended_action", "accion_recomendada", "action"])
+  );
+
+  return {
+    familia: typeof familia === "object" ? JSON.stringify(familia) : String(familia || ""),
+    confianza: typeof confianza === "object" ? "" : String(confianza || ""),
+    hecho: typeof hecho === "object" ? JSON.stringify(hecho) : String(hecho || ""),
+    admisibilidad: typeof admisibilidad === "object" ? "" : String(admisibilidad || ""),
+    accion: normalizeAction(compactAction(accion)),
+  };
+}
+
+function extractDeadlines(ai, detail, events) {
+  const beforeDate = firstNonEmpty(
+    getByPath(ai, "deadlines.before_resource_deadline"),
+    getByPath(detail, "deadlines.before_resource_deadline"),
+    deepFindFirst(ai, ["before_resource_deadline"]),
+    deepFindFirst(detail, ["before_resource_deadline"])
+  );
+  const afterDate = firstNonEmpty(
+    getByPath(ai, "deadlines.after_resource_deadline"),
+    getByPath(detail, "deadlines.after_resource_deadline"),
+    deepFindFirst(ai, ["after_resource_deadline"]),
+    deepFindFirst(detail, ["after_resource_deadline"])
+  );
+  const beforeText = firstNonEmpty(
+    getByPath(ai, "deadlines.before_text"),
+    getByPath(detail, "deadlines.before_text"),
+    deepFindFirst(ai, ["before_text"]),
+    deepFindFirst(detail, ["before_text"])
+  );
+  const afterText = firstNonEmpty(
+    getByPath(ai, "deadlines.after_text"),
+    getByPath(detail, "deadlines.after_text"),
+    deepFindFirst(ai, ["after_text"]),
+    deepFindFirst(detail, ["after_text"])
+  );
+  const lastSubmitted = [...(events || [])].find((e) => e?.type === "submitted_to_dgt");
+  const submittedAt = lastSubmitted?.payload?.submitted_at || lastSubmitted?.created_at || "";
+  return { beforeDate, afterDate, beforeText, afterText, submittedAt };
+}
+
+function extractSendInfo(ai, detail, events) {
+  const destination = firstNonEmpty(
+    getByPath(ai, "delivery.destination"),
+    getByPath(detail, "delivery.destination"),
+    deepFindFirst(ai, ["destination"]),
+    deepFindFirst(detail, ["destination"])
+  );
+  const address = firstNonEmpty(
+    getByPath(ai, "delivery.address"),
+    getByPath(detail, "delivery.address"),
+    deepFindFirst(ai, ["address"]),
+    deepFindFirst(detail, ["address"])
+  );
+  const channel = firstNonEmpty(
+    getByPath(ai, "delivery.channel"),
+    getByPath(detail, "delivery.channel"),
+    deepFindFirst(ai, ["channel"]),
+    deepFindFirst(detail, ["channel"])
+  );
+  const entity = firstNonEmpty(
+    getByPath(ai, "delivery.entity"),
+    getByPath(detail, "delivery.entity"),
+    deepFindFirst(ai, ["entity"]),
+    deepFindFirst(detail, ["entity"])
+  );
+  const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt");
+  return {
+    destination,
+    address,
+    channel,
+    entity,
+    submissions: submittedEvents.map((e, idx) => ({
+      id: `${e?.type || "submit"}-${idx}`,
+      submittedAt: e?.payload?.submitted_at || e?.created_at || "",
+      dgtId: e?.payload?.dgt_id || "",
+      documentUrl: e?.payload?.document_url || "",
+      mode: e?.payload?.mode || "",
+    })),
+  };
+}
+
+function StatCard({ title, value, tone = "default", compact = false }) {
+  const tones = {
+    default: "border-slate-200 bg-white",
+    success: "border-emerald-200 bg-emerald-50",
+    warn: "border-amber-200 bg-amber-50",
+    info: "border-blue-200 bg-blue-50",
+  };
+  return (
+    <div className={`rounded-2xl border px-4 py-3 shadow-sm ${tones[tone] || tones.default}`}>
+      <div className="text-[11px] uppercase tracking-wide opacity-70">{title}</div>
+      <div className={`mt-2 font-semibold break-words ${compact ? "text-sm leading-5" : "text-lg leading-tight"}`}>
+        {value || "—"}
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children, right = null }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+        {right}
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+function InfoPill({ children, tone = "default" }) {
+  const tones = {
+    default: "bg-slate-100 text-slate-700",
+    success: "bg-emerald-100 text-emerald-700",
+    warn: "bg-amber-100 text-amber-700",
+    info: "bg-blue-100 text-blue-700",
+  };
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${tones[tone] || tones.default}`}>{children}</span>;
+}
+
 function DownloadButton({ docId }) {
   const token = localStorage.getItem("ops_token") || "";
   async function handleDownload() {
     try {
-      const res = await fetch(`${API}/ops/documents/${encodeURIComponent(docId)}/download`, { headers: { "X-Operator-Token": token } });
+      const res = await fetch(`${API}/ops/documents/${encodeURIComponent(docId)}/download`, {
+        headers: { "X-Operator-Token": token },
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.detail || "Error descargando documento");
@@ -78,18 +363,32 @@ function DownloadButton({ docId }) {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = "documento"; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
-    } catch (e) { alert(e.message || "Error descargando documento"); }
+      a.href = url;
+      a.download = "documento";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e.message || "Error descargando documento");
+    }
   }
-  return <button type="button" onClick={handleDownload} className="inline-flex rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Descargar</button>;
+  return (
+    <button type="button" onClick={handleDownload} className="inline-flex rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+      Descargar
+    </button>
+  );
 }
+
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
+
   const [documents, setDocuments] = useState([]);
   const [events, setEvents] = useState([]);
   const [aiResult, setAiResult] = useState(null);
   const [detail, setDetail] = useState(null);
   const [openEvent, setOpenEvent] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [runningAI, setRunningAI] = useState(false);
   const [busyApprove, setBusyApprove] = useState(false);
@@ -98,17 +397,17 @@ export default function OpsCaseDetailPro() {
   const [busyFamilyRegenerate, setBusyFamilyRegenerate] = useState(false);
   const [busyHechoRegenerate, setBusyHechoRegenerate] = useState(false);
   const [busySubmit, setBusySubmit] = useState(false);
-  const [busyPlanning, setBusyPlanning] = useState(false);
   const [pollingMsg, setPollingMsg] = useState("");
   const [error, setError] = useState("");
   const [saveMsg, setSaveMsg] = useState("");
   const [planningMsg, setPlanningMsg] = useState("");
+
   const [hechoEdit, setHechoEdit] = useState("");
   const [familiaEdit, setFamiliaEdit] = useState("");
   const [saveReason, setSaveReason] = useState("Corrección operador");
-  const [planningReason, setPlanningReason] = useState("Planificación operador");
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [submitForce, setSubmitForce] = useState(false);
+
   const [beforeDeadlineEdit, setBeforeDeadlineEdit] = useState("");
   const [afterDeadlineEdit, setAfterDeadlineEdit] = useState("");
   const [beforeTextEdit, setBeforeTextEdit] = useState("");
@@ -117,121 +416,370 @@ export default function OpsCaseDetailPro() {
   const [entityEdit, setEntityEdit] = useState("");
   const [destinationEdit, setDestinationEdit] = useState("");
   const [addressEdit, setAddressEdit] = useState("");
+
   const [checkPdf, setCheckPdf] = useState(false);
   const [checkHecho, setCheckHecho] = useState(false);
   const [checkFamilia, setCheckFamilia] = useState(false);
   const [checkPlazos, setCheckPlazos] = useState(false);
   const [checkCanal, setCheckCanal] = useState(false);
+
   const pollTimerRef = useRef(null);
+
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
-  function clearPollTimer(){ if(pollTimerRef.current){ clearTimeout(pollTimerRef.current); pollTimerRef.current = null; } }
-  function pickLatestAiEvent(evs){ return [...(evs||[])].find((e)=>e?.type==="ai_expediente_result") || null; }
+  const plannerStorageKey = `ops_case_planning_${caseId}`;
+
+  function clearPollTimer() {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }
+
+  function pickLatestAiEvent(evs) {
+    return [...(evs || [])].find((e) => e?.type === "ai_expediente_result") || null;
+  }
+
   async function loadCase({ silent = false } = {}) {
-    if (!silent) { setError(""); setSaveMsg(""); setPlanningMsg(""); }
-    if (!token) { setError("Falta token de operador. Accede primero al panel OPS y entra con PIN."); return; }
+    if (!silent) {
+      setError("");
+      setSaveMsg("");
+    }
+    if (!token) {
+      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
+      return;
+    }
     if (!silent) setLoading(true);
+
     try {
       const docsRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/documents`, { headers });
       const evRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/events`, { headers });
       const detailRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}`, { headers });
       const overridesRes = await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/ai-overrides`, { headers });
+
       const docs = docsRes.documents || docsRes.items || [];
       const evs = evRes.events || evRes.items || [];
       const aiEvent = pickLatestAiEvent(evs);
       const payload = { ...(aiEvent?.payload || {}), ai_overrides: overridesRes?.overrides || detailRes?.ai_overrides || {} };
-      setDocuments(docs); setEvents(evs); setDetail(detailRes || null); setAiResult(payload);
+
+      setDocuments(docs);
+      setEvents(evs);
+      setDetail(detailRes || null);
+      setAiResult(payload);
+
       if ((!selectedDocumentId || !docs.some((d) => d?.id === selectedDocumentId)) && docs.length) {
         const preferred = docs.find((d) => String(d?.kind || "").toLowerCase().includes("pdf")) || docs[0];
         setSelectedDocumentId(preferred?.id || "");
       }
     } catch (e) {
-      if (!silent) { setError(e.message || "Error cargando expediente"); setDocuments([]); setEvents([]); setAiResult(null); setDetail(null); }
-    } finally { if (!silent) setLoading(false); }
+      if (!silent) {
+        setError(e.message || "Error cargando expediente");
+        setDocuments([]);
+        setEvents([]);
+        setAiResult(null);
+        setDetail(null);
+      }
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }
-  useEffect(() => { loadCase(); return () => clearPollTimer(); }, [caseId]);
+
+  useEffect(() => {
+    loadCase();
+    return () => clearPollTimer();
+  }, [caseId]);
+
   async function pollForAiResult() {
-    clearPollTimer(); const start = Date.now(); const maxMs = 180000; const intervalMs = 6000;
+    clearPollTimer();
+    const start = Date.now();
+    const maxMs = 180000;
+    const intervalMs = 6000;
+
     async function step() {
       await loadCase({ silent: true });
-      if (Date.now() - start > maxMs) { setPollingMsg(""); setError("La IA parece haber tardado demasiado. Recarga el expediente para comprobar si terminó."); clearPollTimer(); return; }
+      if (Date.now() - start > maxMs) {
+        setPollingMsg("");
+        setError("La IA parece haber tardado demasiado. Recarga el expediente para comprobar si terminó.");
+        clearPollTimer();
+        return;
+      }
       setPollingMsg("La IA sigue procesando. Comprobando resultado…");
       pollTimerRef.current = setTimeout(step, intervalMs);
     }
+
     await step();
   }
+
   async function runAI() {
-    setError(""); setSaveMsg(""); setPollingMsg(""); if (!token) return setError("Falta token de operador.");
+    setError("");
+    setSaveMsg("");
+    setPollingMsg("");
+    if (!token) return setError("Falta token de operador.");
+
     setRunningAI(true);
     try {
-      await fetchJson(`${API}/ai/expediente/run`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ case_id: caseId }) });
-      await loadCase(); setPollingMsg("✅ IA completada."); setTimeout(() => setPollingMsg(""), 2500);
+      await fetchJson(`${API}/ai/expediente/run`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: caseId }),
+      });
+      await loadCase();
+      setPollingMsg("✅ IA completada.");
+      setTimeout(() => setPollingMsg(""), 2500);
     } catch (e) {
-      const msg = e.message || ""; const is502 = msg.includes("502") || msg.includes("Error HTTP 502");
-      if (is502) { setPollingMsg("La IA sigue ejecutándose. Comprobando resultado…"); await pollForAiResult(); } else { setError(msg || "Error ejecutando IA"); }
-    } finally { setRunningAI(false); }
+      const msg = e.message || "";
+      const is502 = msg.includes("502") || msg.includes("Error HTTP 502");
+      if (is502) {
+        setPollingMsg("La IA sigue ejecutándose. Comprobando resultado…");
+        await pollForAiResult();
+      } else {
+        setError(msg || "Error ejecutando IA");
+      }
+    } finally {
+      setRunningAI(false);
+    }
   }
+
   async function saveAiChanges() {
-    setError(""); setSaveMsg(""); if (!token) return setError("Falta token de operador."); if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
+    setError("");
+    setSaveMsg("");
+    if (!token) return setError("Falta token de operador.");
+    if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
     setBusySave(true);
     try {
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/save-ai-overrides`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ familia: familiaEdit || null, hecho: hechoEdit || null, motivo: saveReason }) });
-      await loadCase({ silent: true }); setSaveMsg("✅ Cambios IA guardados en backend."); setTimeout(() => setSaveMsg(""), 3500);
-    } catch (e) { setError(e.message || "Error guardando cambios IA"); } finally { setBusySave(false); }
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/save-ai-overrides`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ familia: familiaEdit || null, hecho: hechoEdit || null, motivo: saveReason }),
+      });
+      await loadCase({ silent: true });
+      setSaveMsg("✅ Cambios IA guardados en backend.");
+      setTimeout(() => setSaveMsg(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error guardando cambios IA");
+    } finally {
+      setBusySave(false);
+    }
   }
-  async function savePlanning() {
-    setError(""); setPlanningMsg(""); if (!token) return setError("Falta token de operador."); if (!planningReason || planningReason.trim().length < 3) return setError("Indica un motivo de planificación de al menos 3 caracteres.");
-    setBusyPlanning(true);
-    try {
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/save-planning`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ before_deadline: beforeDeadlineEdit || null, after_deadline: afterDeadlineEdit || null, before_text: beforeTextEdit || null, after_text: afterTextEdit || null, channel: channelEdit || null, entity: entityEdit || null, destination: destinationEdit || null, address: addressEdit || null, motivo: planningReason }) });
-      await loadCase({ silent: true }); setPlanningMsg("✅ Plazos y envío guardados en backend."); setTimeout(() => setPlanningMsg(""), 3500);
-    } catch (e) { setError(e.message || "Error guardando plazos y envío"); } finally { setBusyPlanning(false); }
-  }
+
   async function regenerateFamily() {
-    setError(""); setSaveMsg(""); if (!token) return setError("Falta token de operador."); if (!familiaEdit) return setError("Selecciona una familia."); if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
+    setError("");
+    setSaveMsg("");
+    if (!token) return setError("Falta token de operador.");
+    if (!familiaEdit) return setError("Selecciona una familia.");
+    if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
     setBusyFamilyRegenerate(true);
     try {
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/override-family-and-regenerate`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ familia: familiaEdit, motivo: saveReason }) });
-      await loadCase(); setSaveMsg("✅ Familia guardada y recurso regenerado."); setTimeout(() => setSaveMsg(""), 3500);
-    } catch (e) { setError(e.message || "Error regenerando por familia"); } finally { setBusyFamilyRegenerate(false); }
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/override-family-and-regenerate`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ familia: familiaEdit, motivo: saveReason }),
+      });
+      await loadCase();
+      setSaveMsg("✅ Familia guardada y recurso regenerado.");
+      setTimeout(() => setSaveMsg(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error regenerando por familia");
+    } finally {
+      setBusyFamilyRegenerate(false);
+    }
   }
+
   async function regenerateHecho() {
-    setError(""); setSaveMsg(""); if (!token) return setError("Falta token de operador."); if (!hechoEdit || hechoEdit.trim().length < 5) return setError("El hecho debe tener al menos 5 caracteres."); if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
+    setError("");
+    setSaveMsg("");
+    if (!token) return setError("Falta token de operador.");
+    if (!hechoEdit || hechoEdit.trim().length < 5) return setError("El hecho debe tener al menos 5 caracteres.");
+    if (!saveReason || saveReason.trim().length < 3) return setError("Indica un motivo de al menos 3 caracteres.");
     setBusyHechoRegenerate(true);
     try {
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/rewrite-hecho-and-regenerate`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ hecho: hechoEdit, motivo: saveReason, familia: familiaEdit || null }) });
-      await loadCase(); setSaveMsg("✅ Hecho guardado y recurso regenerado."); setTimeout(() => setSaveMsg(""), 3500);
-    } catch (e) { setError(e.message || "Error regenerando por hecho"); } finally { setBusyHechoRegenerate(false); }
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/rewrite-hecho-and-regenerate`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ hecho: hechoEdit, motivo: saveReason, familia: familiaEdit || null }),
+      });
+      await loadCase();
+      setSaveMsg("✅ Hecho guardado y recurso regenerado.");
+      setTimeout(() => setSaveMsg(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error regenerando por hecho");
+    } finally {
+      setBusyHechoRegenerate(false);
+    }
   }
+
+  function savePlanningLocal() {
+    try {
+      const payload = {
+        beforeDeadlineEdit,
+        afterDeadlineEdit,
+        beforeTextEdit,
+        afterTextEdit,
+        channelEdit,
+        entityEdit,
+        destinationEdit,
+        addressEdit,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(plannerStorageKey, JSON.stringify(payload));
+      setPlanningMsg("✅ Plazos y envío guardados en este navegador.");
+      setTimeout(() => setPlanningMsg(""), 3000);
+    } catch {
+      setError("No se pudo guardar en local.");
+    }
+  }
+
   async function submitResource() {
-    setError(""); setSaveMsg(""); if (!token) return setError("Falta token de operador."); if (!selectedDocumentId) return setError("Selecciona un documento para enviar.");
+    setError("");
+    setSaveMsg("");
+    if (!token) return setError("Falta token de operador.");
+    if (!selectedDocumentId) return setError("Selecciona un documento para enviar.");
+
     setBusySubmit(true);
     try {
+      savePlanningLocal();
       const documentUrl = `${API}/ops/documents/${encodeURIComponent(selectedDocumentId)}/download`;
-      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/submit`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ document_url: documentUrl, force: submitForce }) });
-      await loadCase(); setSaveMsg("✅ Recurso enviado y guardado en historial."); setTimeout(() => setSaveMsg(""), 3500);
-    } catch (e) { setError(e.message || "Error enviando recurso"); } finally { setBusySubmit(false); }
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/submit`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ document_url: documentUrl, force: submitForce }),
+      });
+      await loadCase();
+      setSaveMsg("✅ Recurso enviado y guardado en historial.");
+      setTimeout(() => setSaveMsg(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error enviando recurso");
+    } finally {
+      setBusySubmit(false);
+    }
   }
+
   async function approve() {
-    setError(""); if (!token) return setError("Falta token de operador."); setBusyApprove(true);
-    try { await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/approve`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ note: "Aprobado desde PRO" }) }); await loadCase(); alert("Expediente aprobado"); }
-    catch (e) { setError(e.message || "Error aprobando expediente"); }
-    finally { setBusyApprove(false); }
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    setBusyApprove(true);
+    try {
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/approve`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ note: "Aprobado desde PRO" }),
+      });
+      await loadCase();
+      alert("Expediente aprobado");
+    } catch (e) {
+      setError(e.message || "Error aprobando expediente");
+    } finally {
+      setBusyApprove(false);
+    }
   }
+
   async function manual() {
-    setError(""); if (!token) return setError("Falta token de operador."); setBusyManual(true);
-    try { await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/manual`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ motivo: "Revisión manual desde PRO" }) }); await loadCase(); alert("Expediente enviado a revisión manual"); }
-    catch (e) { setError(e.message || "Error enviando a revisión manual"); }
-    finally { setBusyManual(false); }
+    setError("");
+    if (!token) return setError("Falta token de operador.");
+    setBusyManual(true);
+    try {
+      await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/manual`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: "Revisión manual desde PRO" }),
+      });
+      await loadCase();
+      alert("Expediente enviado a revisión manual");
+    } catch (e) {
+      setError(e.message || "Error enviando a revisión manual");
+    } finally {
+      setBusyManual(false);
+    }
   }
+
   const ai = useMemo(() => readAi(aiResult), [aiResult]);
   const deadlines = useMemo(() => extractDeadlines(aiResult, detail, events), [aiResult, detail, events]);
   const sendInfo = useMemo(() => extractSendInfo(aiResult, detail, events), [aiResult, detail, events]);
-  useEffect(() => { setHechoEdit(ai.hecho || ""); setFamiliaEdit(ai.familia || ""); }, [ai.hecho, ai.familia]);
-  useEffect(() => { setBeforeDeadlineEdit(fmtDateOnly(deadlines.beforeDate)); setAfterDeadlineEdit(fmtDateOnly(deadlines.afterDate)); setBeforeTextEdit(deadlines.beforeText || ""); setAfterTextEdit(deadlines.afterText || ""); setChannelEdit(sendInfo.channel || ""); setEntityEdit(sendInfo.entity || ""); setDestinationEdit(sendInfo.destination || ""); setAddressEdit(sendInfo.address || ""); }, [deadlines.beforeDate,deadlines.afterDate,deadlines.beforeText,deadlines.afterText,sendInfo.channel,sendInfo.entity,sendInfo.destination,sendInfo.address]);
+
+  useEffect(() => {
+    setHechoEdit(ai.hecho || "");
+    setFamiliaEdit(ai.familia || "");
+  }, [ai.hecho, ai.familia]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(plannerStorageKey);
+      const local = raw ? JSON.parse(raw) : {};
+      setBeforeDeadlineEdit(local.beforeDeadlineEdit || fmtDateOnly(deadlines.beforeDate));
+      setAfterDeadlineEdit(local.afterDeadlineEdit || fmtDateOnly(deadlines.afterDate));
+      setBeforeTextEdit(local.beforeTextEdit || deadlines.beforeText || "");
+      setAfterTextEdit(local.afterTextEdit || deadlines.afterText || "");
+      setChannelEdit(local.channelEdit || sendInfo.channel || "");
+      setEntityEdit(local.entityEdit || sendInfo.entity || "");
+      setDestinationEdit(local.destinationEdit || sendInfo.destination || "");
+      setAddressEdit(local.addressEdit || sendInfo.address || "");
+    } catch {
+      setBeforeDeadlineEdit(fmtDateOnly(deadlines.beforeDate));
+      setAfterDeadlineEdit(fmtDateOnly(deadlines.afterDate));
+      setBeforeTextEdit(deadlines.beforeText || "");
+      setAfterTextEdit(deadlines.afterText || "");
+      setChannelEdit(sendInfo.channel || "");
+      setEntityEdit(sendInfo.entity || "");
+      setDestinationEdit(sendInfo.destination || "");
+      setAddressEdit(sendInfo.address || "");
+    }
+  }, [plannerStorageKey, deadlines.beforeDate, deadlines.afterDate, deadlines.beforeText, deadlines.afterText, sendInfo.channel, sendInfo.entity, sendInfo.destination, sendInfo.address]);
+
+
+  useEffect(() => {
+    if (!entityEdit) return;
+
+    const entityMap = {
+      dgt: { destination: "DGT - Dirección General de Tráfico", address: "https://sede.dgt.gob.es", channel: "sede_dgt" },
+      jefatura_trafico: { destination: "Jefatura Provincial de Tráfico", address: "https://sede.dgt.gob.es", channel: "sede_dgt" },
+      ayuntamiento: { destination: "Ayuntamiento", address: "Sede electrónica municipal", channel: "sede_municipal" },
+      policia_local: { destination: "Policía Local", address: "Registro del Ayuntamiento", channel: "registro_electronico" },
+      guardia_urbana: { destination: "Guardia Urbana", address: "Registro municipal", channel: "registro_electronico" },
+      diputacion: { destination: "Diputación", address: "Sede electrónica de la Diputación", channel: "registro_electronico" },
+      cabildo: { destination: "Cabildo", address: "Sede electrónica del Cabildo", channel: "registro_electronico" },
+      consell: { destination: "Consell / Consejo Insular", address: "Sede electrónica del Consell", channel: "registro_electronico" },
+      generalitat: { destination: "Generalitat / Comunidad Autónoma", address: "Sede electrónica autonómica", channel: "registro_electronico" },
+      ministerio_interior: { destination: "Ministerio del Interior", address: "Registro electrónico general", channel: "registro_electronico" },
+      guardia_civil: { destination: "Guardia Civil", address: "Registro oficial / unidad correspondiente", channel: "presencial_registro" },
+      otra_entidad: { destination: "Otra entidad", address: "", channel: "manual_otro" },
+    };
+
+    const next = entityMap[entityEdit];
+    if (!next) return;
+
+    setDestinationEdit(next.destination || "");
+    setAddressEdit(next.address || "");
+    setChannelEdit(next.channel || "");
+  }, [entityEdit]);
+
+  useEffect(() => {
+    if (!channelEdit) return;
+    if (entityEdit) return;
+
+    const channelMap = {
+      ventanilla_electronica: { destination: "Presentación por ventanilla electrónica", address: "Ventanilla electrónica del organismo competente" },
+      registro_electronico: { destination: "Registro electrónico", address: "Registro electrónico de la administración competente" },
+      sede_dgt: { destination: "Sede DGT", address: "https://sede.dgt.gob.es" },
+      sede_municipal: { destination: "Sede municipal", address: "Sede electrónica municipal" },
+      correo_administrativo: { destination: "Correo administrativo", address: "Oficina de Correos / correo administrativo" },
+      presencial_registro: { destination: "Presentación presencial en registro", address: "Registro presencial" },
+      csv_notificacion: { destination: "Validación por CSV / expediente", address: "Localizador CSV / expediente" },
+      manual_otro: { destination: "Canal manual", address: "" },
+    };
+
+    const next = channelMap[channelEdit];
+    if (!next) return;
+
+    setDestinationEdit(next.destination || "");
+    if (!addressEdit) setAddressEdit(next.address || "");
+  }, [channelEdit]);
+
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
   const confianzaNum = Number(ai.confianza);
-  const confianzaPct = Number.isFinite(confianzaNum) ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`) : ai.confianza || "—";
+  const confianzaPct = Number.isFinite(confianzaNum)
+    ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
+    : ai.confianza || "—";
+
   const aiTone = ai.admisibilidad === "ADMISSIBLE" ? "success" : ai.admisibilidad === "NOT_ADMISSIBLE" ? "warn" : "default";
   const familyTone = familiaEdit ? "info" : "default";
   const actionTone = toneForAction(ai.accion);
@@ -249,12 +797,24 @@ export default function OpsCaseDetailPro() {
             <p className="mt-2 text-xs text-slate-300 break-all">Expediente: {caseId}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="min-w-[118px] rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100" onClick={() => loadCase()}>{loading ? "Recargando..." : "Recargar"}</button>
-            <button className="min-w-[146px] rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50" onClick={runAI} disabled={runningAI}>{runningAI ? "Ejecutando IA..." : "Ejecutar IA"}</button>
-            <button className="min-w-[146px] rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50" onClick={saveAiChanges} disabled={busySave}>{busySave ? "Guardando..." : "Guardar cambios IA"}</button>
-            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={approve} disabled={busyApprove}>{busyApprove ? "Aprobando..." : "Aprobar"}</button>
-            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={manual} disabled={busyManual}>{busyManual ? "Enviando..." : "Manual"}</button>
-            <Link to={`/ops/case/${caseId}`} className="min-w-[118px] rounded-xl bg-slate-800 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">Volver</Link>
+            <button className="min-w-[118px] rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100" onClick={() => loadCase()}>
+              {loading ? "Recargando..." : "Recargar"}
+            </button>
+            <button className="min-w-[146px] rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50" onClick={runAI} disabled={runningAI}>
+              {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
+            </button>
+            <button className="min-w-[146px] rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50" onClick={saveAiChanges} disabled={busySave}>
+              {busySave ? "Guardando..." : "Guardar cambios IA"}
+            </button>
+            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={approve} disabled={busyApprove}>
+              {busyApprove ? "Aprobando..." : "Aprobar"}
+            </button>
+            <button className="min-w-[118px] rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50" onClick={manual} disabled={busyManual}>
+              {busyManual ? "Enviando..." : "Manual"}
+            </button>
+            <Link to={`/ops/case/${caseId}`} className="min-w-[118px] rounded-xl bg-slate-800 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700">
+              Volver
+            </Link>
           </div>
         </div>
       </div>
@@ -264,7 +824,9 @@ export default function OpsCaseDetailPro() {
       {saveMsg ? <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{saveMsg}</div> : null}
       {planningMsg ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{planningMsg}</div> : null}
 
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm"><b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}</div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+        <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
+      </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Familia" value={`${infractionEmoji(familiaEdit)} ${infractionLabel(familiaEdit)}`} tone={familyTone} compact />
@@ -302,8 +864,12 @@ export default function OpsCaseDetailPro() {
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <button type="button" onClick={regenerateFamily} disabled={busyFamilyRegenerate} className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">{busyFamilyRegenerate ? "Regenerando familia..." : "Familia + regenerar"}</button>
-                <button type="button" onClick={regenerateHecho} disabled={busyHechoRegenerate} className="rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white hover:bg-fuchsia-700 disabled:opacity-50">{busyHechoRegenerate ? "Regenerando hecho..." : "Hecho + regenerar"}</button>
+                <button type="button" onClick={regenerateFamily} disabled={busyFamilyRegenerate} className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  {busyFamilyRegenerate ? "Regenerando familia..." : "Familia + regenerar"}
+                </button>
+                <button type="button" onClick={regenerateHecho} disabled={busyHechoRegenerate} className="rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white hover:bg-fuchsia-700 disabled:opacity-50">
+                  {busyHechoRegenerate ? "Regenerando hecho..." : "Hecho + regenerar"}
+                </button>
               </div>
 
               <div className="rounded-2xl border border-slate-200 p-4">
@@ -319,7 +885,9 @@ export default function OpsCaseDetailPro() {
             <div className="space-y-2.5">
               {latestThreeDocs.map((d, i) => (
                 <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-3">
-                  <div className="text-[11px] uppercase tracking-wide text-slate-400">{(d.kind || "documento").includes("pdf") ? "PDF" : (d.kind || "documento").includes("docx") ? "DOCX" : "DOC"}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                    {(d.kind || "documento").includes("pdf") ? "PDF" : (d.kind || "documento").includes("docx") ? "DOCX" : "DOC"}
+                  </div>
                   <div className="mt-1 text-sm font-semibold text-slate-900">{d.kind || "documento"}</div>
                   <div className="mt-1 text-xs text-slate-500">{fmt(d.created_at)}</div>
                   <div className="mt-2">{d.id ? <DownloadButton docId={d.id} /> : null}</div>
@@ -344,19 +912,17 @@ export default function OpsCaseDetailPro() {
               <textarea value={afterTextEdit} onChange={(e) => setAfterTextEdit(e.target.value)} className="mt-2 min-h-[72px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Notas de plazo posterior..." />
             </div>
           </div>
-
-          <div className="mt-3 rounded-2xl border border-slate-200 p-4">
-            <div className="text-[11px] uppercase tracking-wide text-slate-400">Motivo de planificación</div>
-            <input value={planningReason} onChange={(e) => setPlanningReason(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" placeholder="Ej. revisión plazos / envío definido por operador" />
-          </div>
-
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button type="button" onClick={savePlanning} disabled={busyPlanning} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50">{busyPlanning ? "Guardando..." : "Guardar plazos"}</button>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Último envío registrado: {deadlines.submittedAt ? fmt(deadlines.submittedAt) : "todavía no enviado"}.</div>
+            <button type="button" onClick={savePlanningLocal} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600">
+              Guardar plazos
+            </button>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Último envío registrado: {deadlines.submittedAt ? fmt(deadlines.submittedAt) : "todavía no enviado"}.
+            </div>
           </div>
         </Section>
 
-        <Section title="Envío de recursos" right={<InfoPill tone="info">backend activo</InfoPill>}>
+        <Section title="Envío de recursos" right={<InfoPill tone="info">historial guardado</InfoPill>}>
           <div className="space-y-3">
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">Canal de envío</div>
@@ -371,20 +937,29 @@ export default function OpsCaseDetailPro() {
                 {ENTITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
 
-              <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Destino / encabezado</div>
+              <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Dirección / canal mostrado</div>
               <input value={destinationEdit} onChange={(e) => setDestinationEdit(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" placeholder="Ej. DGT / Ayuntamiento / Registro electrónico" />
 
-              <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Dirección / instrucciones</div>
               <textarea value={addressEdit} onChange={(e) => setAddressEdit(e.target.value)} className="mt-2 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Dirección o instrucciones de envío..." />
 
-              <button type="button" onClick={savePlanning} disabled={busyPlanning} className="mt-3 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{busyPlanning ? "Guardando..." : "Guardar envío"}</button>
+              <button type="button" onClick={savePlanningLocal} className="mt-3 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+                Guardar envío
+              </button>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">Documento a enviar</div>
-              <select value={selectedDocumentId} onChange={(e) => setSelectedDocumentId(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none">
+              <select
+                value={selectedDocumentId}
+                onChange={(e) => setSelectedDocumentId(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none"
+              >
                 <option value="">Selecciona documento</option>
-                {documents.map((d, i) => <option key={d?.id || i} value={d?.id || ""}>{(d.kind || "documento")} · {fmt(d.created_at)}</option>)}
+                {documents.map((d, i) => (
+                  <option key={d?.id || i} value={d?.id || ""}>
+                    {(d.kind || "documento")} · {fmt(d.created_at)}
+                  </option>
+                ))}
               </select>
 
               <label className="mt-3 flex items-center gap-2 text-xs text-slate-600">
@@ -392,22 +967,22 @@ export default function OpsCaseDetailPro() {
                 Forzar envío aunque no esté en ready_to_submit
               </label>
 
-              <button type="button" onClick={submitResource} disabled={busySubmit} className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">{busySubmit ? "Enviando recurso..." : "Enviar recurso"}</button>
+              <button
+                type="button"
+                onClick={submitResource}
+                disabled={busySubmit}
+                className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {busySubmit ? "Enviando recurso..." : "Enviar recurso"}
+              </button>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Historial de planificación y envíos</div>
-              {(sendInfo.planningEvents.length === 0 && sendInfo.submissions.length === 0) ? (
-                <div className="mt-2 text-sm text-slate-500">No hay movimientos registrados todavía.</div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Historial de envíos</div>
+              {sendInfo.submissions.length === 0 ? (
+                <div className="mt-2 text-sm text-slate-500">No hay envíos registrados todavía.</div>
               ) : (
                 <div className="mt-2 space-y-2">
-                  {sendInfo.planningEvents.map((p) => (
-                    <div key={p.id} className="rounded-xl border border-slate-200 p-3 text-sm">
-                      <div className="font-semibold text-slate-900">Planificación guardada</div>
-                      <div className="mt-1 text-xs text-slate-500">Fecha: {fmt(p.at)}</div>
-                      <div className="mt-1 text-xs text-slate-500">Motivo: {p.motivo || "—"}</div>
-                    </div>
-                  ))}
                   {sendInfo.submissions.map((s) => (
                     <div key={s.id} className="rounded-xl border border-slate-200 p-3 text-sm">
                       <div className="font-semibold text-slate-900">{fmt(s.submittedAt)}</div>
@@ -436,7 +1011,7 @@ export default function OpsCaseDetailPro() {
 
         <Section title="Guía rápida operador">
           <div className="space-y-3 text-sm text-slate-700">
-            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Orden correcto del trabajo</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Revisar el hecho denunciado y la familia detectada.</li><li>Descargar y leer el último PDF regenerado antes de aprobar.</li><li>Comprobar plazos antes y después del recurso.</li><li>Seleccionar canal, entidad y guardar en backend.</li><li>Enviar cuando todo esté correcto.</li></ul></div>
+            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Orden correcto del trabajo</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Revisar el hecho denunciado y la familia detectada.</li><li>Descargar y leer el último PDF regenerado antes de aprobar.</li><li>Comprobar plazos antes y después del recurso.</li><li>Seleccionar canal, entidad y enviar cuando todo esté correcto.</li></ul></div>
             <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo tocar el hecho imputado</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Si ves ruido OCR o texto mezclado.</li><li>Si el hecho está jurídicamente bien pero mal redactado.</li><li>Si quieres una versión más limpia para revisión interna.</li></ul></div>
             <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo usar Manual</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Cuando la familia no convence.</li><li>Cuando el PDF final no refleja bien el caso.</li><li>Cuando falte prueba, plazo o canal claro de presentación.</li></ul></div>
           </div>
