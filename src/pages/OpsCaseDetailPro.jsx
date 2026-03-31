@@ -18,6 +18,32 @@ const FAMILY_OPTIONS = [
   { value: "atencion", label: "👀 Atención" },
 ];
 
+const SEND_CHANNEL_OPTIONS = [
+  { value: "ventanilla_electronica", label: "Ventanilla electrónica" },
+  { value: "registro_electronico", label: "Registro electrónico" },
+  { value: "sede_dgt", label: "Sede DGT" },
+  { value: "sede_municipal", label: "Sede municipal" },
+  { value: "correo_administrativo", label: "Correo administrativo" },
+  { value: "presencial_registro", label: "Presentación presencial en registro" },
+  { value: "csv_notificacion", label: "Validación por CSV / expediente" },
+  { value: "manual_otro", label: "Otro canal manual" },
+];
+
+const ENTITY_OPTIONS = [
+  { value: "dgt", label: "Dirección General de Tráfico (DGT)" },
+  { value: "jefatura_trafico", label: "Jefatura Provincial de Tráfico" },
+  { value: "ayuntamiento", label: "Ayuntamiento" },
+  { value: "policia_local", label: "Policía Local" },
+  { value: "guardia_urbana", label: "Guardia Urbana" },
+  { value: "diputacion", label: "Diputación" },
+  { value: "cabildo", label: "Cabildo" },
+  { value: "consell", label: "Consell / Consejo Insular" },
+  { value: "generalitat", label: "Generalitat / Comunidad Autónoma" },
+  { value: "ministerio_interior", label: "Ministerio del Interior" },
+  { value: "guardia_civil", label: "Guardia Civil" },
+  { value: "otra_entidad", label: "Otra entidad" },
+];
+
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
   const data = await r.json().catch(() => ({}));
@@ -42,11 +68,6 @@ function fmtDateOnly(d) {
   } catch {
     return "";
   }
-}
-
-function displayDateOnly(d) {
-  if (!d) return "—";
-  try { return new Date(d).toLocaleDateString(); } catch { return String(d); }
 }
 
 function firstNonEmpty(...values) {
@@ -261,10 +282,24 @@ function extractSendInfo(ai, detail, events) {
     deepFindFirst(ai, ["address"]),
     deepFindFirst(detail, ["address"])
   );
+  const channel = firstNonEmpty(
+    getByPath(ai, "delivery.channel"),
+    getByPath(detail, "delivery.channel"),
+    deepFindFirst(ai, ["channel"]),
+    deepFindFirst(detail, ["channel"])
+  );
+  const entity = firstNonEmpty(
+    getByPath(ai, "delivery.entity"),
+    getByPath(detail, "delivery.entity"),
+    deepFindFirst(ai, ["entity"]),
+    deepFindFirst(detail, ["entity"])
+  );
   const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt");
   return {
     destination,
     address,
+    channel,
+    entity,
     submissions: submittedEvents.map((e, idx) => ({
       id: `${e?.type || "submit"}-${idx}`,
       submittedAt: e?.payload?.submitted_at || e?.created_at || "",
@@ -377,6 +412,8 @@ export default function OpsCaseDetailPro() {
   const [afterDeadlineEdit, setAfterDeadlineEdit] = useState("");
   const [beforeTextEdit, setBeforeTextEdit] = useState("");
   const [afterTextEdit, setAfterTextEdit] = useState("");
+  const [channelEdit, setChannelEdit] = useState("");
+  const [entityEdit, setEntityEdit] = useState("");
   const [destinationEdit, setDestinationEdit] = useState("");
   const [addressEdit, setAddressEdit] = useState("");
 
@@ -578,6 +615,8 @@ export default function OpsCaseDetailPro() {
         afterDeadlineEdit,
         beforeTextEdit,
         afterTextEdit,
+        channelEdit,
+        entityEdit,
         destinationEdit,
         addressEdit,
         savedAt: new Date().toISOString(),
@@ -670,6 +709,8 @@ export default function OpsCaseDetailPro() {
       setAfterDeadlineEdit(local.afterDeadlineEdit || fmtDateOnly(deadlines.afterDate));
       setBeforeTextEdit(local.beforeTextEdit || deadlines.beforeText || "");
       setAfterTextEdit(local.afterTextEdit || deadlines.afterText || "");
+      setChannelEdit(local.channelEdit || sendInfo.channel || "");
+      setEntityEdit(local.entityEdit || sendInfo.entity || "");
       setDestinationEdit(local.destinationEdit || sendInfo.destination || "");
       setAddressEdit(local.addressEdit || sendInfo.address || "");
     } catch {
@@ -677,10 +718,12 @@ export default function OpsCaseDetailPro() {
       setAfterDeadlineEdit(fmtDateOnly(deadlines.afterDate));
       setBeforeTextEdit(deadlines.beforeText || "");
       setAfterTextEdit(deadlines.afterText || "");
+      setChannelEdit(sendInfo.channel || "");
+      setEntityEdit(sendInfo.entity || "");
       setDestinationEdit(sendInfo.destination || "");
       setAddressEdit(sendInfo.address || "");
     }
-  }, [plannerStorageKey, deadlines.beforeDate, deadlines.afterDate, deadlines.beforeText, deadlines.afterText, sendInfo.destination, sendInfo.address]);
+  }, [plannerStorageKey, deadlines.beforeDate, deadlines.afterDate, deadlines.beforeText, deadlines.afterText, sendInfo.channel, sendInfo.entity, sendInfo.destination, sendInfo.address]);
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
   const confianzaNum = Number(ai.confianza);
@@ -833,9 +876,23 @@ export default function OpsCaseDetailPro() {
         <Section title="Envío de recursos" right={<InfoPill tone="info">historial guardado</InfoPill>}>
           <div className="space-y-3">
             <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Dirección / canal de envío</div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Canal de envío</div>
+              <select value={channelEdit} onChange={(e) => setChannelEdit(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none">
+                <option value="">Selecciona canal</option>
+                {SEND_CHANNEL_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+
+              <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Entidad / organismo</div>
+              <select value={entityEdit} onChange={(e) => setEntityEdit(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none">
+                <option value="">Selecciona entidad</option>
+                {ENTITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+
+              <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Dirección / canal mostrado</div>
               <input value={destinationEdit} onChange={(e) => setDestinationEdit(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" placeholder="Ej. DGT / Ayuntamiento / Registro electrónico" />
+
               <textarea value={addressEdit} onChange={(e) => setAddressEdit(e.target.value)} className="mt-2 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Dirección o instrucciones de envío..." />
+
               <button type="button" onClick={savePlanningLocal} className="mt-3 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
                 Guardar envío
               </button>
@@ -892,7 +949,7 @@ export default function OpsCaseDetailPro() {
         </Section>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <Section title="Checklist antes de aprobar" right={<InfoPill tone={checklistOk === checklistTotal ? "success" : "warn"}>{checklistOk}/{checklistTotal}</InfoPill>}>
           <div className="space-y-2.5">
             <label className="flex items-start gap-3 rounded-2xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={checkPdf} onChange={() => setCheckPdf(!checkPdf)} className="mt-1" /><div><div className="font-semibold text-slate-900">He leído el último PDF regenerado</div><div className="text-xs text-slate-500">Nunca aprobar sin abrir el PDF final.</div></div></label>
@@ -905,7 +962,7 @@ export default function OpsCaseDetailPro() {
 
         <Section title="Guía rápida operador">
           <div className="space-y-3 text-sm text-slate-700">
-            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Orden correcto del trabajo</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Revisar el hecho denunciado y la familia detectada.</li><li>Descargar y leer el último PDF regenerado antes de aprobar.</li><li>Comprobar plazos antes y después del recurso.</li><li>Si todo está correcto, enviar y quedará guardado en historial.</li></ul></div>
+            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Orden correcto del trabajo</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Revisar el hecho denunciado y la familia detectada.</li><li>Descargar y leer el último PDF regenerado antes de aprobar.</li><li>Comprobar plazos antes y después del recurso.</li><li>Seleccionar canal, entidad y enviar cuando todo esté correcto.</li></ul></div>
             <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo tocar el hecho imputado</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Si ves ruido OCR o texto mezclado.</li><li>Si el hecho está jurídicamente bien pero mal redactado.</li><li>Si quieres una versión más limpia para revisión interna.</li></ul></div>
             <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo usar Manual</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Cuando la familia no convence.</li><li>Cuando el PDF final no refleja bien el caso.</li><li>Cuando falte prueba, plazo o canal claro de presentación.</li></ul></div>
           </div>
