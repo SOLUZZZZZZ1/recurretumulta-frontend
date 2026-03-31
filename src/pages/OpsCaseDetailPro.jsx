@@ -27,20 +27,26 @@ async function fetchJson(url, options = {}) {
 
 function fmt(d) {
   if (!d) return "—";
-  try {
-    return new Date(d).toLocaleString();
-  } catch {
-    return String(d);
-  }
+  try { return new Date(d).toLocaleString(); } catch { return String(d); }
 }
 
 function fmtDateOnly(d) {
-  if (!d) return "—";
+  if (!d) return "";
   try {
-    return new Date(d).toLocaleDateString();
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return "";
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   } catch {
-    return String(d);
+    return "";
   }
+}
+
+function displayDateOnly(d) {
+  if (!d) return "—";
+  try { return new Date(d).toLocaleDateString(); } catch { return String(d); }
 }
 
 function firstNonEmpty(...values) {
@@ -63,7 +69,6 @@ function deepFindFirst(obj, wantedKeys) {
   function walk(node) {
     if (node == null || typeof node !== "object" || seen.has(node)) return undefined;
     seen.add(node);
-
     if (Array.isArray(node)) {
       for (const item of node) {
         const found = walk(item);
@@ -71,14 +76,12 @@ function deepFindFirst(obj, wantedKeys) {
       }
       return undefined;
     }
-
     for (const key of wantedKeys) {
       if (Object.prototype.hasOwnProperty.call(node, key)) {
         const value = node[key];
         if (value !== undefined && value !== null && String(value).trim() !== "") return value;
       }
     }
-
     for (const value of Object.values(node)) {
       const found = walk(value);
       if (found !== undefined && found !== null && String(found).trim() !== "") return found;
@@ -164,8 +167,6 @@ function readAi(ai) {
     ai.ai_overrides?.familia,
     getByPath(ai, "classifier_result.family"),
     getByPath(ai, "classifier_result.familia"),
-    getByPath(ai, "classification.family"),
-    getByPath(ai, "classification.familia"),
     ai.familia,
     ai.family,
     ai.familia_resuelta,
@@ -176,8 +177,6 @@ function readAi(ai) {
   const confianza = firstNonEmpty(
     getByPath(ai, "classifier_result.confidence"),
     getByPath(ai, "classifier_result.score"),
-    getByPath(ai, "classification.confidence"),
-    getByPath(ai, "classification.score"),
     ai.confianza,
     ai.confidence,
     ai.tipo_infraccion_confidence,
@@ -188,7 +187,6 @@ function readAi(ai) {
     ai.ai_overrides?.hecho,
     getByPath(ai, "arguments.hecho"),
     getByPath(ai, "arguments.hecho_imputado"),
-    getByPath(ai, "result.hecho"),
     ai.hecho,
     ai.hecho_para_recurso,
     ai.hecho_imputado,
@@ -197,17 +195,14 @@ function readAi(ai) {
 
   const admisibilidad = firstNonEmpty(
     getByPath(ai, "admissibility.admissibility"),
-    getByPath(ai, "result.admissibility"),
     ai.admissibility,
     ai.admisibilidad,
-    ai.admissibility_panel,
     deepFindFirst(ai, ["admissibility", "admisibilidad", "status"])
   );
 
   const accion = firstNonEmpty(
     getByPath(ai, "phase.recommended_action.action"),
     getByPath(ai, "recommended_action.action"),
-    getByPath(ai, "result.recommended_action"),
     ai.recommended_action,
     ai.accion_recomendada,
     ai.accion_panel,
@@ -230,31 +225,26 @@ function extractDeadlines(ai, detail, events) {
     deepFindFirst(ai, ["before_resource_deadline"]),
     deepFindFirst(detail, ["before_resource_deadline"])
   );
-
   const afterDate = firstNonEmpty(
     getByPath(ai, "deadlines.after_resource_deadline"),
     getByPath(detail, "deadlines.after_resource_deadline"),
     deepFindFirst(ai, ["after_resource_deadline"]),
     deepFindFirst(detail, ["after_resource_deadline"])
   );
-
   const beforeText = firstNonEmpty(
     getByPath(ai, "deadlines.before_text"),
     getByPath(detail, "deadlines.before_text"),
     deepFindFirst(ai, ["before_text"]),
     deepFindFirst(detail, ["before_text"])
   );
-
   const afterText = firstNonEmpty(
     getByPath(ai, "deadlines.after_text"),
     getByPath(detail, "deadlines.after_text"),
     deepFindFirst(ai, ["after_text"]),
     deepFindFirst(detail, ["after_text"])
   );
-
   const lastSubmitted = [...(events || [])].find((e) => e?.type === "submitted_to_dgt");
   const submittedAt = lastSubmitted?.payload?.submitted_at || lastSubmitted?.created_at || "";
-
   return { beforeDate, afterDate, beforeText, afterText, submittedAt };
 }
 
@@ -265,16 +255,13 @@ function extractSendInfo(ai, detail, events) {
     deepFindFirst(ai, ["destination"]),
     deepFindFirst(detail, ["destination"])
   );
-
   const address = firstNonEmpty(
     getByPath(ai, "delivery.address"),
     getByPath(detail, "delivery.address"),
     deepFindFirst(ai, ["address"]),
     deepFindFirst(detail, ["address"])
   );
-
   const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt");
-
   return {
     destination,
     address,
@@ -378,12 +365,20 @@ export default function OpsCaseDetailPro() {
   const [pollingMsg, setPollingMsg] = useState("");
   const [error, setError] = useState("");
   const [saveMsg, setSaveMsg] = useState("");
+  const [planningMsg, setPlanningMsg] = useState("");
 
   const [hechoEdit, setHechoEdit] = useState("");
   const [familiaEdit, setFamiliaEdit] = useState("");
   const [saveReason, setSaveReason] = useState("Corrección operador");
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [submitForce, setSubmitForce] = useState(false);
+
+  const [beforeDeadlineEdit, setBeforeDeadlineEdit] = useState("");
+  const [afterDeadlineEdit, setAfterDeadlineEdit] = useState("");
+  const [beforeTextEdit, setBeforeTextEdit] = useState("");
+  const [afterTextEdit, setAfterTextEdit] = useState("");
+  const [destinationEdit, setDestinationEdit] = useState("");
+  const [addressEdit, setAddressEdit] = useState("");
 
   const [checkPdf, setCheckPdf] = useState(false);
   const [checkHecho, setCheckHecho] = useState(false);
@@ -395,6 +390,7 @@ export default function OpsCaseDetailPro() {
 
   const token = localStorage.getItem("ops_token") || "";
   const headers = { "X-Operator-Token": token };
+  const plannerStorageKey = `ops_case_planning_${caseId}`;
 
   function clearPollTimer() {
     if (pollTimerRef.current) {
@@ -414,7 +410,7 @@ export default function OpsCaseDetailPro() {
     }
     if (!token) {
       setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
-      return { docs: [], evs: [], aiEvent: null };
+      return;
     }
     if (!silent) setLoading(true);
 
@@ -438,17 +434,14 @@ export default function OpsCaseDetailPro() {
         const preferred = docs.find((d) => String(d?.kind || "").toLowerCase().includes("pdf")) || docs[0];
         setSelectedDocumentId(preferred?.id || "");
       }
-
-      return { docs, evs, aiEvent };
     } catch (e) {
-      if (!silent) setError(e.message || "Error cargando expediente");
       if (!silent) {
+        setError(e.message || "Error cargando expediente");
         setDocuments([]);
         setEvents([]);
         setAiResult(null);
         setDetail(null);
       }
-      return { docs: [], evs: [], aiEvent: null };
     } finally {
       if (!silent) setLoading(false);
     }
@@ -466,21 +459,13 @@ export default function OpsCaseDetailPro() {
     const intervalMs = 6000;
 
     async function step() {
-      const { aiEvent } = await loadCase({ silent: true });
-      if (aiEvent) {
-        setPollingMsg("✅ Resultado IA actualizado.");
-        clearPollTimer();
-        setTimeout(() => setPollingMsg(""), 2500);
-        return;
-      }
-
+      await loadCase({ silent: true });
       if (Date.now() - start > maxMs) {
         setPollingMsg("");
         setError("La IA parece haber tardado demasiado. Recarga el expediente para comprobar si terminó.");
         clearPollTimer();
         return;
       }
-
       setPollingMsg("La IA sigue procesando. Comprobando resultado…");
       pollTimerRef.current = setTimeout(step, intervalMs);
     }
@@ -586,6 +571,25 @@ export default function OpsCaseDetailPro() {
     }
   }
 
+  function savePlanningLocal() {
+    try {
+      const payload = {
+        beforeDeadlineEdit,
+        afterDeadlineEdit,
+        beforeTextEdit,
+        afterTextEdit,
+        destinationEdit,
+        addressEdit,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(plannerStorageKey, JSON.stringify(payload));
+      setPlanningMsg("✅ Plazos y envío guardados en este navegador.");
+      setTimeout(() => setPlanningMsg(""), 3000);
+    } catch {
+      setError("No se pudo guardar en local.");
+    }
+  }
+
   async function submitResource() {
     setError("");
     setSaveMsg("");
@@ -594,6 +598,7 @@ export default function OpsCaseDetailPro() {
 
     setBusySubmit(true);
     try {
+      savePlanningLocal();
       const documentUrl = `${API}/ops/documents/${encodeURIComponent(selectedDocumentId)}/download`;
       await fetchJson(`${API}/ops/cases/${encodeURIComponent(caseId)}/submit`, {
         method: "POST",
@@ -657,6 +662,26 @@ export default function OpsCaseDetailPro() {
     setFamiliaEdit(ai.familia || "");
   }, [ai.hecho, ai.familia]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(plannerStorageKey);
+      const local = raw ? JSON.parse(raw) : {};
+      setBeforeDeadlineEdit(local.beforeDeadlineEdit || fmtDateOnly(deadlines.beforeDate));
+      setAfterDeadlineEdit(local.afterDeadlineEdit || fmtDateOnly(deadlines.afterDate));
+      setBeforeTextEdit(local.beforeTextEdit || deadlines.beforeText || "");
+      setAfterTextEdit(local.afterTextEdit || deadlines.afterText || "");
+      setDestinationEdit(local.destinationEdit || sendInfo.destination || "");
+      setAddressEdit(local.addressEdit || sendInfo.address || "");
+    } catch {
+      setBeforeDeadlineEdit(fmtDateOnly(deadlines.beforeDate));
+      setAfterDeadlineEdit(fmtDateOnly(deadlines.afterDate));
+      setBeforeTextEdit(deadlines.beforeText || "");
+      setAfterTextEdit(deadlines.afterText || "");
+      setDestinationEdit(sendInfo.destination || "");
+      setAddressEdit(sendInfo.address || "");
+    }
+  }, [plannerStorageKey, deadlines.beforeDate, deadlines.afterDate, deadlines.beforeText, deadlines.afterText, sendInfo.destination, sendInfo.address]);
+
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
   const confianzaNum = Number(ai.confianza);
   const confianzaPct = Number.isFinite(confianzaNum)
@@ -705,6 +730,7 @@ export default function OpsCaseDetailPro() {
       {error ? <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
       {pollingMsg ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{pollingMsg}</div> : null}
       {saveMsg ? <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{saveMsg}</div> : null}
+      {planningMsg ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{planningMsg}</div> : null}
 
       <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
         <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
@@ -785,17 +811,22 @@ export default function OpsCaseDetailPro() {
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">Plazo antes del recurso</div>
-              <div className="mt-2 text-base font-semibold text-slate-900">{fmtDateOnly(deadlines.beforeDate)}</div>
-              <div className="mt-2 text-xs text-slate-500">{deadlines.beforeText || "—"}</div>
+              <input value={beforeDeadlineEdit} onChange={(e) => setBeforeDeadlineEdit(e.target.value)} type="date" className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" />
+              <textarea value={beforeTextEdit} onChange={(e) => setBeforeTextEdit(e.target.value)} className="mt-2 min-h-[72px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Notas de plazo previo..." />
             </div>
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">Plazo después del recurso</div>
-              <div className="mt-2 text-base font-semibold text-slate-900">{fmtDateOnly(deadlines.afterDate)}</div>
-              <div className="mt-2 text-xs text-slate-500">{deadlines.afterText || "—"}</div>
+              <input value={afterDeadlineEdit} onChange={(e) => setAfterDeadlineEdit(e.target.value)} type="date" className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" />
+              <textarea value={afterTextEdit} onChange={(e) => setAfterTextEdit(e.target.value)} className="mt-2 min-h-[72px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Notas de plazo posterior..." />
             </div>
           </div>
-          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            Último envío registrado: {deadlines.submittedAt ? fmt(deadlines.submittedAt) : "todavía no enviado"}.
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={savePlanningLocal} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600">
+              Guardar plazos
+            </button>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Último envío registrado: {deadlines.submittedAt ? fmt(deadlines.submittedAt) : "todavía no enviado"}.
+            </div>
           </div>
         </Section>
 
@@ -803,8 +834,11 @@ export default function OpsCaseDetailPro() {
           <div className="space-y-3">
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">Dirección / canal de envío</div>
-              <div className="mt-2 text-sm font-semibold text-slate-900">{sendInfo.destination || "—"}</div>
-              <div className="mt-2 text-xs text-slate-500 whitespace-pre-wrap">{sendInfo.address || "—"}</div>
+              <input value={destinationEdit} onChange={(e) => setDestinationEdit(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" placeholder="Ej. DGT / Ayuntamiento / Registro electrónico" />
+              <textarea value={addressEdit} onChange={(e) => setAddressEdit(e.target.value)} className="mt-2 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Dirección o instrucciones de envío..." />
+              <button type="button" onClick={savePlanningLocal} className="mt-3 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+                Guardar envío
+              </button>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
