@@ -775,10 +775,13 @@ export default function OpsCaseDetailPro() {
   }, [channelEdit, entityEdit, destinationEdit, addressEdit]);
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
-  const confianzaNum = Number(ai.confianza);
-  const confianzaPct = Number.isFinite(confianzaNum)
-    ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
-    : ai.confianza || "—";
+  const rawConfianza = String(ai.confianza ?? "").trim();
+  const confianzaNum = rawConfianza === "" ? null : Number(rawConfianza);
+  const confianzaPct = rawConfianza === ""
+    ? "—"
+    : Number.isFinite(confianzaNum)
+      ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
+      : rawConfianza;
 
   const aiTone = ai.admisibilidad === "ADMISSIBLE" ? "success" : ai.admisibilidad === "NOT_ADMISSIBLE" ? "warn" : "default";
   const familyTone = familiaEdit ? "info" : "default";
