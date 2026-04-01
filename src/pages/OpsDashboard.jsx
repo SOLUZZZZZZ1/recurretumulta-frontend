@@ -1,3 +1,4 @@
+// OpsDashboard.jsx — versión completa corregida con botón de cola inteligente
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -78,35 +79,13 @@ export default function OpsDashboard() {
 
   useEffect(() => {
     if (authed) loadQueue();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed, status]);
 
   if (!authed) {
     return (
-      <div className="flex justify-between items-center mb-4">
-  <div className="flex items-center gap-3">
-    <h1 className="text-2xl font-semibold">Panel Operador</h1>
-
-    <Link
-      to="/ops/queue-smart"
-      className="sr-btn-primary"
-      style={{ padding: "8px 12px", fontSize: "13px" }}
-    >
-      🔥 Cola inteligente
-    </Link>
-  </div>
-
-  <button
-    className="text-sm text-gray-600 underline"
-    onClick={() => {
-      localStorage.removeItem("ops_token");
-      setToken("");
-      setPin("");
-    }}
-  >
-    Salir
-  </button>
-</div>r</h1>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <div className="bg-white rounded-xl shadow p-6 max-w-md w-full">
+          <h1 className="text-xl font-semibold mb-3">Acceso Operador</h1>
 
           <input
             type="password"
@@ -127,8 +106,20 @@ export default function OpsDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
+
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-semibold">Panel Operador</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold">Panel Operador</h1>
+
+            <Link
+              to="/ops/queue-smart"
+              className="sr-btn-primary"
+              style={{ padding: "8px 12px", fontSize: "13px" }}
+            >
+              🔥 Cola inteligente
+            </Link>
+          </div>
+
           <button
             className="text-sm text-gray-600 underline"
             onClick={() => {
@@ -201,9 +192,6 @@ export default function OpsDashboard() {
           </table>
         </div>
 
-        <div className="mt-4 text-xs text-gray-500">
-          Ordenado por fecha de creación (más antiguos arriba).
-        </div>
       </div>
     </div>
   );
