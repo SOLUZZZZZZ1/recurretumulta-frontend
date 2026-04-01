@@ -83,9 +83,30 @@ export default function OpsDashboard() {
 
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-        <div className="bg-white rounded-xl shadow p-6 max-w-md w-full">
-          <h1 className="text-xl font-semibold mb-3">Acceso Operador</h1>
+      <div className="flex justify-between items-center mb-4">
+  <div className="flex items-center gap-3">
+    <h1 className="text-2xl font-semibold">Panel Operador</h1>
+
+    <Link
+      to="/ops/queue-smart"
+      className="sr-btn-primary"
+      style={{ padding: "8px 12px", fontSize: "13px" }}
+    >
+      🔥 Cola inteligente
+    </Link>
+  </div>
+
+  <button
+    className="text-sm text-gray-600 underline"
+    onClick={() => {
+      localStorage.removeItem("ops_token");
+      setToken("");
+      setPin("");
+    }}
+  >
+    Salir
+  </button>
+</div>r</h1>
 
           <input
             type="password"
