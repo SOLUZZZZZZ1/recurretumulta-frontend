@@ -264,7 +264,7 @@ function extractDeadlines(ai, detail, events) {
     deepFindFirst(ai, ["after_text"]),
     deepFindFirst(detail, ["after_text"])
   );
-  const lastSubmitted = [...(events || [])].find((e) => e?.type === "submitted_to_dgt");
+  const lastSubmitted = [...(events || [])].find((e) => e?.type === "submitted_to_dgt" || e?.type === "submitted_auto");
   const submittedAt = lastSubmitted?.payload?.submitted_at || lastSubmitted?.created_at || "";
   return { beforeDate, afterDate, beforeText, afterText, submittedAt };
 }
@@ -294,7 +294,7 @@ function extractSendInfo(ai, detail, events) {
     deepFindFirst(ai, ["entity"]),
     deepFindFirst(detail, ["entity"])
   );
-  const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt");
+  const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt" || e?.type === "submitted_auto");
   return {
     destination,
     address,
@@ -303,7 +303,7 @@ function extractSendInfo(ai, detail, events) {
     submissions: submittedEvents.map((e, idx) => ({
       id: `${e?.type || "submit"}-${idx}`,
       submittedAt: e?.payload?.submitted_at || e?.created_at || "",
-      dgtId: e?.payload?.dgt_id || "",
+      dgtId: e?.payload?.dgt_id || e?.payload?.external_id || "",
       documentUrl: e?.payload?.document_url || "",
       mode: e?.payload?.mode || "",
     })),
@@ -487,6 +487,7 @@ export default function OpsCaseDetailPro() {
   useEffect(() => {
     loadCase();
     return () => clearPollTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function pollForAiResult() {
@@ -725,7 +726,6 @@ export default function OpsCaseDetailPro() {
     }
   }, [plannerStorageKey, deadlines.beforeDate, deadlines.afterDate, deadlines.beforeText, deadlines.afterText, sendInfo.channel, sendInfo.entity, sendInfo.destination, sendInfo.address]);
 
-
   useEffect(() => {
     if (!entityEdit) return;
 
@@ -772,7 +772,7 @@ export default function OpsCaseDetailPro() {
 
     if (!destinationEdit) setDestinationEdit(next.destination || "");
     if (!addressEdit) setAddressEdit(next.address || "");
-    if (!channelEdit) setChannelEdit(next.channel || "");
+  }, [channelEdit, entityEdit, destinationEdit, addressEdit]);
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
   const confianzaNum = Number(ai.confianza);
@@ -1066,7 +1066,9 @@ export default function OpsCaseDetailPro() {
             <summary className="cursor-pointer list-none px-4 py-3 text-base font-semibold text-slate-900">Payload IA bruto</summary>
             <div className="border-t border-slate-100 p-4">
               <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">{JSON.stringify(aiResult, null, 2)}</pre>
-            
+            </div>
+          </details>
+        </div>
       ) : null}
     </div>
   );
