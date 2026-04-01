@@ -264,7 +264,9 @@ function extractDeadlines(ai, detail, events) {
     deepFindFirst(ai, ["after_text"]),
     deepFindFirst(detail, ["after_text"])
   );
-  const lastSubmitted = [...(events || [])].find((e) => e?.type === "submitted_to_dgt" || e?.type === "submitted_auto");
+  const lastSubmitted = [...(events || [])]
+    .filter((e) => e?.type === "submitted_to_dgt" || e?.type === "submitted_auto")
+    .sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())[0];
   const submittedAt = lastSubmitted?.payload?.submitted_at || lastSubmitted?.created_at || "";
   return { beforeDate, afterDate, beforeText, afterText, submittedAt };
 }
@@ -437,7 +439,13 @@ export default function OpsCaseDetailPro() {
   }
 
   function pickLatestAiEvent(evs) {
-    return [...(evs || [])].find((e) => e?.type === "ai_expediente_result") || null;
+    return [...(evs || [])]
+      .filter((e) => e?.type === "ai_expediente_result")
+      .sort((a, b) => {
+        const ta = new Date(a?.created_at || 0).getTime();
+        const tb = new Date(b?.created_at || 0).getTime();
+        return tb - ta;
+      })[0] || null;
   }
 
   async function loadCase({ silent = false } = {}) {
