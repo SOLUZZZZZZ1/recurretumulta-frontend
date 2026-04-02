@@ -506,7 +506,10 @@ export default function OpsCaseDetailPro() {
       setAiResult(payload);
 
       if ((!selectedDocumentId || !docs.some((d) => d?.id === selectedDocumentId)) && docs.length) {
-        const preferred = docs.find((d) => String(d?.kind || "").toLowerCase().includes("pdf")) || docs[0];
+        const preferred =
+          docs.find((d) => String(d?.kind || "").toLowerCase().includes("generated_pdf")) ||
+          docs.find((d) => String(d?.kind || "").toLowerCase().includes("pdf")) ||
+          docs[0];
         setSelectedDocumentId(preferred?.id || "");
       }
     } catch (e) {
@@ -839,6 +842,7 @@ export default function OpsCaseDetailPro() {
   const authorizationOk = Boolean(detail?.authorized || events.some((e) => e?.type === "client_authorized") || authorizationDoc);
   const paymentOk = detail?.payment_status === "paid" || events.some((e) => e?.type === "paid_ok");
   const resourceReady = Boolean(latestPdf && latestDocx);
+  const canSubmit = Boolean(authorizationOk && paymentOk && latestPdf);
   const currentStatus = detail?.status || "—";
 
   const nextAction = !authorizationOk
@@ -1118,11 +1122,17 @@ export default function OpsCaseDetailPro() {
               <button
                 type="button"
                 onClick={submitResource}
-                disabled={busySubmit}
-                className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                disabled={busySubmit || !canSubmit}
+                className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                {busySubmit ? "Enviando recurso..." : "Enviar recurso"}
+                {busySubmit ? "Enviando..." : "🚀 PRESENTAR AHORA"}
               </button>
+
+              {!canSubmit ? (
+                <div className="mt-2 text-xs text-amber-600">
+                  ⚠️ Falta autorización, pago o documento PDF para presentar.
+                </div>
+              ) : null}
             </div>
           </div>
         </Section>
