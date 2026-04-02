@@ -382,36 +382,6 @@ function DownloadButton({ docId }) {
   );
 }
 
-
-
-function eventTone(type) {
-  const t = String(type || "");
-  if (["paid_ok", "client_authorized", "resource_generated_auto", "submitted_to_dgt", "submitted_auto", "operator_approved"].includes(t)) return "success";
-  if (["auto_review_required_low_confidence", "manual_review_required", "resource_generation_failed"].includes(t)) return "warn";
-  if (["ai_expediente_result", "checkout_started", "client_details_saved", "resource_regenerated", "resource_regenerated_from_hecho"].includes(t)) return "info";
-  return "default";
-}
-
-function humanEventLabel(type) {
-  const map = {
-    client_details_saved: "Datos del interesado guardados",
-    client_authorized: "Autorización del cliente registrada",
-    checkout_started: "Checkout iniciado",
-    paid_ok: "Pago confirmado",
-    ai_expediente_result: "IA ejecutada",
-    resource_generated_auto: "Recurso generado automáticamente",
-    resource_regenerated: "Recurso regenerado",
-    resource_regenerated_from_hecho: "Recurso regenerado desde hecho corregido",
-    auto_review_required_low_confidence: "Revisión manual por confianza baja",
-    resource_generation_failed: "Fallo al generar recurso",
-    operator_approved: "Expediente aprobado",
-    manual_review_required: "Revisión manual requerida",
-    submitted_to_dgt: "Recurso enviado",
-    submitted_auto: "Recurso enviado automáticamente",
-  };
-  return map[type] || type || "evento";
-}
-
 export default function OpsCaseDetailPro() {
   const { caseId } = useParams();
 
@@ -506,10 +476,7 @@ export default function OpsCaseDetailPro() {
       setAiResult(payload);
 
       if ((!selectedDocumentId || !docs.some((d) => d?.id === selectedDocumentId)) && docs.length) {
-        const preferred =
-          docs.find((d) => String(d?.kind || "").toLowerCase().includes("generated_pdf")) ||
-          docs.find((d) => String(d?.kind || "").toLowerCase().includes("pdf")) ||
-          docs[0];
+        const preferred = docs.find((d) => String(d?.kind || "").toLowerCase().includes("pdf")) || docs[0];
         setSelectedDocumentId(preferred?.id || "");
       }
     } catch (e) {
@@ -831,64 +798,6 @@ export default function OpsCaseDetailPro() {
   const checklistTotal = 5;
   const latestThreeDocs = documents.slice(0, 3);
 
-  const isLowConfidence = !Number.isFinite(confianzaNum) || confianzaNum < 0.8;
-  const docsSorted = [...documents].sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime());
-  const latestPdf = docsSorted.find((d) => String(d?.kind || "").toLowerCase().includes("pdf"));
-  const latestDocx = docsSorted.find((d) => String(d?.kind || "").toLowerCase().includes("docx"));
-  const authorizationDoc = docsSorted.find((d) => String(d?.kind || "").toLowerCase().includes("autorizacion"));
-  const originalDoc = docsSorted.find((d) => String(d?.kind || "").toLowerCase().includes("original"));
-  const importantDocs = [authorizationDoc, latestPdf, latestDocx, originalDoc].filter(Boolean).filter((d, i, arr) => arr.findIndex(x => x?.id === d?.id) === i);
-  const docsHistory = docsSorted.filter((d) => !importantDocs.some((x) => x?.id === d?.id));
-  const authorizationOk = Boolean(detail?.authorized || events.some((e) => e?.type === "client_authorized") || authorizationDoc);
-  const paymentOk = detail?.payment_status === "paid" || events.some((e) => e?.type === "paid_ok");
-  const resourceReady = Boolean(latestPdf && latestDocx);
-  const canSubmit = Boolean(authorizationOk && paymentOk && latestPdf);
-  const currentStatus = detail?.status || "—";
-
-  const nextAction = !authorizationOk
-    ? "Falta autorización del cliente"
-    : !paymentOk
-      ? "Falta pago"
-      : isLowConfidence
-        ? "Revisión manual obligatoria"
-        : !resourceReady
-          ? "Regenerar documento final"
-          : currentStatus === "ready_to_submit"
-            ? "Listo para enviar"
-            : currentStatus === "submitted"
-              ? "Enviado"
-              : "Revisar y aprobar";
-
-  const nextActionTone = !authorizationOk || !paymentOk ? "warn" : isLowConfidence ? "warn" : resourceReady ? "success" : "info";
-
-  const humanEvents = [...events]
-    .filter((e) => [
-      "client_details_saved",
-      "client_authorized",
-      "checkout_started",
-      "paid_ok",
-      "ai_expediente_result",
-      "resource_generated_auto",
-      "resource_regenerated",
-      "resource_regenerated_from_hecho",
-      "auto_review_required_low_confidence",
-      "resource_generation_failed",
-      "operator_approved",
-      "manual_review_required",
-      "submitted_to_dgt",
-      "submitted_auto",
-    ].includes(e?.type))
-    .sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime());
-
-  const progressItems = [
-    { label: "Autorizado", done: authorizationOk },
-    { label: "Pagado", done: paymentOk },
-    { label: "IA", done: Boolean(latestAiEvent) },
-    { label: "Recurso generado", done: resourceReady || events.some((e) => e?.type === "resource_generated_auto" || e?.type === "resource_regenerated" || e?.type === "resource_regenerated_from_hecho") },
-    { label: "Revisado", done: currentStatus === "ready_to_submit" || currentStatus === "submitted" || currentStatus === "generated" },
-    { label: "Enviado", done: currentStatus === "submitted" || events.some((e) => e?.type === "submitted_to_dgt" || e?.type === "submitted_auto") },
-  ];
-
   return (
     <div className="sr-container" style={{ paddingTop: 18, paddingBottom: 40 }}>
       <div className="rounded-[22px] bg-slate-950 px-4 py-4 text-white shadow-xl">
@@ -926,113 +835,26 @@ export default function OpsCaseDetailPro() {
       {saveMsg ? <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{saveMsg}</div> : null}
       {planningMsg ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{planningMsg}</div> : null}
 
-
-      <div className="mt-4 grid gap-3 xl:grid-cols-[1.2fr_1fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Decisión del expediente</div>
-              <div className="mt-1 text-xl font-semibold text-slate-900">{nextAction}</div>
-              <div className="mt-2 text-sm text-slate-500">Última IA ejecutada: {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}</div>
-            </div>
-            <InfoPill tone={nextActionTone}>{currentStatus}</InfoPill>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard title="Autorización" value={authorizationOk ? "✅ Registrada" : "❌ Pendiente"} tone={authorizationOk ? "success" : "warn"} compact />
-            <StatCard title="Pago" value={paymentOk ? "💳 Confirmado" : "❌ Pendiente"} tone={paymentOk ? "success" : "warn"} compact />
-            <StatCard title="Documento final" value={resourceReady ? "📄 PDF + DOCX" : "⚠️ Incompleto"} tone={resourceReady ? "success" : "warn"} compact />
-            <StatCard title="Acción siguiente" value={nextAction} tone={nextActionTone} compact />
-          </div>
-
-          <div className="mt-4 grid gap-2 md:grid-cols-6">
-            {progressItems.map((item) => (
-              <div key={item.label} className={`rounded-2xl border px-3 py-2 text-xs font-semibold ${item.done ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
-                {item.done ? "✅" : "○"} {item.label}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <div className="text-[11px] uppercase tracking-wide text-slate-400">Resumen operativo</div>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            <div><b>Organismo:</b> {sendInfo.entity || detail?.organismo || "—"}</div>
-            <div><b>Expediente:</b> {caseId}</div>
-            <div><b>Familia:</b> {infractionEmoji(familiaEdit)} {infractionLabel(familiaEdit)}</div>
-            <div><b>Confianza:</b> {confianzaPct}</div>
-            <div><b>Canal previsto:</b> {channelEdit || "—"}</div>
-            <div><b>Plazo principal:</b> {beforeDeadlineEdit || fmtDateOnly(deadlines.beforeDate) || "—"}</div>
-          </div>
-        </div>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+        <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
       </div>
-
-      {isLowConfidence ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          ⚠️ Revisión obligatoria por operador: confianza {confianzaPct} por debajo del umbral del 80%.
-        </div>
-      ) : null}
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Familia" value={`${infractionEmoji(familiaEdit)} ${infractionLabel(familiaEdit)}`} tone={familyTone} compact />
-        <StatCard title="Confianza" value={confianzaPct} tone={isLowConfidence ? "warn" : "success"} compact />
+        <StatCard title="Confianza" value={confianzaPct} compact />
         <StatCard title="Admisibilidad" value={ai.admisibilidad || "—"} tone={aiTone} compact />
-        <StatCard title="Acción IA" value={shortText(ai.accion, 42)} tone={actionTone} compact />
+        <StatCard title="Acción" value={shortText(ai.accion, 42)} tone={actionTone} compact />
         <StatCard title="Documentos" value={String(documents.length)} compact />
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-        <Section title="Documentos clave" right={<InfoPill tone={resourceReady ? "success" : "warn"}>{resourceReady ? "listos" : "revisar"}</InfoPill>}>
-          {importantDocs.length === 0 ? <p className="text-slate-500">No hay documentos clave todavía.</p> : (
-            <div className="space-y-3">
-              {importantDocs.map((d, i) => (
-                <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-slate-400">Documento clave</div>
-                      <div className="mt-1 text-sm font-semibold text-slate-900">{d.kind || "documento"}</div>
-                      <div className="mt-1 text-xs text-slate-500">{fmt(d.created_at)} · {d.mime || "—"}</div>
-                    </div>
-                    {d.id ? <DownloadButton docId={d.id} /> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
-
-        <Section title="Acciones rápidas" right={<InfoPill tone="info">operador</InfoPill>}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <button className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50" onClick={runAI} disabled={runningAI}>
-              {runningAI ? "Ejecutando IA..." : "Ejecutar IA"}
-            </button>
-            <button className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50" onClick={saveAiChanges} disabled={busySave}>
-              {busySave ? "Guardando..." : "Guardar cambios IA"}
-            </button>
-            <button type="button" onClick={regenerateFamily} disabled={busyFamilyRegenerate} className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
-              {busyFamilyRegenerate ? "Regenerando..." : "Familia + regenerar"}
-            </button>
-            <button type="button" onClick={regenerateHecho} disabled={busyHechoRegenerate} className="rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white hover:bg-fuchsia-700 disabled:opacity-50">
-              {busyHechoRegenerate ? "Regenerando..." : "Hecho + regenerar"}
-            </button>
-            <button className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50" onClick={approve} disabled={busyApprove}>
-              {busyApprove ? "Aprobando..." : "Aprobar"}
-            </button>
-            <button className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-50" onClick={manual} disabled={busyManual}>
-              {busyManual ? "Enviando..." : "Pasar a manual"}
-            </button>
-          </div>
-        </Section>
-      </div>
-
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <Section title="Resultado IA" right={<div className="flex items-center gap-2"><InfoPill tone={familyTone}>{infractionEmoji(familiaEdit)} {infractionLabel(familiaEdit)}</InfoPill><InfoPill tone={aiTone}>{ai.admisibilidad || "—"}</InfoPill></div>}>
           {!aiResult ? <p className="text-slate-500">No hay resultado IA todavía.</p> : (
             <div className="space-y-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-[11px] uppercase tracking-wide text-slate-400">Hecho imputado</div>
                 <textarea value={hechoEdit} onChange={(e) => setHechoEdit(e.target.value)} className="mt-2 min-h-[90px] w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold leading-6 text-slate-900 outline-none" />
-                <div className="mt-2 text-xs text-slate-500">Corrige el hecho si hace falta y guarda o regenera.</div>
+                <div className="mt-2 text-xs text-slate-500">Puedes corregir el hecho y guardarlo o regenerar directamente.</div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -1042,12 +864,23 @@ export default function OpsCaseDetailPro() {
                     <option value="">Selecciona familia</option>
                     {FAMILY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
+                  <div className="mt-2 text-xs text-slate-500">Esta familia se guarda en servidor y puede regenerar recurso.</div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 p-4">
                   <div className="text-[11px] uppercase tracking-wide text-slate-400">Motivo del cambio</div>
                   <input value={saveReason} onChange={(e) => setSaveReason(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" placeholder="Ej.: OCR defectuoso / familia corregida por operador" />
+                  <div className="mt-2 text-xs text-slate-500">Se guarda auditado en evento y en interested_data.</div>
                 </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <button type="button" onClick={regenerateFamily} disabled={busyFamilyRegenerate} className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  {busyFamilyRegenerate ? "Regenerando familia..." : "Familia + regenerar"}
+                </button>
+                <button type="button" onClick={regenerateHecho} disabled={busyHechoRegenerate} className="rounded-xl bg-fuchsia-600 px-4 py-3 text-sm font-semibold text-white hover:bg-fuchsia-700 disabled:opacity-50">
+                  {busyHechoRegenerate ? "Regenerando hecho..." : "Hecho + regenerar"}
+                </button>
               </div>
 
               <div className="rounded-2xl border border-slate-200 p-4">
@@ -1058,16 +891,17 @@ export default function OpsCaseDetailPro() {
           )}
         </Section>
 
-        <Section title="Historial humano" right={<InfoPill tone="info">{humanEvents.length} eventos</InfoPill>}>
-          {humanEvents.length === 0 ? <p className="text-slate-500">No hay eventos principales todavía.</p> : (
+        <Section title="Último regenerado">
+          {documents.length === 0 ? <p className="text-slate-500">No hay documentos.</p> : (
             <div className="space-y-2.5">
-              {humanEvents.map((e, i) => (
-                <div key={`${e?.type || "evento"}-${i}`} className="rounded-2xl border border-slate-200 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-slate-900">{humanEventLabel(e.type)}</div>
-                    <InfoPill tone={eventTone(e.type)}>{e.type}</InfoPill>
+              {latestThreeDocs.map((d, i) => (
+                <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-slate-400">
+                    {(d.kind || "documento").includes("pdf") ? "PDF" : (d.kind || "documento").includes("docx") ? "DOCX" : "DOC"}
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">{fmt(e.created_at)}</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{d.kind || "documento"}</div>
+                  <div className="mt-1 text-xs text-slate-500">{fmt(d.created_at)}</div>
+                  <div className="mt-2">{d.id ? <DownloadButton docId={d.id} /> : null}</div>
                 </div>
               ))}
             </div>
@@ -1076,7 +910,30 @@ export default function OpsCaseDetailPro() {
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <Section title="Presentación / envío" right={<InfoPill tone="info">historial guardado</InfoPill>}>
+        <Section title="Plazos" right={<InfoPill tone="warn">antes / después</InfoPill>}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Plazo antes del recurso</div>
+              <input value={beforeDeadlineEdit} onChange={(e) => setBeforeDeadlineEdit(e.target.value)} type="date" className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" />
+              <textarea value={beforeTextEdit} onChange={(e) => setBeforeTextEdit(e.target.value)} className="mt-2 min-h-[72px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Notas de plazo previo..." />
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Plazo después del recurso</div>
+              <input value={afterDeadlineEdit} onChange={(e) => setAfterDeadlineEdit(e.target.value)} type="date" className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" />
+              <textarea value={afterTextEdit} onChange={(e) => setAfterTextEdit(e.target.value)} className="mt-2 min-h-[72px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Notas de plazo posterior..." />
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={savePlanningLocal} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600">
+              Guardar plazos
+            </button>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Último envío registrado: {deadlines.submittedAt ? fmt(deadlines.submittedAt) : "todavía no enviado"}.
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Envío de recursos" right={<InfoPill tone="info">historial guardado</InfoPill>}>
           <div className="space-y-3">
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="text-[11px] uppercase tracking-wide text-slate-400">Canal de envío</div>
@@ -1091,9 +948,11 @@ export default function OpsCaseDetailPro() {
                 {ENTITY_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
 
-              <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Destino</div>
+              <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Dirección / canal mostrado</div>
               <input value={destinationEdit} onChange={(e) => setDestinationEdit(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-900 outline-none" placeholder="Ej. DGT / Ayuntamiento / Registro electrónico" />
+
               <textarea value={addressEdit} onChange={(e) => setAddressEdit(e.target.value)} className="mt-2 min-h-[84px] w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 outline-none" placeholder="Dirección o instrucciones de envío..." />
+
               <button type="button" onClick={savePlanningLocal} className="mt-3 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
                 Guardar envío
               </button>
@@ -1122,21 +981,35 @@ export default function OpsCaseDetailPro() {
               <button
                 type="button"
                 onClick={submitResource}
-                disabled={busySubmit || !canSubmit}
-                className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                disabled={busySubmit}
+                className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               >
-                {busySubmit ? "Enviando..." : "🚀 PRESENTAR AHORA"}
+                {busySubmit ? "Enviando recurso..." : "Enviar recurso"}
               </button>
+            </div>
 
-              {!canSubmit ? (
-                <div className="mt-2 text-xs text-amber-600">
-                  ⚠️ Falta autorización, pago o documento PDF para presentar.
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">Historial de envíos</div>
+              {sendInfo.submissions.length === 0 ? (
+                <div className="mt-2 text-sm text-slate-500">No hay envíos registrados todavía.</div>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {sendInfo.submissions.map((s) => (
+                    <div key={s.id} className="rounded-xl border border-slate-200 p-3 text-sm">
+                      <div className="font-semibold text-slate-900">{fmt(s.submittedAt)}</div>
+                      <div className="mt-1 text-xs text-slate-500">ID externo: {s.dgtId || "—"}</div>
+                      <div className="mt-1 text-xs text-slate-500">Modo: {s.mode || "—"}</div>
+                      <div className="mt-1 break-all text-xs text-slate-500">{s.documentUrl || "—"}</div>
+                    </div>
+                  ))}
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
         </Section>
+      </div>
 
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <Section title="Checklist antes de aprobar" right={<InfoPill tone={checklistOk === checklistTotal ? "success" : "warn"}>{checklistOk}/{checklistTotal}</InfoPill>}>
           <div className="space-y-2.5">
             <label className="flex items-start gap-3 rounded-2xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={checkPdf} onChange={() => setCheckPdf(!checkPdf)} className="mt-1" /><div><div className="font-semibold text-slate-900">He leído el último PDF regenerado</div><div className="text-xs text-slate-500">Nunca aprobar sin abrir el PDF final.</div></div></label>
@@ -1146,36 +1019,21 @@ export default function OpsCaseDetailPro() {
             <label className="flex items-start gap-3 rounded-2xl border border-slate-200 px-3 py-3 text-sm"><input type="checkbox" checked={checkCanal} onChange={() => setCheckCanal(!checkCanal)} className="mt-1" /><div><div className="font-semibold text-slate-900">Sé por qué canal se va a presentar</div><div className="text-xs text-slate-500">DGT, sede electrónica, registro, CSV, etc.</div></div></label>
           </div>
         </Section>
+
+        <Section title="Guía rápida operador">
+          <div className="space-y-3 text-sm text-slate-700">
+            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Orden correcto del trabajo</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Revisar el hecho denunciado y la familia detectada.</li><li>Descargar y leer el último PDF regenerado antes de aprobar.</li><li>Comprobar plazos antes y después del recurso.</li><li>Seleccionar canal, entidad y enviar cuando todo esté correcto.</li></ul></div>
+            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo tocar el hecho imputado</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Si ves ruido OCR o texto mezclado.</li><li>Si el hecho está jurídicamente bien pero mal redactado.</li><li>Si quieres una versión más limpia para revisión interna.</li></ul></div>
+            <div className="rounded-2xl border border-slate-200 p-3"><div className="font-semibold text-slate-900">Cuándo usar Manual</div><ul className="mt-2 list-disc space-y-1 pl-5 text-xs"><li>Cuando la familia no convence.</li><li>Cuando el PDF final no refleja bien el caso.</li><li>Cuando falte prueba, plazo o canal claro de presentación.</li></ul></div>
+          </div>
+        </Section>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <Section title={`Historial técnico (${events.length})`}>
-          {events.length === 0 ? <p className="text-slate-500">No hay eventos.</p> : (
-            <div className="space-y-2.5">
-              {events.map((e, i) => (
-                <div key={`${e?.type || "evento"}-${i}`} className="rounded-2xl border border-slate-200 p-3">
-                  <button type="button" onClick={() => setOpenEvent(openEvent === i ? null : i)} className="w-full text-left">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-semibold text-slate-900">{e.type || "evento"}</div>
-                      <InfoPill tone={eventTone(e.type)}>{fmt(e.created_at)}</InfoPill>
-                    </div>
-                    <div className="mt-2 text-xs text-blue-600">{openEvent === i ? "Ocultar detalle" : "Ver detalle"}</div>
-                  </button>
-                  {openEvent === i ? (
-                    <div className="mt-3 rounded-2xl bg-slate-50 p-3">
-                      <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">{JSON.stringify(e.payload || {}, null, 2)}</pre>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
-
         <Section title={`Documentos (${documents.length})`}>
-          {docsHistory.length === 0 ? <p className="text-slate-500">No hay más documentos además de los clave.</p> : (
+          {documents.length === 0 ? <p className="text-slate-500">No hay documentos.</p> : (
             <div className="space-y-2.5">
-              {docsHistory.map((d, i) => (
+              {documents.map((d, i) => (
                 <div key={d?.id || i} className="rounded-2xl border border-slate-200 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -1190,7 +1048,29 @@ export default function OpsCaseDetailPro() {
             </div>
           )}
         </Section>
+
+        <Section title={`Eventos (${events.length})`}>
+          {events.length === 0 ? <p className="text-slate-500">No hay eventos.</p> : (
+            <div className="space-y-2.5">
+              {events.map((e, i) => (
+                <div key={`${e?.type || "evento"}-${i}`} className="rounded-2xl border border-slate-200 p-3">
+                  <button type="button" onClick={() => setOpenEvent(openEvent === i ? null : i)} className="w-full text-left">
+                    <div className="text-sm font-semibold text-slate-900">{e.type || "evento"}</div>
+                    <div className="mt-1 text-xs text-slate-500">{fmt(e.created_at)}</div>
+                    <div className="mt-2 text-xs text-blue-600">{openEvent === i ? "Ocultar detalle" : "Ver detalle"}</div>
+                  </button>
+                  {openEvent === i ? (
+                    <div className="mt-3 rounded-2xl bg-slate-50 p-3">
+                      <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">{JSON.stringify(e.payload || {}, null, 2)}</pre>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
       </div>
+
       {aiResult ? (
         <div className="mt-5">
           <details className="rounded-3xl border border-slate-200 bg-white shadow-sm">
