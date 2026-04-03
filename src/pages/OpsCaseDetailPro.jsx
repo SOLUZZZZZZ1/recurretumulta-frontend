@@ -333,12 +333,7 @@ function resolveAutomaticDelivery(ai, detail, sendInfo) {
   const low = organismo.toLowerCase();
   const source = generatedDestination ? "generate" : "analysis";
 
-  if (
-    low.includes("trafico") ||
-    low.includes("tráfico") ||
-    low.includes("dgt") ||
-    low.includes("jefatura")
-  ) {
+  if (low.includes("trafico") || low.includes("tráfico") || low.includes("dgt") || low.includes("jefatura")) {
     return {
       destination: organismo || "Dirección General de Tráfico",
       channel: "Sede DGT",
@@ -386,6 +381,23 @@ function resolveAutomaticDelivery(ai, detail, sendInfo) {
     source: "unknown",
   };
 }
+
+function buildPackageStatus(documents) {
+  const docs = Array.isArray(documents) ? documents : [];
+  const lowerKinds = docs.map((d) => String(d?.kind || "").toLowerCase());
+
+  const hasRecurso = lowerKinds.some((k) => k.endsWith("_pdf") || (k.includes("pdf") && !k.includes("authorization") && !k.includes("autoriz")));
+  const hasAutorizacion = lowerKinds.some((k) => k.includes("authorization") || k.includes("autoriz"));
+  const hasOriginal = lowerKinds.some((k) => k.includes("original"));
+
+  return {
+    hasRecurso,
+    hasAutorizacion,
+    hasOriginal,
+    ready: hasRecurso && hasAutorizacion && hasOriginal,
+  };
+}
+
 
 function StatCard({ title, value, tone = "default", compact = false }) {
   const tones = {
@@ -773,6 +785,7 @@ export default function OpsCaseDetailPro() {
   const deadlines = useMemo(() => extractDeadlines(aiResult, detail, events), [aiResult, detail, events]);
   const sendInfo = useMemo(() => extractSendInfo(aiResult, detail, events), [aiResult, detail, events]);
   const autoDelivery = useMemo(() => resolveAutomaticDelivery(aiResult, detail, sendInfo), [aiResult, detail, sendInfo]);
+  const packageStatus = useMemo(() => buildPackageStatus(documents), [documents]);
 
   useEffect(() => {
     setHechoEdit(ai.hecho || "");
@@ -915,7 +928,7 @@ export default function OpsCaseDetailPro() {
             <div className="mt-1 break-all text-sm text-slate-700"><b>URL:</b> {autoDelivery.address || "Revisión manual / sede específica"}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <InfoPill tone={autoDelivery.mode === "automatico" ? "info" : "warn"}>
+            <InfoPill tone={autoDelivery.mode === "automatico" ? "success" : "warn"}>
               {autoDelivery.mode === "automatico" ? "🟢 Destino detectado" : "🔴 Revisar destino"}
             </InfoPill>
             <InfoPill tone={autoDelivery.source === "generate" ? "success" : autoDelivery.source === "analysis" ? "default" : "warn"}>
@@ -931,6 +944,20 @@ export default function OpsCaseDetailPro() {
               </button>
             ) : null}
           </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+        <div className="text-[11px] uppercase tracking-wide text-slate-500">Paquete de envío</div>
+        <div className="mt-3 grid gap-2 text-sm text-slate-800 md:grid-cols-3">
+          <div>{packageStatus.hasRecurso ? "✔" : "❌"} Recurso generado</div>
+          <div>{packageStatus.hasAutorizacion ? "✔" : "❌"} Autorización</div>
+          <div>{packageStatus.hasOriginal ? "✔" : "❌"} Multa original</div>
+        </div>
+        <div className="mt-3">
+          <InfoPill tone={packageStatus.ready ? "success" : "warn"}>
+            {packageStatus.ready ? "LISTO PARA ENVIAR" : "INCOMPLETO"}
+          </InfoPill>
         </div>
       </div>
 
@@ -1172,9 +1199,7 @@ export default function OpsCaseDetailPro() {
             <summary className="cursor-pointer list-none px-4 py-3 text-base font-semibold text-slate-900">Payload IA bruto</summary>
             <div className="border-t border-slate-100 p-4">
               <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">{JSON.stringify(aiResult, null, 2)}</pre>
-            </div>
-          </details>
-        </div>
+            
       ) : null}
     </div>
   );
