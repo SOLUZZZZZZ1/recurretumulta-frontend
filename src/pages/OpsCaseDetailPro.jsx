@@ -882,6 +882,7 @@ export default function OpsCaseDetailPro() {
     if (!destinationEdit) setDestinationEdit(next.destination || "");
     if (!addressEdit) setAddressEdit(next.address || "");
     if (!channelEdit) setChannelEdit(next.channel || "");
+    }, [channelEdit, entityEdit, destinationEdit, addressEdit]);
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
   const confianzaNum = Number(ai.confianza);
