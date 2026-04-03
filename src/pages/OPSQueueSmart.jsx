@@ -169,7 +169,7 @@ function QueueSection({ title, tone, items, emptyText }) {
                     </div>
 
                     <Link
-                      to={`/ops/case-pro/${encodeURIComponent(item.case_id)}`}
+                      to={`/ops/case/${encodeURIComponent(item.case_id)}`}
                       className={`rounded-xl px-4 py-3 text-center text-sm font-semibold text-white ${
                         lane === "AUTOMATICO"
                           ? "bg-emerald-600 hover:bg-emerald-700"
