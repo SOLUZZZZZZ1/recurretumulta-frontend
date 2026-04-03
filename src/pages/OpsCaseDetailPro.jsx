@@ -1153,7 +1153,9 @@ export default function OpsCaseDetailPro() {
             <summary className="cursor-pointer list-none px-4 py-3 text-base font-semibold text-slate-900">Payload IA bruto</summary>
             <div className="border-t border-slate-100 p-4">
               <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">{JSON.stringify(aiResult, null, 2)}</pre>
-            
+            </div>
+          </details>
+        </div>
       ) : null}
     </div>
   );
