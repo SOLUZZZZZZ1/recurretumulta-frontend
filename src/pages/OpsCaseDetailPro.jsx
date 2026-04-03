@@ -722,6 +722,7 @@ export default function OpsCaseDetailPro() {
     setError("");
     setSaveMsg("");
     if (!token) return setError("Falta token de operador.");
+    if (!packageStatus.ready) return setError("El paquete de envío está incompleto.");
     if (!selectedDocumentId) return setError("Selecciona un documento para enviar.");
 
     setBusySubmit(true);
@@ -786,6 +787,34 @@ export default function OpsCaseDetailPro() {
   const sendInfo = useMemo(() => extractSendInfo(aiResult, detail, events), [aiResult, detail, events]);
   const autoDelivery = useMemo(() => resolveAutomaticDelivery(aiResult, detail, sendInfo), [aiResult, detail, sendInfo]);
   const packageStatus = useMemo(() => buildPackageStatus(documents), [documents]);
+  const recursoDoc = useMemo(
+    () => documents.find((d) => {
+      const kind = String(d?.kind || "").toLowerCase();
+      return (kind.endsWith("_pdf") || kind.includes("pdf")) && !kind.includes("authorization") && !kind.includes("autoriz");
+    }) || null,
+    [documents]
+  );
+  const autorizacionDoc = useMemo(
+    () => documents.find((d) => {
+      const kind = String(d?.kind || "").toLowerCase();
+      return kind.includes("authorization") || kind.includes("autoriz");
+    }) || null,
+    [documents]
+  );
+  const originalDoc = useMemo(
+    () => documents.find((d) => {
+      const kind = String(d?.kind || "").toLowerCase();
+      return kind.includes("original");
+    }) || null,
+    [documents]
+  );
+
+  useEffect(() => {
+    if (recursoDoc?.id && selectedDocumentId !== recursoDoc.id) {
+      setSelectedDocumentId(recursoDoc.id);
+    }
+  }, [recursoDoc, selectedDocumentId]);
+
 
   useEffect(() => {
     setHechoEdit(ai.hecho || "");
@@ -1079,6 +1108,15 @@ export default function OpsCaseDetailPro() {
               <button type="button" onClick={savePlanningLocal} className="mt-3 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
                 Guardar envío
               </button>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                <div className="font-semibold text-slate-900">Adjuntos previstos en el envío</div>
+                <div className="mt-2 space-y-1">
+                  <div>{recursoDoc ? "✔" : "❌"} Recurso: {recursoDoc ? `${recursoDoc.kind || "pdf"} · ${fmt(recursoDoc.created_at)}` : "Falta"}</div>
+                  <div>{autorizacionDoc ? "✔" : "❌"} Autorización: {autorizacionDoc ? `${autorizacionDoc.kind || "authorization_pdf"} · ${fmt(autorizacionDoc.created_at)}` : "Falta"}</div>
+                  <div>{originalDoc ? "✔" : "❌"} Multa original: {originalDoc ? `${originalDoc.kind || "original"} · ${fmt(originalDoc.created_at)}` : "Falta"}</div>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
@@ -1104,11 +1142,16 @@ export default function OpsCaseDetailPro() {
               <button
                 type="button"
                 onClick={submitResource}
-                disabled={busySubmit}
+                disabled={busySubmit || !packageStatus.ready}
                 className="mt-3 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               >
-                {busySubmit ? "Enviando recurso..." : "Enviar recurso"}
+                {busySubmit ? "Enviando paquete..." : "Enviar paquete completo"}
               </button>
+              {!packageStatus.ready ? (
+                <div className="mt-2 text-xs text-amber-600">
+                  Falta documentación para enviar el recurso.
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-4">
