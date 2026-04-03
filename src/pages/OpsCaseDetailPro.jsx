@@ -311,8 +311,43 @@ function extractSendInfo(ai, detail, events) {
 }
 
 
-function resolveAutomaticDelivery(ai, detail, sendInfo) {
+function extractDestinationFromGeneratedText(text) {
+  const raw = String(text || "");
+  if (!raw.trim()) return "";
+  const lines = raw.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+    if (upper.startsWith("A LA JEFATURA PROVINCIAL DE TRÁFICO DE ")) return line;
+    if (upper.startsWith("A LA JEFATURA PROVINCIAL DE TRAFICO DE ")) return line;
+    if (upper.startsWith("A LA DIRECCIÓN GENERAL DE TRÁFICO")) return line;
+    if (upper.startsWith("A LA DIRECCION GENERAL DE TRAFICO")) return line;
+    if (upper.startsWith("AL AYUNTAMIENTO DE ")) return line;
+    if (upper.startsWith("A L'AJUNTAMENT DE ")) return line;
+    if (upper.startsWith("A LA POLICÍA LOCAL DE ")) return line;
+    if (upper.startsWith("A LA POLICIA LOCAL DE ")) return line;
+    if (upper.startsWith("A LA GUARDIA URBANA DE ")) return line;
+  }
+  return "";
+}
+
+function resolveAutomaticDelivery(ai, detail, sendInfo, events) {
+  const generatedText = firstNonEmpty(
+    getByPath(ai, "raw_result.cuerpo"),
+    getByPath(ai, "cuerpo"),
+    ...((events || []).map((e) => firstNonEmpty(
+      getByPath(e, "payload.cuerpo"),
+      getByPath(e, "payload.body"),
+      getByPath(e, "payload.resource_text"),
+      getByPath(e, "payload.generated_text"),
+      getByPath(e, "payload.pdf_text")
+    ))),
+    ""
+  );
+
+  const destinationFromPdf = extractDestinationFromGeneratedText(generatedText);
+
   const rawOrganismo = firstNonEmpty(
+    destinationFromPdf,
     sendInfo?.entity,
     getByPath(detail, "organismo"),
     getByPath(ai, "raw_result.classify.global_refs.main_organism"),
@@ -325,13 +360,22 @@ function resolveAutomaticDelivery(ai, detail, sendInfo) {
   const organismo = String(rawOrganismo || "").trim();
   const low = organismo.toLowerCase();
 
-  if (low.includes("trafico") || low.includes("tráfico") || low.includes("dgt") || low.includes("jefatura")) {
+  if (
+    low.includes("jefatura provincial de tráfico") ||
+    low.includes("jefatura provincial de trafico") ||
+    low.includes("dirección general de tráfico") ||
+    low.includes("direccion general de trafico") ||
+    low.includes("dgt") ||
+    low.includes("jefatura de tráfico") ||
+    low.includes("jefatura de trafico")
+  ) {
     return {
       destination: organismo || "Dirección General de Tráfico",
       channel: "Sede DGT",
       address: "https://sede.dgt.gob.es",
       tone: "info",
       mode: "automatico",
+      source: destinationFromPdf ? "pdf" : "analysis",
     };
   }
 
@@ -348,6 +392,7 @@ function resolveAutomaticDelivery(ai, detail, sendInfo) {
       address: "",
       tone: "warn",
       mode: "manual",
+      source: destinationFromPdf ? "pdf" : "analysis",
     };
   }
 
@@ -358,6 +403,7 @@ function resolveAutomaticDelivery(ai, detail, sendInfo) {
       address: "",
       tone: "warn",
       mode: "manual",
+      source: destinationFromPdf ? "pdf" : "analysis",
     };
   }
 
@@ -367,6 +413,7 @@ function resolveAutomaticDelivery(ai, detail, sendInfo) {
     address: "",
     tone: "warn",
     mode: "manual",
+    source: "unknown",
   };
 }
 
@@ -756,7 +803,7 @@ export default function OpsCaseDetailPro() {
   const ai = useMemo(() => readAi(aiResult), [aiResult]);
   const deadlines = useMemo(() => extractDeadlines(aiResult, detail, events), [aiResult, detail, events]);
   const sendInfo = useMemo(() => extractSendInfo(aiResult, detail, events), [aiResult, detail, events]);
-  const autoDelivery = useMemo(() => resolveAutomaticDelivery(aiResult, detail, sendInfo), [aiResult, detail, sendInfo]);
+  const autoDelivery = useMemo(() => resolveAutomaticDelivery(aiResult, detail, sendInfo, events), [aiResult, detail, sendInfo, events]);
 
   useEffect(() => {
     setHechoEdit(ai.hecho || "");
@@ -834,7 +881,7 @@ export default function OpsCaseDetailPro() {
 
     if (!destinationEdit) setDestinationEdit(next.destination || "");
     if (!addressEdit) setAddressEdit(next.address || "");
-  }, [channelEdit, entityEdit, destinationEdit, addressEdit]);
+    if (!channelEdit) setChannelEdit(next.channel || "");
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
   const confianzaNum = Number(ai.confianza);
@@ -901,6 +948,9 @@ export default function OpsCaseDetailPro() {
           <div className="flex flex-wrap gap-2">
             <InfoPill tone={autoDelivery.mode === "automatico" ? "info" : "warn"}>
               {autoDelivery.mode === "automatico" ? "🟢 Destino detectado" : "🔴 Revisar destino"}
+            </InfoPill>
+            <InfoPill tone={autoDelivery.source === "pdf" ? "success" : "default"}>
+              Fuente: {autoDelivery.source === "pdf" ? "PDF generado" : autoDelivery.source === "analysis" ? "análisis" : "sin detectar"}
             </InfoPill>
             {autoDelivery.address ? (
               <button
