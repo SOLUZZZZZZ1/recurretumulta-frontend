@@ -264,9 +264,7 @@ function extractDeadlines(ai, detail, events) {
     deepFindFirst(ai, ["after_text"]),
     deepFindFirst(detail, ["after_text"])
   );
-  const lastSubmitted = [...(events || [])]
-    .filter((e) => e?.type === "submitted_to_dgt" || e?.type === "submitted_auto")
-    .sort((a, b) => new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime())[0];
+  const lastSubmitted = [...(events || [])].find((e) => e?.type === "submitted_to_dgt");
   const submittedAt = lastSubmitted?.payload?.submitted_at || lastSubmitted?.created_at || "";
   return { beforeDate, afterDate, beforeText, afterText, submittedAt };
 }
@@ -296,7 +294,7 @@ function extractSendInfo(ai, detail, events) {
     deepFindFirst(ai, ["entity"]),
     deepFindFirst(detail, ["entity"])
   );
-  const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt" || e?.type === "submitted_auto");
+  const submittedEvents = (events || []).filter((e) => e?.type === "submitted_to_dgt");
   return {
     destination,
     address,
@@ -305,12 +303,73 @@ function extractSendInfo(ai, detail, events) {
     submissions: submittedEvents.map((e, idx) => ({
       id: `${e?.type || "submit"}-${idx}`,
       submittedAt: e?.payload?.submitted_at || e?.created_at || "",
-      dgtId: e?.payload?.dgt_id || e?.payload?.external_id || "",
+      dgtId: e?.payload?.dgt_id || "",
       documentUrl: e?.payload?.document_url || "",
       mode: e?.payload?.mode || "",
     })),
   };
 }
+
+
+function resolveAutomaticDelivery(ai, detail, sendInfo) {
+  const rawOrganismo = firstNonEmpty(
+    sendInfo?.entity,
+    getByPath(detail, "organismo"),
+    getByPath(ai, "raw_result.classify.global_refs.main_organism"),
+    getByPath(ai, "raw_result.classify.documents.0.issuer_org"),
+    getByPath(ai, "raw_result.draft.variables_usadas.organismo"),
+    getByPath(ai, "variables_usadas.organismo"),
+    ""
+  );
+
+  const organismo = String(rawOrganismo || "").trim();
+  const low = organismo.toLowerCase();
+
+  if (low.includes("trafico") || low.includes("tráfico") || low.includes("dgt") || low.includes("jefatura")) {
+    return {
+      destination: organismo || "Dirección General de Tráfico",
+      channel: "Sede DGT",
+      address: "https://sede.dgt.gob.es",
+      tone: "info",
+      mode: "automatico",
+    };
+  }
+
+  if (
+    low.includes("ayuntamiento") ||
+    low.includes("ajuntament") ||
+    low.includes("policia local") ||
+    low.includes("policía local") ||
+    low.includes("guardia urbana")
+  ) {
+    return {
+      destination: organismo || "Organismo municipal",
+      channel: "Sede municipal / registro",
+      address: "",
+      tone: "warn",
+      mode: "manual",
+    };
+  }
+
+  if (organismo) {
+    return {
+      destination: organismo,
+      channel: "Revisar canal",
+      address: "",
+      tone: "warn",
+      mode: "manual",
+    };
+  }
+
+  return {
+    destination: "Destino no detectado",
+    channel: "Revisión manual",
+    address: "",
+    tone: "warn",
+    mode: "manual",
+  };
+}
+
 
 function StatCard({ title, value, tone = "default", compact = false }) {
   const tones = {
@@ -439,13 +498,7 @@ export default function OpsCaseDetailPro() {
   }
 
   function pickLatestAiEvent(evs) {
-    return [...(evs || [])]
-      .filter((e) => e?.type === "ai_expediente_result")
-      .sort((a, b) => {
-        const ta = new Date(a?.created_at || 0).getTime();
-        const tb = new Date(b?.created_at || 0).getTime();
-        return tb - ta;
-      })[0] || null;
+    return [...(evs || [])].find((e) => e?.type === "ai_expediente_result") || null;
   }
 
   async function loadCase({ silent = false } = {}) {
@@ -495,7 +548,6 @@ export default function OpsCaseDetailPro() {
   useEffect(() => {
     loadCase();
     return () => clearPollTimer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function pollForAiResult() {
@@ -704,6 +756,7 @@ export default function OpsCaseDetailPro() {
   const ai = useMemo(() => readAi(aiResult), [aiResult]);
   const deadlines = useMemo(() => extractDeadlines(aiResult, detail, events), [aiResult, detail, events]);
   const sendInfo = useMemo(() => extractSendInfo(aiResult, detail, events), [aiResult, detail, events]);
+  const autoDelivery = useMemo(() => resolveAutomaticDelivery(aiResult, detail, sendInfo), [aiResult, detail, sendInfo]);
 
   useEffect(() => {
     setHechoEdit(ai.hecho || "");
@@ -733,6 +786,7 @@ export default function OpsCaseDetailPro() {
       setAddressEdit(sendInfo.address || "");
     }
   }, [plannerStorageKey, deadlines.beforeDate, deadlines.afterDate, deadlines.beforeText, deadlines.afterText, sendInfo.channel, sendInfo.entity, sendInfo.destination, sendInfo.address]);
+
 
   useEffect(() => {
     if (!entityEdit) return;
@@ -780,16 +834,13 @@ export default function OpsCaseDetailPro() {
 
     if (!destinationEdit) setDestinationEdit(next.destination || "");
     if (!addressEdit) setAddressEdit(next.address || "");
-  }, [channelEdit, entityEdit, destinationEdit, addressEdit]);
+    if (!channelEdit) setChannelEdit(next.channel || "");
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
-  const rawConfianza = String(ai.confianza ?? "").trim();
-  const confianzaNum = rawConfianza === "" ? null : Number(rawConfianza);
-  const confianzaPct = rawConfianza === ""
-    ? "—"
-    : Number.isFinite(confianzaNum)
-      ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
-      : rawConfianza;
+  const confianzaNum = Number(ai.confianza);
+  const confianzaPct = Number.isFinite(confianzaNum)
+    ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
+    : ai.confianza || "—";
 
   const aiTone = ai.admisibilidad === "ADMISSIBLE" ? "success" : ai.admisibilidad === "NOT_ADMISSIBLE" ? "warn" : "default";
   const familyTone = familiaEdit ? "info" : "default";
@@ -837,6 +888,31 @@ export default function OpsCaseDetailPro() {
 
       <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
         <b>Última IA ejecutada:</b> {latestAiEvent ? fmt(latestAiEvent.created_at) : "—"}
+      </div>
+
+      <div className={`mt-4 rounded-2xl border px-4 py-4 shadow-sm ${autoDelivery.tone === "info" ? "border-blue-200 bg-blue-50" : "border-amber-200 bg-amber-50"}`}>
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-wide text-slate-500">Destino automático del recurso</div>
+            <div className="mt-1 text-base font-semibold text-slate-900">{autoDelivery.destination}</div>
+            <div className="mt-2 text-sm text-slate-700"><b>Canal:</b> {autoDelivery.channel}</div>
+            <div className="mt-1 break-all text-sm text-slate-700"><b>URL:</b> {autoDelivery.address || "Revisión manual / sede específica"}</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <InfoPill tone={autoDelivery.mode === "automatico" ? "info" : "warn"}>
+              {autoDelivery.mode === "automatico" ? "🟢 Destino detectado" : "🔴 Revisar destino"}
+            </InfoPill>
+            {autoDelivery.address ? (
+              <button
+                type="button"
+                onClick={() => window.open(autoDelivery.address, "_blank")}
+                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                🌐 Abrir sede
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -1077,9 +1153,7 @@ export default function OpsCaseDetailPro() {
             <summary className="cursor-pointer list-none px-4 py-3 text-base font-semibold text-slate-900">Payload IA bruto</summary>
             <div className="border-t border-slate-100 p-4">
               <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">{JSON.stringify(aiResult, null, 2)}</pre>
-            </div>
-          </details>
-        </div>
+            
       ) : null}
     </div>
   );
