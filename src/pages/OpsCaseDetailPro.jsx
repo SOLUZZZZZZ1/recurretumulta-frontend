@@ -311,6 +311,7 @@ function extractSendInfo(ai, detail, events) {
 }
 
 
+
 function resolveAutomaticDelivery(ai, detail, sendInfo) {
   const generatedDestination = firstNonEmpty(
     getByPath(ai, "delivery.destination_text"),
@@ -397,7 +398,6 @@ function buildPackageStatus(documents) {
     ready: hasRecurso && hasAutorizacion && hasOriginal,
   };
 }
-
 
 function StatCard({ title, value, tone = "default", compact = false }) {
   const tones = {
@@ -866,6 +866,7 @@ export default function OpsCaseDetailPro() {
   }, [channelEdit, entityEdit, destinationEdit, addressEdit]);
 
   const latestAiEvent = useMemo(() => pickLatestAiEvent(events), [events]);
+
   const confianzaNum = Number(ai.confianza);
   const confianzaPct = Number.isFinite(confianzaNum)
     ? (confianzaNum <= 1 ? `${Math.round(confianzaNum * 100)}%` : `${Math.round(confianzaNum)}%`)
@@ -1199,7 +1200,9 @@ export default function OpsCaseDetailPro() {
             <summary className="cursor-pointer list-none px-4 py-3 text-base font-semibold text-slate-900">Payload IA bruto</summary>
             <div className="border-t border-slate-100 p-4">
               <pre className="overflow-x-auto whitespace-pre-wrap break-words text-[11px] leading-5 text-slate-700">{JSON.stringify(aiResult, null, 2)}</pre>
-            
+            </div>
+          </details>
+        </div>
       ) : null}
     </div>
   );
