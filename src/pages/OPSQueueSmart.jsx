@@ -281,7 +281,7 @@ export default function OPSQueueSmart() {
 
             {topNext ? (
               <Link
-                to={`/ops/case-pro/${encodeURIComponent(topNext.case_id)}`}
+                to={`/ops/case/${encodeURIComponent(topNext.case_id)}`}
                 className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600"
               >
                 ➡️ Siguiente caso
