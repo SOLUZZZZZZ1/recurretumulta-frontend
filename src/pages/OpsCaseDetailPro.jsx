@@ -347,7 +347,7 @@ function resolveAutomaticDelivery(ai, detail, sendInfo, events) {
   const destinationFromPdf = extractDestinationFromGeneratedText(generatedText);
 
   const rawOrganismo = firstNonEmpty(
-    getByPath(ai, "delivery.destination_text"),
+    getByPath(aiResult, "delivery.destination_text"),
     sendInfo?.entity,
     getByPath(detail, "organismo"),
     getByPath(ai, "raw_result.classify.global_refs.main_organism"),
