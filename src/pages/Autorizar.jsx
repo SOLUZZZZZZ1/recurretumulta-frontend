@@ -27,8 +27,12 @@ export default function Autorizar() {
 
   const [acceptedText, setAcceptedText] = useState(false);
   const [confirmedIdentity, setConfirmedIdentity] = useState(false);
+  const [authorizationGenerated, setAuthorizationGenerated] = useState(false);
+  const [signedFile, setSignedFile] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
+  const [uploadingSigned, setUploadingSigned] = useState(false);
   const [okMsg, setOkMsg] = useState("");
   const [error, setError] = useState("");
 
@@ -55,6 +59,10 @@ export default function Autorizar() {
           email: data?.email || prev.email || "",
           telefono: data?.telefono || prev.telefono || "",
         }));
+
+        if (data?.authorized) {
+          setAuthorizationGenerated(true);
+        }
       } catch (e) {
         if (!cancelled) setError(e.message || "No se pudo cargar el expediente.");
       } finally {
@@ -68,7 +76,7 @@ export default function Autorizar() {
     };
   }, [caseId]);
 
-  async function handleAuthorize() {
+  async function handleGenerateAuthorization() {
     setError("");
     setOkMsg("");
 
@@ -104,14 +112,50 @@ export default function Autorizar() {
         }),
       });
 
-      setOkMsg("✅ Autorización registrada correctamente. Ya puedes continuar al pago.");
-      setTimeout(() => {
-        navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
-      }, 900);
+      setAuthorizationGenerated(true);
+      setOkMsg("✅ Autorización generada. Ahora descárgala, fírmala y vuelve a subirla.");
     } catch (e) {
-      setError(e.message || "No se pudo registrar la autorización.");
+      setError(e.message || "No se pudo generar la autorización.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handleDownloadAuthorization() {
+    if (!caseId) {
+      setError("Falta el expediente interno.");
+      return;
+    }
+    window.open(`${API}/cases/${encodeURIComponent(caseId)}/authorization-pdf`, "_blank");
+  }
+
+  async function handleUploadSigned() {
+    setError("");
+    setOkMsg("");
+
+    if (!caseId) return setError("Falta el expediente interno.");
+    if (!signedFile) return setError("Debes seleccionar la autorización firmada.");
+
+    setUploadingSigned(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", signedFile);
+
+      const r = await fetch(`${API}/cases/${encodeURIComponent(caseId)}/upload-authorization-signed`, {
+        method: "POST",
+        body: fd,
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data?.detail || "No se pudo subir la autorización firmada.");
+
+      setOkMsg("✅ Autorización firmada subida correctamente. Ya puedes continuar.");
+      setTimeout(() => {
+        navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
+      }, 1000);
+    } catch (e) {
+      setError(e.message || "No se pudo subir la autorización firmada.");
+    } finally {
+      setUploadingSigned(false);
     }
   }
 
@@ -119,7 +163,7 @@ export default function Autorizar() {
     <>
       <Seo
         title="Autorización previa al pago"
-        description="Confirma tus datos y autoriza la presentación antes de pagar."
+        description="Descarga la autorización, fírmala y vuelve a subirla antes de continuar."
       />
 
       <main className="sr-container py-12">
@@ -132,12 +176,12 @@ export default function Autorizar() {
 
         <div className="sr-card">
           <p className="sr-p" style={{ marginTop: 0 }}>
-            Antes de pagar, necesitamos tus datos como interesado y tu autorización expresa para poder
+            Antes de pagar, necesitamos tus datos como interesado y una autorización firmada para poder
             presentar el recurso en tu nombre.
           </p>
 
           <p className="sr-p">
-            <strong>Sin autorización no se permite el pago.</strong>
+            <strong>Sin autorización firmada no se permite la tramitación.</strong>
           </p>
 
           <div className="sr-small" style={{ color: "#6b7280", marginTop: 10 }}>
@@ -165,9 +209,9 @@ export default function Autorizar() {
             </div>
           )}
 
-          <h3 className="sr-h3" style={{ marginTop: 18 }}>Datos del interesado</h3>
+          <h3 className="sr-h3" style={{ marginTop: 18 }}>Paso 1 · Datos del interesado</h3>
           <p className="sr-small" style={{ color: "#6b7280", marginTop: 6 }}>
-            Estos datos se usarán para la representación administrativa y para la presentación del recurso.
+            Estos datos se usarán para generar la autorización que tendrás que descargar, firmar y volver a subir.
           </p>
 
           <div className="grid gap-3" style={{ maxWidth: 760, marginTop: 10 }}>
@@ -221,7 +265,7 @@ export default function Autorizar() {
             </div>
           </div>
 
-          <h3 className="sr-h3" style={{ marginTop: 18 }}>Texto de autorización</h3>
+          <h3 className="sr-h3" style={{ marginTop: 18 }}>Paso 2 · Confirmación</h3>
 
           <div className="sr-card" style={{ background: "#f9fafb" }}>
             <p className="sr-p" style={{ whiteSpace: "pre-line", margin: 0 }}>
@@ -251,13 +295,60 @@ export default function Autorizar() {
           </label>
 
           <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 16 }}>
-            <button className="sr-btn-primary" onClick={handleAuthorize} disabled={loading}>
-              {loading ? "Guardando…" : "Guardar datos y autorizar"}
+            <button className="sr-btn-primary" onClick={handleGenerateAuthorization} disabled={loading}>
+              {loading ? "Generando…" : "Guardar datos y generar autorización"}
             </button>
 
             <Link to={caseId ? `/resumen?case=${encodeURIComponent(caseId)}` : "/"} className="sr-btn-secondary">
               Volver al expediente
             </Link>
+          </div>
+
+          <h3 className="sr-h3" style={{ marginTop: 24 }}>Paso 3 · Descargar, firmar y volver a subir</h3>
+
+          <div className="sr-card" style={{ background: "#f9fafb" }}>
+            <ol className="sr-p" style={{ margin: 0, paddingLeft: 18 }}>
+              <li>Descarga la autorización.</li>
+              <li>Fírmala a mano.</li>
+              <li>Haz una foto o escanéala.</li>
+              <li>Sube aquí el PDF o la imagen firmada.</li>
+            </ol>
+          </div>
+
+          <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 14 }}>
+            <button
+              className="sr-btn-secondary"
+              onClick={handleDownloadAuthorization}
+              disabled={!authorizationGenerated}
+            >
+              📄 Descargar autorización
+            </button>
+          </div>
+
+          {!authorizationGenerated && (
+            <div className="sr-small" style={{ marginTop: 8, color: "#6b7280" }}>
+              Primero genera la autorización con tus datos para poder descargarla.
+            </div>
+          )}
+
+          <div style={{ marginTop: 14 }}>
+            <label className="sr-small" style={{ fontWeight: 800 }}>Subir autorización firmada</label>
+            <input
+              className="sr-input"
+              type="file"
+              accept="application/pdf,image/*"
+              onChange={(e) => setSignedFile(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 12 }}>
+            <button
+              className="sr-btn-primary"
+              onClick={handleUploadSigned}
+              disabled={uploadingSigned || !signedFile}
+            >
+              {uploadingSigned ? "Subiendo…" : "Subir autorización firmada"}
+            </button>
           </div>
 
           <div className="sr-small" style={{ marginTop: 12, color: "#6b7280" }}>

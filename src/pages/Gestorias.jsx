@@ -46,6 +46,7 @@ export default function Gestorias() {
   const [note, setNote] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [files, setFiles] = useState([]);
+  const [authorizationFile, setAuthorizationFile] = useState(null);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -118,7 +119,8 @@ export default function Gestorias() {
     if (!clientName.trim()) return setErr("Nombre del cliente obligatorio.");
     if (!nombre.trim()) return setErr("Nombre del interesado obligatorio.");
     if (!dni.trim()) return setErr("DNI/NIE del interesado obligatorio.");
-    if (!files.length) return setErr("Sube al menos un documento.");
+    if (!files.length) return setErr("Sube al menos un documento del expediente.");
+    if (!authorizationFile) return setErr("Debes adjuntar la autorización firmada del cliente.");
     if (!confirm) return setErr("Debes confirmar que el cliente ha sido informado.");
 
     const interesado = {
@@ -136,6 +138,7 @@ export default function Gestorias() {
       fd.append("interesado_json", JSON.stringify(interesado));
       if (note.trim()) fd.append("partner_note", note.trim());
       fd.append("confirm_client_informed", "true");
+      fd.append("authorization_file", authorizationFile);
       files.forEach((f) => fd.append("files", f));
 
       const r = await fetch(`${API}/partner/cases`, {
@@ -156,6 +159,7 @@ export default function Gestorias() {
       setNote("");
       setConfirm(false);
       setFiles([]);
+      setAuthorizationFile(null);
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
       setErr(e.message || "No se pudo enviar el expediente.");
@@ -263,7 +267,7 @@ export default function Gestorias() {
           </div>
 
           <div className="sr-card" style={{ marginTop: 12, background: "rgba(255,255,255,0.7)" }}>
-            <div className="sr-small" style={{ fontWeight: 800 }}>Documentos</div>
+            <div className="sr-small" style={{ fontWeight: 800 }}>Documentos del expediente</div>
 
             <input
               ref={inputRef}
@@ -291,6 +295,25 @@ export default function Gestorias() {
                 {files.map((f, idx) => (
                   <div key={idx} className="sr-small">• {f.name}</div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          <div className="sr-card" style={{ marginTop: 12, background: "rgba(255,255,255,0.7)" }}>
+            <div className="sr-small" style={{ fontWeight: 800 }}>
+              Autorización firmada del cliente <span style={{ color: "#991b1b" }}>(obligatoria)</span>
+            </div>
+
+            <input
+              type="file"
+              accept="application/pdf,image/*"
+              style={{ ...inputStyle, marginTop: 8 }}
+              onChange={(e) => setAuthorizationFile(e.target.files?.[0] || null)}
+            />
+
+            {authorizationFile && (
+              <div className="sr-small" style={{ marginTop: 8, color: "#166534" }}>
+                ✔ {authorizationFile.name}
               </div>
             )}
           </div>
