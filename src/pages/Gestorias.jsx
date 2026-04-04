@@ -126,7 +126,7 @@ export default function Gestorias() {
 
   function downloadAuthorizationTemplate() {
     const link = document.createElement("a");
-    link.href = `/api/cases/${caseId}/authorization-pdf`;
+    link.href = AUTHORIZATION_TEMPLATE_URL;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.download = "Mod.24-ES.pdf";
@@ -330,7 +330,7 @@ export default function Gestorias() {
             </div>
 
             <div className="sr-small" style={{ marginTop: 8, color: "#6b7280" }}>
-              Descarga primero el modelo oficial, haz que el cliente lo firme y súbelo aquí antes de enviar el expediente.
+              Descarga primero el modelo con vuestros datos, haz que el cliente lo firme y súbelo aquí antes de enviar el expediente.
             </div>
 
             <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 12, gap: 10 }}>
