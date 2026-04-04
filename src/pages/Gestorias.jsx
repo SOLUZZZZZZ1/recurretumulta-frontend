@@ -126,7 +126,7 @@ export default function Gestorias() {
 
   function downloadAuthorizationTemplate() {
     const link = document.createElement("a");
-    link.href = AUTHORIZATION_TEMPLATE_URL;
+    link.href = `/api/cases/${caseId}/authorization-pdf`;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.download = "Mod.24-ES.pdf";
