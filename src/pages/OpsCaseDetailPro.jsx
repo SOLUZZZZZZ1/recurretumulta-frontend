@@ -496,6 +496,7 @@ export default function OpsCaseDetailPro() {
   const [saveReason, setSaveReason] = useState("Corrección operador");
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [submitForce, setSubmitForce] = useState(false);
+  const [receiptFile, setReceiptFile] = useState(null);
 
   const [beforeDeadlineEdit, setBeforeDeadlineEdit] = useState("");
   const [afterDeadlineEdit, setAfterDeadlineEdit] = useState("");
@@ -1170,6 +1171,54 @@ export default function OpsCaseDetailPro() {
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="text-sm font-semibold mb-3">📬 Subir justificante de envío (REG)</div>
+
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+              />
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setError("");
+                    setSaveMsg("");
+                    if (!receiptFile) {
+                      setError("Selecciona primero el justificante en PDF.");
+                      return;
+                    }
+
+                    const fd = new FormData();
+                    fd.append("file", receiptFile);
+
+                    const res = await fetch(`/api/cases/${caseId}/upload-receipt`, {
+                      method: "POST",
+                      body: fd,
+                    });
+
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      throw new Error(data?.detail || "No se pudo subir el justificante");
+                    }
+
+                    setSaveMsg("✅ Justificante guardado correctamente.");
+                    setReceiptFile(null);
+                    await loadCase({ silent: true });
+                    window.location.reload();
+                  } catch (e) {
+                    setError(e.message || "Error subiendo justificante");
+                  }
+                }}
+                className="mt-3 rounded-xl bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
+              >
+                Subir justificante
+              </button>
             </div>
           </div>
         </Section>
