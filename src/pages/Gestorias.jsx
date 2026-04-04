@@ -3,6 +3,7 @@ import Seo from "../components/Seo.jsx";
 import { useNavigate } from "react-router-dom";
 
 const API = "/api";
+const AUTHORIZATION_TEMPLATE_URL = `${import.meta.env.BASE_URL}Mod.24-ES.pdf`;
 
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
@@ -34,6 +35,7 @@ export default function Gestorias() {
   const [logging, setLogging] = useState(false);
 
   const inputRef = useRef(null);
+  const authInputRef = useRef(null);
 
   const [clientEmail, setClientEmail] = useState("");
   const [clientName, setClientName] = useState("");
@@ -104,11 +106,33 @@ export default function Gestorias() {
     inputRef.current?.click();
   }
 
+  function pickAuthorizationFile() {
+    authInputRef.current?.click();
+  }
+
   function onFilesSelected(list) {
     const arr = Array.from(list || []).slice(0, 5);
     setFiles(arr);
     setMsg("");
     setErr("");
+  }
+
+  function onAuthorizationSelected(list) {
+    const picked = Array.from(list || [])[0] || null;
+    setAuthorizationFile(picked);
+    setMsg("");
+    setErr("");
+  }
+
+  function downloadAuthorizationTemplate() {
+    const link = document.createElement("a");
+    link.href = AUTHORIZATION_TEMPLATE_URL;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.download = "Mod.24-ES.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   async function submitCase() {
@@ -138,8 +162,8 @@ export default function Gestorias() {
       fd.append("interesado_json", JSON.stringify(interesado));
       if (note.trim()) fd.append("partner_note", note.trim());
       fd.append("confirm_client_informed", "true");
-      fd.append("authorization_file", authorizationFile);
       files.forEach((f) => fd.append("files", f));
+      fd.append("authorization_file", authorizationFile);
 
       const r = await fetch(`${API}/partner/cases`, {
         method: "POST",
@@ -161,6 +185,7 @@ export default function Gestorias() {
       setFiles([]);
       setAuthorizationFile(null);
       if (inputRef.current) inputRef.current.value = "";
+      if (authInputRef.current) authInputRef.current.value = "";
     } catch (e) {
       setErr(e.message || "No se pudo enviar el expediente.");
     } finally {
@@ -301,19 +326,38 @@ export default function Gestorias() {
 
           <div className="sr-card" style={{ marginTop: 12, background: "rgba(255,255,255,0.7)" }}>
             <div className="sr-small" style={{ fontWeight: 800 }}>
-              Autorización firmada del cliente <span style={{ color: "#991b1b" }}>(obligatoria)</span>
+              Autorización firmada del cliente (obligatoria)
             </div>
 
-            <input
-              type="file"
-              accept="application/pdf,image/*"
-              style={{ ...inputStyle, marginTop: 8 }}
-              onChange={(e) => setAuthorizationFile(e.target.files?.[0] || null)}
-            />
+            <div className="sr-small" style={{ marginTop: 8, color: "#6b7280" }}>
+              Descarga primero el modelo oficial, haz que el cliente lo firme y súbelo aquí antes de enviar el expediente.
+            </div>
 
-            {authorizationFile && (
-              <div className="sr-small" style={{ marginTop: 8, color: "#166534" }}>
-                ✔ {authorizationFile.name}
+            <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 12, gap: 10 }}>
+              <button className="sr-btn-secondary" type="button" onClick={downloadAuthorizationTemplate}>
+                Descargar autorización
+              </button>
+
+              <input
+                ref={authInputRef}
+                type="file"
+                accept="application/pdf,image/*"
+                style={{ display: "none" }}
+                onChange={(e) => onAuthorizationSelected(e.target.files)}
+              />
+
+              <button className="sr-btn-primary" type="button" onClick={pickAuthorizationFile}>
+                Adjuntar autorización firmada
+              </button>
+            </div>
+
+            {authorizationFile ? (
+              <div className="sr-small" style={{ marginTop: 10, color: "#166534" }}>
+                ✅ {authorizationFile.name}
+              </div>
+            ) : (
+              <div className="sr-small" style={{ marginTop: 10, color: "#991b1b" }}>
+                ❌ Falta adjuntar la autorización firmada
               </div>
             )}
           </div>
