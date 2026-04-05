@@ -1,5 +1,5 @@
-// OpsDashboard.jsx — versión completa corregida con botón de cola inteligente
-import React, { useEffect, useState } from "react";
+// OpsDashboard.jsx — completo con control de auto-submit
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 const API = "/api";
@@ -14,7 +14,7 @@ async function fetchJson(url, options = {}) {
 function formatDate(d) {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleDateString("es-ES");
+    return new Date(d).toLocaleString("es-ES");
   } catch {
     return "—";
   }
@@ -25,6 +25,60 @@ function shortId(id) {
   return `${id.slice(0, 8)}…${id.slice(-4)}`;
 }
 
+function Pill({ children, tone = "default" }) {
+  const tones = {
+    default: "bg-slate-100 text-slate-700",
+    success: "bg-emerald-100 text-emerald-700",
+    warn: "bg-amber-100 text-amber-700",
+    danger: "bg-rose-100 text-rose-700",
+    info: "bg-blue-100 text-blue-700",
+  };
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${tones[tone] || tones.default}`}>
+      {children}
+    </span>
+  );
+}
+
+function StatCard({ title, value, tone = "default", help = "" }) {
+  const tones = {
+    default: "border-slate-200 bg-white",
+    success: "border-emerald-200 bg-emerald-50",
+    warn: "border-amber-200 bg-amber-50",
+    danger: "border-rose-200 bg-rose-50",
+    info: "border-blue-200 bg-blue-50",
+  };
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 shadow-sm ${tones[tone] || tones.default}`}>
+      <div className="text-[11px] uppercase tracking-wide opacity-70">{title}</div>
+      <div className="mt-2 text-xl font-semibold text-slate-900">{value}</div>
+      {help ? <div className="mt-1 text-xs text-slate-500">{help}</div> : null}
+    </div>
+  );
+}
+
+function classifyLane(item) {
+  const confidence = Number(item?.confidence);
+  const conf = Number.isFinite(confidence) ? (confidence <= 1 ? confidence : confidence / 100) : null;
+  const authorized = !!item?.authorized;
+  const paid = item?.payment_status === "paid";
+  const hasPdf = !!item?.has_generated_pdf;
+  const hasDocx = !!item?.has_generated_docx;
+  const nextAction = String(item?.next_action || "").toUpperCase();
+
+  const clean =
+    authorized &&
+    paid &&
+    hasPdf &&
+    hasDocx &&
+    conf !== null &&
+    conf >= 0.8 &&
+    !["REVISAR", "REGENERAR", "FALTA_AUTORIZACION", "FALTA_PAGO"].includes(nextAction);
+
+  return clean ? "AUTOMATICO" : "MANUAL";
+}
+
 export default function OpsDashboard() {
   const [token, setToken] = useState(() => localStorage.getItem("ops_token") || "");
   const [pin, setPin] = useState("");
@@ -33,6 +87,16 @@ export default function OpsDashboard() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [autoMode, setAutoMode] = useState("review");
+  const [tickResult, setTickResult] = useState(null);
+  const [tickLoading, setTickLoading] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [workerAlive, setWorkerAlive] = useState(true);
+  const [smartQueue, setSmartQueue] = useState({ items: [], summary: {}, count: 0 });
+  const [smartLoading, setSmartLoading] = useState(false);
+  const [tickError, setTickError] = useState("");
+  const [lastRefreshAt, setLastRefreshAt] = useState("");
 
   const authed = token && token.trim().length > 10;
   const authHeaders = { "X-Operator-Token": token };
@@ -51,6 +115,57 @@ export default function OpsDashboard() {
       setCases([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadSmartQueue() {
+    if (!authed) return;
+    setSmartLoading(true);
+    setTickError("");
+    try {
+      const data = await fetchJson(`${API}/ops/queue-smart`, {
+        headers: authHeaders,
+      });
+      setSmartQueue({
+        items: data.items || [],
+        summary: data.summary || {},
+        count: data.count || 0,
+      });
+      setLastRefreshAt(new Date().toISOString());
+      setWorkerAlive(true);
+    } catch (e) {
+      setTickError(e.message || "No se pudo cargar la cola inteligente");
+      setWorkerAlive(false);
+    } finally {
+      setSmartLoading(false);
+    }
+  }
+
+  async function runTick() {
+    setTickLoading(true);
+    setTickError("");
+    try {
+      const data = await fetchJson(`${API}/ops/automation/tick?limit=25`, {
+        method: "POST",
+        headers: authHeaders,
+      });
+
+      setTickResult({
+        ...data,
+        ranAt: new Date().toISOString(),
+      });
+      setWorkerAlive(true);
+
+      if (data?.mode) {
+        setAutoMode(String(data.mode));
+      }
+
+      await Promise.all([loadQueue(), loadSmartQueue()]);
+    } catch (e) {
+      setTickError(e.message || "No se pudo ejecutar el tick");
+      setWorkerAlive(false);
+    } finally {
+      setTickLoading(false);
     }
   }
 
@@ -78,8 +193,34 @@ export default function OpsDashboard() {
   }
 
   useEffect(() => {
-    if (authed) loadQueue();
+    if (authed) {
+      loadQueue();
+      loadSmartQueue();
+    }
   }, [authed, status]);
+
+  useEffect(() => {
+    if (!authed || !autoRefresh) return;
+    const id = setInterval(() => {
+      loadSmartQueue();
+    }, 15000);
+    return () => clearInterval(id);
+  }, [authed, autoRefresh]);
+
+  const automaticItems = useMemo(
+    () => (smartQueue.items || []).filter((item) => classifyLane(item) === "AUTOMATICO"),
+    [smartQueue]
+  );
+
+  const manualItems = useMemo(
+    () => (smartQueue.items || []).filter((item) => classifyLane(item) === "MANUAL"),
+    [smartQueue]
+  );
+
+  const submittedItems = useMemo(
+    () => (cases || []).filter((c) => String(c.status || "") === "submitted"),
+    [cases]
+  );
 
   if (!authed) {
     return (
@@ -105,31 +246,113 @@ export default function OpsDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
 
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">Panel Operador</h1>
+        <div className="rounded-[22px] bg-slate-950 px-4 py-4 text-white shadow-xl mb-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.35em] text-slate-300">OPS · Monitor automático</div>
+              <h1 className="mt-1 text-2xl font-semibold">Panel Operador</h1>
+              <p className="mt-2 text-xs text-slate-300">
+                Control central del auto-submit + acceso rápido a la cola manual e inteligente.
+              </p>
+            </div>
 
-            <Link
-              to="/ops/queue-smart"
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/ops/queue-smart"
+                className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600"
+              >
+                🔥 Cola inteligente
+              </Link>
+
+              <button
+                type="button"
+                onClick={runTick}
+                disabled={tickLoading}
+                className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100 disabled:opacity-50"
+              >
+                {tickLoading ? "Ejecutando..." : "▶ Lanzar tick"}
+              </button>
+
+              <button
+                className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+                onClick={() => {
+                  localStorage.removeItem("ops_token");
+                  setToken("");
+                  setPin("");
+                }}
+              >
+                Salir
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {(error || tickError) ? (
+          <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {error || tickError}
+          </div>
+        ) : null}
+
+        <div className="bg-white rounded-xl shadow p-4 mb-6">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+            <h2 className="text-lg font-semibold">⚙️ Control automático</h2>
+
+            <button
               className="sr-btn-primary"
-              style={{ padding: "8px 12px", fontSize: "13px" }}
+              onClick={runTick}
+              disabled={tickLoading}
+              style={{ padding: "8px 14px" }}
             >
-              🔥 Cola inteligente
-            </Link>
+              {tickLoading ? "Ejecutando..." : "▶ Lanzar tick"}
+            </button>
           </div>
 
-          <button
-            className="text-sm text-gray-600 underline"
-            onClick={() => {
-              localStorage.removeItem("ops_token");
-              setToken("");
-              setPin("");
-            }}
-          >
-            Salir
-          </button>
+          <div className="flex gap-3 flex-wrap items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">Modo:</span>
+
+              <select
+                value={autoMode}
+                onChange={(e) => setAutoMode(e.target.value)}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value="off">OFF</option>
+                <option value="review">REVIEW</option>
+                <option value="on">ON</option>
+              </select>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={() => setAutoRefresh(!autoRefresh)}
+              />
+              Auto-refresh
+            </label>
+
+            <span className="text-xs text-slate-500">
+              Última actualización: {lastRefreshAt ? formatDate(lastRefreshAt) : "—"}
+            </span>
+          </div>
+
+          <div className="mt-4 flex gap-4 flex-wrap text-sm">
+            <span>🧠 Worker: {workerAlive ? "Activo" : "Parado"}</span>
+            <span>📦 Picked: {tickResult?.picked ?? "-"}</span>
+            <span>✅ Processed: {tickResult?.processed ?? "-"}</span>
+            <span>❌ Failed: {tickResult?.failed ?? "-"}</span>
+            <span>⏱ Último tick: {tickResult?.ranAt ? new Date(tickResult.ranAt).toLocaleTimeString() : "-"}</span>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 mb-5">
+          <StatCard title="Automáticos" value={automaticItems.length} tone="success" help="Casos limpios para auto-submit" />
+          <StatCard title="Manuales" value={manualItems.length} tone="danger" help="Casos que requieren operador" />
+          <StatCard title="En cola smart" value={smartQueue.count || 0} tone="info" help="Total en queue-smart" />
+          <StatCard title="Submitted visibles" value={submittedItems.length} tone="default" help="Según filtro actual de la cola clásica" />
+          <StatCard title="Modo actual" value={String(autoMode || "review").toUpperCase()} tone="warn" help="Control visual del auto-submit" />
         </div>
 
         <div className="bg-white rounded-xl shadow p-4 mb-6 flex gap-4 items-center flex-wrap">
@@ -147,11 +370,134 @@ export default function OpsDashboard() {
           </select>
 
           <button onClick={loadQueue} className="sr-btn-primary" style={{ padding: "8px 14px" }}>
-            Refrescar
+            Refrescar cola
           </button>
 
           {loading && <span className="text-sm text-gray-500">Cargando…</span>}
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {smartLoading && <span className="text-sm text-gray-500">Actualizando monitor…</span>}
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] mb-5">
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Monitor de auto-submit</h2>
+                <div className="text-xs text-slate-500">
+                  Vista operativa del motor automático usando cola inteligente + tick manual.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadSmartQueue}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Refrescar monitor
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="text-[11px] uppercase tracking-wide text-emerald-700/80">Auto-submit listo</div>
+                  <div className="mt-2 text-2xl font-semibold text-emerald-700">{automaticItems.length}</div>
+                  <div className="mt-1 text-xs text-emerald-700/80">Se presentarían rápido</div>
+                </div>
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="text-[11px] uppercase tracking-wide text-amber-700/80">Revisión manual</div>
+                  <div className="mt-2 text-2xl font-semibold text-amber-700">{manualItems.length}</div>
+                  <div className="mt-1 text-xs text-amber-700/80">Casos para operador</div>
+                </div>
+
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                  <div className="text-[11px] uppercase tracking-wide text-blue-700/80">Último tick</div>
+                  <div className="mt-2 text-sm font-semibold text-blue-700">
+                    {tickResult?.ranAt ? formatDate(tickResult.ranAt) : "Sin ejecutar manual"}
+                  </div>
+                  <div className="mt-2 text-xs text-blue-700/80">
+                    Modo: {tickResult?.mode || autoMode || "—"} · picked: {tickResult?.picked ?? "—"} · failed: {tickResult?.failed ?? "—"}
+                  </div>
+                </div>
+              </div>
+
+              {tickResult ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <Pill tone="info">picked: {tickResult.picked ?? 0}</Pill>
+                    <Pill tone="success">processed: {tickResult.processed ?? 0}</Pill>
+                    <Pill tone={(tickResult.failed || 0) > 0 ? "danger" : "default"}>
+                      failed: {tickResult.failed ?? 0}
+                    </Pill>
+                    <Pill tone="warn">mode: {tickResult.mode || autoMode || "—"}</Pill>
+                  </div>
+
+                  <div className="max-h-64 overflow-auto rounded-xl bg-white p-3 text-xs text-slate-700 border border-slate-200">
+                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(tickResult, null, 2)}</pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                  Todavía no has lanzado un tick manual desde el panel.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Siguiente foco</h2>
+              <div className="text-xs text-slate-500">Lo más útil para actuar ahora</div>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {automaticItems[0] ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-emerald-800">Próximo automático</div>
+                    <Pill tone="success">AUTO</Pill>
+                  </div>
+                  <div className="mt-2 text-sm text-slate-900 break-all">
+                    {automaticItems[0].expediente_ref || automaticItems[0].case_id}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-600">{automaticItems[0].contact_email || "—"}</div>
+                  <Link
+                    to={`/ops/case/${encodeURIComponent(automaticItems[0].case_id)}`}
+                    className="mt-3 inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Abrir caso
+                  </Link>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                  No hay casos automáticos detectados ahora.
+                </div>
+              )}
+
+              {manualItems[0] ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-amber-800">Próximo manual</div>
+                    <Pill tone="warn">REVISAR</Pill>
+                  </div>
+                  <div className="mt-2 text-sm text-slate-900 break-all">
+                    {manualItems[0].expediente_ref || manualItems[0].case_id}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-600">{manualItems[0].contact_email || "—"}</div>
+                  <Link
+                    to={`/ops/case/${encodeURIComponent(manualItems[0].case_id)}`}
+                    className="mt-3 inline-flex rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                  >
+                    Revisar caso
+                  </Link>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                  No hay casos manuales pendientes ahora.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow overflow-x-auto">
