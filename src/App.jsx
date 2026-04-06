@@ -20,6 +20,7 @@ import PartnerPanelExpedientes from "./pages/PartnerPanelExpedientes.jsx";
 import SolicitarAltaGestoria from "./pages/SolicitarAltaGestoria.jsx";
 import AdminCrearAsesoria from "./pages/AdminCrearAsesoria.jsx";
 import OPSQueueSmart from "./pages/OPSQueueSmart.jsx";
+import Autorizar from "./pages/Autorizar.jsx";
 
 
 // Pago (post-pago: datos + autorización)
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/gestorias/alta" element={<SolicitarAltaGestoria />} />
         <Route path="/admin/crear-asesoria" element={<AdminCrearAsesoria />} />
         <Route path="/ops/queue-smart" element={<OPSQueueSmart />} />
+        <Route path="/autorizar" element={<Autorizar />} />
 
         {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
