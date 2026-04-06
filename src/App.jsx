@@ -1,7 +1,8 @@
-// src/App.jsx — RecurreTuMulta (versión limpia MVP)
+// src/App.jsx — RecurreTuMulta
 import React from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import ResumenExpediente from "./pages/ResumenExpediente.jsx";
+import Autorizar from "./pages/Autorizar.jsx";
 
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -20,8 +21,6 @@ import PartnerPanelExpedientes from "./pages/PartnerPanelExpedientes.jsx";
 import SolicitarAltaGestoria from "./pages/SolicitarAltaGestoria.jsx";
 import AdminCrearAsesoria from "./pages/AdminCrearAsesoria.jsx";
 import OPSQueueSmart from "./pages/OPSQueueSmart.jsx";
-import Autorizar from "./pages/Autorizar.jsx";
-
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -64,37 +63,30 @@ export default function App() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/gestorias" element={<Gestorias />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
+        <Route path="/autorizar" element={<Autorizar />} />
         <Route path="/partner/upload" element={<PartnerUpload />} />
         <Route path="/partner/change-password" element={<PartnerChangePassword />} />
         <Route path="/partner/panel" element={<PartnerPanelExpedientes />} />
         <Route path="/gestorias/alta" element={<SolicitarAltaGestoria />} />
         <Route path="/admin/crear-asesoria" element={<AdminCrearAsesoria />} />
         <Route path="/ops/queue-smart" element={<OPSQueueSmart />} />
-        <Route path="/autorizar" element={<Autorizar />} />
 
-        {/* Post-pago */}
         <Route path="/pago-ok" element={<PagoOk />} />
         <Route path="/pago-cancel" element={<PagoCancel />} />
 
-        {/* Operador */}
         <Route path="/ops" element={<OpsDashboard />} />
         <Route path="/ops/case/:caseId" element={<OpsCaseDetail />} />
         <Route path="/ops/review/:caseId" element={<OpsCaseDetailPro />} />
-
-        {/* Alias seguros para evitar página en blanco si entras por otra URL */}
         <Route path="/ops/case/:caseId/review" element={<OpsCaseDetailPro />} />
         <Route path="/ops/pro/:caseId" element={<OpsCaseDetailPro />} />
 
-        {/* Libro de reservas (oculto) */}
         <Route path="/__reservas-restaurante" element={<ReservasRestaurante />} />
         <Route path="/__admin-restaurantes" element={<AdminRestaurantes />} />
 
-        {/* Legal */}
         <Route path="/aviso-legal" element={<AvisoLegal />} />
         <Route path="/privacidad" element={<Privacidad />} />
         <Route path="/cookies" element={<Cookies />} />
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
