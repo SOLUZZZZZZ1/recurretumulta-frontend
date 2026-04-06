@@ -21,7 +21,7 @@ export default function Navbar() {
       style={{
         width: "100%",
         background: "#0b4aa2",
-        padding: "10px 22px",
+        padding: "20px 22px", // 🔥 más altura
         boxSizing: "border-box",
       }}
     >
@@ -35,7 +35,7 @@ export default function Navbar() {
           gap: 18,
         }}
       >
-        {/* LOGO GRANDE */}
+        {/* 🔥 LOGO GRANDE */}
         <Link
           to="/"
           style={{
@@ -49,11 +49,11 @@ export default function Navbar() {
             src={logo}
             alt="RecurreTuMulta"
             style={{
-              height: 82,
-              maxWidth: 360,
+              height: 110, // 💣 doble de grande
               width: "auto",
               display: "block",
               objectFit: "contain",
+              filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.25))", // efecto pro
             }}
           />
         </Link>
