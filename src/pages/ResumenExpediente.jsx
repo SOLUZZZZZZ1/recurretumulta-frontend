@@ -44,19 +44,9 @@ export default function ResumenExpediente() {
   const q = useQuery();
   const caseId = q.get("case") || "";
 
-  const [analysis, setAnalysis] = useState(null);
   const [publicStatus, setPublicStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("rtm_last_analysis");
-      if (raw) setAnalysis(JSON.parse(raw));
-    } catch {}
-  }, []);
-
-  const extracted = analysis?.extracted?.extracted || analysis?.extracted || {};
 
   async function refresh(runReview = false) {
     if (!caseId) return;
@@ -105,16 +95,9 @@ export default function ResumenExpediente() {
 
         <div className="sr-card">
           <Row label="Expediente interno" value={caseId} />
-          <Row label="Organismo" value={extracted.organismo || "—"} />
-          <Row label="Referencia" value={extracted.expediente_ref || "—"} />
-          <Row
-            label="Tipo de escrito sugerido"
-            value={extracted.tipo_recurso_sugerido || "Recurso administrativo"}
-          />
-          <Row
-            label="Normativa aplicable"
-            value={extracted.normativa_aplicable || "Ley 39/2015"}
-          />
+          <Row label="Estado" value={publicStatus?.status || "uploaded"} />
+          <Row label="Autorización firmada" value={publicStatus?.authorized ? "Recibida" : "Pendiente"} />
+          <Row label="Pago" value={publicStatus?.payment_status || "Pendiente"} />
 
           <div style={{ marginTop: 10 }}>
             <div className="sr-small" style={{ fontWeight: 800 }}>
@@ -176,7 +159,7 @@ export default function ResumenExpediente() {
                 Tu recurso puede presentarse ahora
               </h3>
               <p className="sr-p">
-                Hemos revisado tu documentación y el recurso es viable en este
+                Hemos revisado tu documentación y tu expediente puede tramitarse en este
                 momento. Si quieres, podemos presentarlo en tu nombre.
               </p>
             </div>
@@ -191,8 +174,8 @@ export default function ResumenExpediente() {
               Expediente en revisión
             </h3>
             <p className="sr-p">
-              Estamos revisando tu documentación. Te indicaremos cuándo se puede
-              presentar correctamente.
+              Estamos revisando tu documentación. Desde aquí podrás seguir el estado de tu expediente
+              y completar los pasos pendientes cuando sea necesario.
             </p>
           </div>
         )}
