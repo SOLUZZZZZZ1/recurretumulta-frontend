@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import logo from "/rtm LOGO.png";
+import logo from "/rtm-logo-transparente.png";
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -13,6 +13,7 @@ export default function Navbar() {
     borderRadius: 10,
     background: pathname === to ? "rgba(255,255,255,0.12)" : "transparent",
     whiteSpace: "nowrap",
+    fontSize: 15,
   });
 
   return (
@@ -20,30 +21,44 @@ export default function Navbar() {
       style={{
         width: "100%",
         background: "#0b4aa2",
-        padding: "10px 18px",
+        padding: "10px 22px",
         boxSizing: "border-box",
       }}
     >
       <div
         style={{
-          maxWidth: 1200,
+          maxWidth: 1280,
           margin: "0 auto",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 14,
+          gap: 18,
         }}
       >
-        {/* Logo */}
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+        {/* LOGO GRANDE */}
+        <Link
+          to="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            flex: "0 0 auto",
+            textDecoration: "none",
+          }}
+        >
           <img
             src={logo}
             alt="RecurreTuMulta"
-            style={{ height: 34, width: "auto", display: "block" }}
+            style={{
+              height: 82,
+              maxWidth: 360,
+              width: "auto",
+              display: "block",
+              objectFit: "contain",
+            }}
           />
         </Link>
 
-        {/* Menú */}
+        {/* MENÚ */}
         <nav
           style={{
             display: "flex",
@@ -51,15 +66,13 @@ export default function Navbar() {
             gap: 8,
             flexWrap: "wrap",
             justifyContent: "flex-end",
+            flex: 1,
           }}
         >
           <Link to="/" style={linkStyle("/")}>Inicio</Link>
           <Link to="/como-funciona" style={linkStyle("/como-funciona")}>Cómo funciona</Link>
           <Link to="/precios" style={linkStyle("/precios")}>Precios</Link>
-
-          {/* ✅ Asesorías apunta a /gestorias y usa el mismo estilo */}
           <Link to="/gestorias" style={linkStyle("/gestorias")}>Asesorías</Link>
-
           <Link to="/faq" style={linkStyle("/faq")}>FAQ</Link>
           <Link to="/contacto" style={linkStyle("/contacto")}>Contacto</Link>
         </nav>
