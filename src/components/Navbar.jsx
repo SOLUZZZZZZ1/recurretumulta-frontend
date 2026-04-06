@@ -21,27 +21,26 @@ export default function Navbar() {
       style={{
         width: "100%",
         background: "#0b4aa2",
-        padding: "20px 22px", // 🔥 más altura
+        padding: "10px 18px", // 🔵 dejamos altura original
         boxSizing: "border-box",
       }}
     >
       <div
         style={{
-          maxWidth: 1280,
+          maxWidth: 1200,
           margin: "0 auto",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 18,
+          gap: 14,
         }}
       >
-        {/* 🔥 LOGO GRANDE */}
+        {/* LOGO */}
         <Link
           to="/"
           style={{
             display: "flex",
             alignItems: "center",
-            flex: "0 0 auto",
             textDecoration: "none",
           }}
         >
@@ -49,11 +48,10 @@ export default function Navbar() {
             src={logo}
             alt="RecurreTuMulta"
             style={{
-              height: 110, // 💣 doble de grande
+              height: 60, // 🔥 MÁS GRANDE sin romper barra
               width: "auto",
               display: "block",
               objectFit: "contain",
-              filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.25))", // efecto pro
             }}
           />
         </Link>
@@ -66,7 +64,6 @@ export default function Navbar() {
             gap: 8,
             flexWrap: "wrap",
             justifyContent: "flex-end",
-            flex: 1,
           }}
         >
           <Link to="/" style={linkStyle("/")}>Inicio</Link>
