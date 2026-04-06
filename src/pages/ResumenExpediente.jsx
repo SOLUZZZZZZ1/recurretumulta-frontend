@@ -19,6 +19,30 @@ async function fetchJson(url, options = {}) {
   return data;
 }
 
+function isDevSandbox(searchParams) {
+  const stored = window.localStorage.getItem("rtm_dev_mode") === "1";
+  const isLocalhost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+  return searchParams.get("dev") === "1" || stored || isLocalhost;
+}
+
+function getMockStatus(caseId) {
+  try {
+    const raw = window.localStorage.getItem(`rtm_mock_case_${caseId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMockStatus(caseId, patch = {}) {
+  const prev = getMockStatus(caseId) || {};
+  const next = { ...prev, ...patch };
+  window.localStorage.setItem(`rtm_mock_case_${caseId}`, JSON.stringify(next));
+  return next;
+}
+
 function Row({ label, value }) {
   return (
     <div
@@ -43,6 +67,7 @@ function Row({ label, value }) {
 export default function ResumenExpediente() {
   const q = useQuery();
   const caseId = q.get("case") || "";
+  const devMode = isDevSandbox(q);
 
   const [publicStatus, setPublicStatus] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -53,6 +78,17 @@ export default function ResumenExpediente() {
     setErr("");
     setLoading(true);
     try {
+      if (devMode) {
+        const mock = getMockStatus(caseId) || {
+          status: "uploaded",
+          message: "Modo prueba activo. Selecciona un estado para simular el flujo.",
+          payment_status: "pending",
+          authorized: false,
+        };
+        setPublicStatus(mock);
+        return;
+      }
+
       if (runReview) {
         await fetchJson(`${API}/cases/${encodeURIComponent(caseId)}/review`, {
           method: "POST",
@@ -69,14 +105,35 @@ export default function ResumenExpediente() {
     }
   }
 
-  // Revisión automática al entrar
   useEffect(() => {
     if (!caseId) return;
     refresh(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseId]);
+  }, [caseId, devMode]);
 
   const status = publicStatus?.status || "uploaded";
+
+  function applyDevStatus(nextStatus) {
+    if (!caseId) return;
+    const messages = {
+      uploaded: "Modo prueba: expediente creado y pendiente de revisión.",
+      pending_documents: "Modo prueba: expediente pendiente de documentación.",
+      awaiting_authorization: "Modo prueba: falta autorización firmada.",
+      ready_to_pay: "Modo prueba: expediente listo para pago.",
+      paid: "Modo prueba: pago simulado correctamente.",
+      in_review: "Modo prueba: expediente en revisión.",
+    };
+
+    const patch = {
+      status: nextStatus,
+      message: messages[nextStatus] || "Modo prueba activo.",
+      payment_status: nextStatus === "paid" ? "paid" : "pending",
+      authorized: nextStatus === "ready_to_pay" || nextStatus === "paid",
+    };
+
+    const next = saveMockStatus(caseId, patch);
+    setPublicStatus(next);
+  }
 
   return (
     <>
@@ -92,6 +149,36 @@ export default function ResumenExpediente() {
             ← Volver
           </Link>
         </div>
+
+        {devMode && (
+          <div className="sr-card" style={{ background: "#fffbeb", border: "1px solid #fde68a", marginBottom: 14 }}>
+            <h3 className="sr-h3" style={{ marginTop: 0 }}>🧪 Sandbox de prueba</h3>
+            <p className="sr-p">
+              Este modo te permite probar el flujo completo sin una multa real y sin depender del backend.
+            </p>
+            <div className="sr-cta-row" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+              <button className="sr-btn-secondary" onClick={() => applyDevStatus("uploaded")}>
+                Expediente creado
+              </button>
+              <button className="sr-btn-secondary" onClick={() => applyDevStatus("awaiting_authorization")}>
+                Falta autorización
+              </button>
+              <button className="sr-btn-secondary" onClick={() => applyDevStatus("pending_documents")}>
+                Faltan documentos
+              </button>
+              <button className="sr-btn-secondary" onClick={() => applyDevStatus("ready_to_pay")}>
+                Listo para pago
+              </button>
+              <button className="sr-btn-secondary" onClick={() => applyDevStatus("paid")}>
+                Pago simulado
+              </button>
+            </div>
+            <div className="sr-small" style={{ marginTop: 10, color: "#6b7280" }}>
+              Actívalo entrando a la ruta con <strong>?dev=1</strong>, por ejemplo:
+              {" "}#/resumen?case=TEST-001&dev=1
+            </div>
+          </div>
+        )}
 
         <div className="sr-card">
           <Row label="Expediente interno" value={caseId} />
@@ -130,6 +217,15 @@ export default function ResumenExpediente() {
             >
               {loading ? "Revisando…" : "Revisar de nuevo"}
             </button>
+
+            {devMode && (
+              <Link
+                to={`/autorizar?case=${encodeURIComponent(caseId)}&dev=1`}
+                className="sr-btn-secondary"
+              >
+                Ir a autorización (modo prueba)
+              </Link>
+            )}
           </div>
         </div>
 
@@ -143,12 +239,30 @@ export default function ResumenExpediente() {
                 Aún no se puede presentar el recurso. Si recibes una nueva
                 notificación o resolución, súbela para completar el expediente.
               </p>
-            
 
-            <ContactoExpediente caseId={caseId} publicStatus={publicStatus} onSaved={() => refresh(false)} />
-</div>
+              <ContactoExpediente caseId={caseId} publicStatus={publicStatus} onSaved={() => refresh(false)} />
+            </div>
 
             <AppendDocuments caseId={caseId} onDone={() => refresh(true)} />
+          </div>
+        )}
+
+        {status === "awaiting_authorization" && (
+          <div style={{ marginTop: 14 }} className="sr-card">
+            <h3 className="sr-h3" style={{ marginTop: 0 }}>
+              Falta la autorización firmada
+            </h3>
+            <p className="sr-p">
+              Antes de continuar, necesitamos la autorización firmada para poder tramitar tu expediente en tu nombre.
+            </p>
+            <div className="sr-cta-row" style={{ justifyContent: "flex-start" }}>
+              <Link
+                to={`/autorizar?case=${encodeURIComponent(caseId)}${devMode ? "&dev=1" : ""}`}
+                className="sr-btn-primary"
+              >
+                Completar autorización
+              </Link>
+            </div>
           </div>
         )}
 
@@ -156,7 +270,7 @@ export default function ResumenExpediente() {
           <div style={{ marginTop: 14 }}>
             <div className="sr-card">
               <h3 className="sr-h3" style={{ marginTop: 0 }}>
-                Tu recurso puede presentarse ahora
+                Tu expediente puede tramitarse ahora
               </h3>
               <p className="sr-p">
                 Hemos revisado tu documentación y tu expediente puede tramitarse en este
@@ -164,11 +278,38 @@ export default function ResumenExpediente() {
               </p>
             </div>
 
-            <PagarPresentar caseId={caseId} />
+            {devMode ? (
+              <div className="sr-card">
+                <p className="sr-p" style={{ marginTop: 0 }}>
+                  🧪 <strong>Modo prueba:</strong> el pago real está desactivado.
+                </p>
+                <div className="sr-cta-row" style={{ justifyContent: "flex-start" }}>
+                  <button className="sr-btn-primary" onClick={() => applyDevStatus("paid")}>
+                    Simular pago correcto
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <PagarPresentar caseId={caseId} />
+            )}
           </div>
         )}
 
-        {status !== "pending_documents" && status !== "ready_to_pay" && (
+        {status === "paid" && (
+          <div style={{ marginTop: 14 }} className="sr-card">
+            <h3 className="sr-h3" style={{ marginTop: 0 }}>
+              Pago confirmado
+            </h3>
+            <p className="sr-p">
+              Tu expediente ha quedado marcado como pagado. Continuamos con la tramitación.
+            </p>
+          </div>
+        )}
+
+        {status !== "pending_documents" &&
+          status !== "ready_to_pay" &&
+          status !== "awaiting_authorization" &&
+          status !== "paid" && (
           <div style={{ marginTop: 14 }} className="sr-card">
             <h3 className="sr-h3" style={{ marginTop: 0 }}>
               Expediente en revisión

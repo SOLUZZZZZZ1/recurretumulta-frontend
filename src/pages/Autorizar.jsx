@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
 
@@ -11,12 +11,43 @@ async function fetchJson(url, options = {}) {
   return data;
 }
 
+function readHashParams() {
+  const hash = window.location.hash || "";
+  const idx = hash.indexOf("?");
+  return new URLSearchParams(idx >= 0 ? hash.slice(idx + 1) : "");
+}
+
+function isDevSandbox() {
+  const params = readHashParams();
+  const stored = window.localStorage.getItem("rtm_dev_mode") === "1";
+  const isLocalhost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+  return params.get("dev") === "1" || stored || isLocalhost;
+}
+
+function getMockStatus(caseId) {
+  try {
+    const raw = window.localStorage.getItem(`rtm_mock_case_${caseId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMockStatus(caseId, patch = {}) {
+  const prev = getMockStatus(caseId) || {};
+  const next = { ...prev, ...patch };
+  window.localStorage.setItem(`rtm_mock_case_${caseId}`, JSON.stringify(next));
+  return next;
+}
+
 export default function Autorizar() {
   const navigate = useNavigate();
-  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  const params = useMemo(() => readHashParams(), []);
   const caseId = params.get("case") || "";
+  const devMode = isDevSandbox();
 
-  const [statusData, setStatusData] = useState(null);
   const [form, setForm] = useState({
     full_name: "",
     dni_nie: "",
@@ -48,10 +79,22 @@ export default function Autorizar() {
       setLoadingStatus(true);
       setError("");
       try {
+        if (devMode) {
+          const mock = getMockStatus(caseId) || {};
+          if (cancelled) return;
+          setForm((prev) => ({
+            full_name: mock?.full_name || prev.full_name || "",
+            dni_nie: mock?.dni_nie || prev.dni_nie || "",
+            domicilio_notif: mock?.domicilio_notif || prev.domicilio_notif || "",
+            email: mock?.email || prev.email || "",
+            telefono: mock?.telefono || prev.telefono || "",
+          }));
+          if (mock?.authorized) setAuthorizationGenerated(true);
+          return;
+        }
+
         const data = await fetchJson(`${API}/cases/${encodeURIComponent(caseId)}/public-status`);
         if (cancelled) return;
-        setStatusData(data || null);
-
         setForm((prev) => ({
           full_name: data?.full_name || prev.full_name || "",
           dni_nie: data?.dni_nie || prev.dni_nie || "",
@@ -74,7 +117,7 @@ export default function Autorizar() {
     return () => {
       cancelled = true;
     };
-  }, [caseId]);
+  }, [caseId, devMode]);
 
   async function handleGenerateAuthorization() {
     setError("");
@@ -87,6 +130,24 @@ export default function Autorizar() {
     if (!form.email.trim()) return setError("Introduce un email válido.");
     if (!acceptedText) return setError("Debes aceptar el texto de autorización.");
     if (!confirmedIdentity) return setError("Debes confirmar que los datos corresponden a tu persona.");
+
+    if (devMode) {
+      saveMockStatus(caseId, {
+        full_name: form.full_name.trim(),
+        dni_nie: form.dni_nie.trim().toUpperCase(),
+        domicilio_notif: form.domicilio_notif.trim(),
+        email: form.email.trim(),
+        telefono: form.telefono?.trim() ? form.telefono.trim() : null,
+        authorized: true,
+        authorization_signed_uploaded: false,
+        status: "ready_to_pay",
+        payment_status: "pending",
+        message: "Modo prueba: autorización generada y expediente listo para pago.",
+      });
+      setAuthorizationGenerated(true);
+      setOkMsg("✅ [Modo prueba] Autorización simulada. Ya puedes continuar sin backend real.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -126,6 +187,12 @@ export default function Autorizar() {
       setError("Falta el expediente interno.");
       return;
     }
+
+    if (devMode) {
+      setOkMsg("✅ [Modo prueba] Descarga simulada. Puedes seguir con la subida simulada.");
+      return;
+    }
+
     window.open(`${API}/cases/${encodeURIComponent(caseId)}/authorization-pdf`, "_blank");
   }
 
@@ -134,7 +201,22 @@ export default function Autorizar() {
     setOkMsg("");
 
     if (!caseId) return setError("Falta el expediente interno.");
-    if (!signedFile) return setError("Debes seleccionar la autorización firmada.");
+    if (!signedFile && !devMode) return setError("Debes seleccionar la autorización firmada.");
+
+    if (devMode) {
+      saveMockStatus(caseId, {
+        authorized: true,
+        authorization_signed_uploaded: true,
+        status: "ready_to_pay",
+        payment_status: "pending",
+        message: "Modo prueba: autorización firmada simulada correctamente.",
+      });
+      setOkMsg("✅ [Modo prueba] Autorización firmada simulada correctamente.");
+      setTimeout(() => {
+        navigate(`/resumen?case=${encodeURIComponent(caseId)}&dev=1`);
+      }, 700);
+      return;
+    }
 
     setUploadingSigned(true);
     try {
@@ -169,12 +251,23 @@ export default function Autorizar() {
       <main className="sr-container py-12">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <h1 className="sr-h1">Autorización previa al pago</h1>
-          <Link to={caseId ? `/resumen?case=${encodeURIComponent(caseId)}` : "/"} className="sr-btn-secondary">
+          <Link
+            to={caseId ? `/resumen?case=${encodeURIComponent(caseId)}${devMode ? "&dev=1" : ""}` : "/"}
+            className="sr-btn-secondary"
+          >
             ← Volver
           </Link>
         </div>
 
         <div className="sr-card">
+          {devMode && (
+            <div className="sr-card" style={{ background: "#fffbeb", border: "1px solid #fde68a", marginBottom: 14 }}>
+              <p className="sr-p" style={{ margin: 0 }}>
+                🧪 <strong>Modo prueba activo.</strong> Puedes simular autorización y subida firmada sin usar backend real.
+              </p>
+            </div>
+          )}
+
           <p className="sr-p" style={{ marginTop: 0 }}>
             Antes de pagar, necesitamos tus datos como interesado y una autorización firmada para poder
             presentar el recurso en tu nombre.
@@ -210,27 +303,16 @@ export default function Autorizar() {
           )}
 
           <h3 className="sr-h3" style={{ marginTop: 18 }}>Paso 1 · Datos del interesado</h3>
-          <p className="sr-small" style={{ color: "#6b7280", marginTop: 6 }}>
-            Estos datos se usarán para generar la autorización que tendrás que descargar, firmar y volver a subir.
-          </p>
 
           <div className="grid gap-3" style={{ maxWidth: 760, marginTop: 10 }}>
             <div>
               <label className="sr-small" style={{ fontWeight: 800 }}>Nombre y apellidos</label>
-              <input
-                className="sr-input"
-                value={form.full_name}
-                onChange={(e) => setField("full_name", e.target.value)}
-              />
+              <input className="sr-input" value={form.full_name} onChange={(e) => setField("full_name", e.target.value)} />
             </div>
 
             <div>
               <label className="sr-small" style={{ fontWeight: 800 }}>DNI / NIE / Pasaporte</label>
-              <input
-                className="sr-input"
-                value={form.dni_nie}
-                onChange={(e) => setField("dni_nie", e.target.value.toUpperCase())}
-              />
+              <input className="sr-input" value={form.dni_nie} onChange={(e) => setField("dni_nie", e.target.value.toUpperCase())} />
             </div>
 
             <div>
@@ -246,21 +328,11 @@ export default function Autorizar() {
             <div className="grid md:grid-cols-2 gap-3">
               <div>
                 <label className="sr-small" style={{ fontWeight: 800 }}>Email</label>
-                <input
-                  className="sr-input"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setField("email", e.target.value)}
-                />
+                <input className="sr-input" type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} />
               </div>
               <div>
                 <label className="sr-small" style={{ fontWeight: 800 }}>Teléfono</label>
-                <input
-                  className="sr-input"
-                  type="tel"
-                  value={form.telefono}
-                  onChange={(e) => setField("telefono", e.target.value)}
-                />
+                <input className="sr-input" type="tel" value={form.telefono} onChange={(e) => setField("telefono", e.target.value)} />
               </div>
             </div>
           </div>
@@ -277,20 +349,12 @@ export default function Autorizar() {
           </div>
 
           <label className="sr-small" style={{ display: "block", marginTop: 14 }}>
-            <input
-              type="checkbox"
-              checked={acceptedText}
-              onChange={(e) => setAcceptedText(e.target.checked)}
-            />{" "}
+            <input type="checkbox" checked={acceptedText} onChange={(e) => setAcceptedText(e.target.checked)} />{" "}
             He leído y acepto el texto de autorización.
           </label>
 
           <label className="sr-small" style={{ display: "block", marginTop: 8 }}>
-            <input
-              type="checkbox"
-              checked={confirmedIdentity}
-              onChange={(e) => setConfirmedIdentity(e.target.checked)}
-            />{" "}
+            <input type="checkbox" checked={confirmedIdentity} onChange={(e) => setConfirmedIdentity(e.target.checked)} />{" "}
             Confirmo que los datos facilitados corresponden a mi persona y son correctos.
           </label>
 
@@ -298,29 +362,12 @@ export default function Autorizar() {
             <button className="sr-btn-primary" onClick={handleGenerateAuthorization} disabled={loading}>
               {loading ? "Generando…" : "Guardar datos y generar autorización"}
             </button>
-
-            <Link to={caseId ? `/resumen?case=${encodeURIComponent(caseId)}` : "/"} className="sr-btn-secondary">
-              Volver al expediente
-            </Link>
           </div>
 
           <h3 className="sr-h3" style={{ marginTop: 24 }}>Paso 3 · Descargar, firmar y volver a subir</h3>
 
-          <div className="sr-card" style={{ background: "#f9fafb" }}>
-            <ol className="sr-p" style={{ margin: 0, paddingLeft: 18 }}>
-              <li>Descarga la autorización.</li>
-              <li>Fírmala a mano.</li>
-              <li>Haz una foto o escanéala.</li>
-              <li>Sube aquí el PDF o la imagen firmada.</li>
-            </ol>
-          </div>
-
           <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 14 }}>
-            <button
-              className="sr-btn-secondary"
-              onClick={handleDownloadAuthorization}
-              disabled={!authorizationGenerated}
-            >
+            <button className="sr-btn-secondary" onClick={handleDownloadAuthorization} disabled={!authorizationGenerated}>
               📄 Descargar autorización
             </button>
           </div>
@@ -345,14 +392,10 @@ export default function Autorizar() {
             <button
               className="sr-btn-primary"
               onClick={handleUploadSigned}
-              disabled={uploadingSigned || !signedFile}
+              disabled={uploadingSigned || (!signedFile && !devMode)}
             >
               {uploadingSigned ? "Subiendo…" : "Subir autorización firmada"}
             </button>
-          </div>
-
-          <div className="sr-small" style={{ marginTop: 12, color: "#6b7280" }}>
-            Se registrarán la fecha, la hora, la IP y el navegador utilizado para esta autorización.
           </div>
         </div>
       </main>
