@@ -1,70 +1,79 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function Contacto() {
-  const API_BASE = useMemo(
-    () => (import.meta.env.VITE_API_URL || "").replace(/\/$/, ""),
-    []
-  );
-
-  const [form, setForm] = useState({
-    tipo_consulta: "",
-    nombre: "",
-    email: "",
-    mensaje: "",
-  });
+  const [tipo, setTipo] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [email, setEmail] = useState("");
+  const [mensaje, setMensaje] = useState("");
   const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState({ type: "", text: "" });
+  const [status, setStatus] = useState({ type: "", message: "" });
 
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  const CONTACT_URL = API_BASE ? `${API_BASE}/contact` : "/contact";
 
-  const onSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setSending(true);
-    setStatus({ type: "", text: "" });
+    setStatus({ type: "", message: "" });
+
+    if (!tipo || !nombre || !email || !mensaje) {
+      setStatus({
+        type: "error",
+        message: "Por favor, completa todos los campos.",
+      });
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_BASE}/contact`, {
+      setSending(true);
+
+      const res = await fetch(CONTACT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          tipo_consulta: tipo,
+          nombre,
+          email,
+          mensaje,
+        }),
       });
 
-      const data = await response.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(data?.detail || "No se pudo enviar la consulta.");
+      if (!res.ok) {
+        throw new Error(
+          data?.detail || data?.message || "No se pudo enviar la consulta."
+        );
       }
 
       setStatus({
         type: "success",
-        text: "Consulta enviada correctamente. La revisaremos lo antes posible.",
+        message: "Consulta enviada correctamente.",
       });
 
-      setForm({
-        tipo_consulta: "",
-        nombre: "",
-        email: "",
-        mensaje: "",
-      });
-    } catch (error) {
+      setTipo("");
+      setNombre("");
+      setEmail("");
+      setMensaje("");
+    } catch (err) {
       setStatus({
         type: "error",
-        text: error.message || "Ha ocurrido un error al enviar la consulta.",
+        message:
+          err?.message ||
+          "Ha ocurrido un error al enviar la consulta. Inténtalo de nuevo.",
       });
     } finally {
       setSending(false);
     }
-  };
+  }
 
   return (
     <div style={{ padding: "40px 20px", maxWidth: "900px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "32px", marginBottom: "10px" }}>Contacto</h1>
+      <h1 style={{ fontSize: "32px", marginBottom: "10px" }}>
+        Contacto
+      </h1>
 
       <p style={{ fontSize: "18px", marginBottom: "20px", color: "#555" }}>
         Canal de contacto para consultas relacionadas con expedientes, incidencias o colaboraciones.
@@ -79,7 +88,9 @@ export default function Contacto() {
           border: "1px solid #e5e7eb",
         }}
       >
-        <p style={{ marginBottom: "10px", fontWeight: "600" }}>Antes de contactar</p>
+        <p style={{ marginBottom: "10px", fontWeight: "600" }}>
+          Antes de contactar
+        </p>
         <p style={{ marginBottom: "10px", color: "#555" }}>
           Si desea saber si su multa puede recurrirse, utilice directamente el proceso de análisis.
         </p>
@@ -109,7 +120,9 @@ export default function Contacto() {
         }}
       >
         <h3 style={{ marginBottom: "10px" }}>Email</h3>
-        <p style={{ marginBottom: "20px" }}>info@recurretumulta.eu</p>
+        <p style={{ marginBottom: "20px" }}>
+          info@recurretumulta.eu
+        </p>
 
         <h3 style={{ marginBottom: "10px" }}>Empresa</h3>
         <p>
@@ -134,48 +147,74 @@ export default function Contacto() {
           Este canal no ofrece atención inmediata. Respondemos lo antes posible en consultas justificadas.
         </p>
 
-        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+        {status.message ? (
+          <div
+            style={{
+              marginBottom: "20px",
+              padding: "12px 14px",
+              borderRadius: "8px",
+              backgroundColor:
+                status.type === "success" ? "#ecfdf5" : "#fef2f2",
+              color: status.type === "success" ? "#166534" : "#991b1b",
+              border:
+                status.type === "success"
+                  ? "1px solid #bbf7d0"
+                  : "1px solid #fecaca",
+            }}
+          >
+            {status.message}
+          </div>
+        ) : null}
+
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "15px" }}
+        >
           <select
-            name="tipo_consulta"
-            value={form.tipo_consulta}
-            onChange={onChange}
             required
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value)}
             style={{ padding: "12px", fontSize: "16px" }}
           >
             <option value="">Tipo de consulta</option>
-            <option value="Incidencia con un expediente">Incidencia con un expediente</option>
-            <option value="Consulta sobre un servicio contratado">Consulta sobre un servicio contratado</option>
-            <option value="Colaboraciones / gestorías">Colaboraciones / gestorías</option>
-            <option value="Otros (justificados)">Otros (justificados)</option>
+            <option value="Incidencia con un expediente">
+              Incidencia con un expediente
+            </option>
+            <option value="Consulta sobre un servicio contratado">
+              Consulta sobre un servicio contratado
+            </option>
+            <option value="Colaboraciones / gestorías">
+              Colaboraciones / gestorías
+            </option>
+            <option value="Otros (justificados)">
+              Otros (justificados)
+            </option>
           </select>
 
           <input
             type="text"
-            name="nombre"
             placeholder="Nombre"
-            value={form.nombre}
-            onChange={onChange}
             required
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
             style={{ padding: "12px", fontSize: "16px" }}
           />
 
           <input
             type="email"
-            name="email"
             placeholder="Email"
-            value={form.email}
-            onChange={onChange}
             required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             style={{ padding: "12px", fontSize: "16px" }}
           />
 
           <textarea
-            name="mensaje"
             placeholder="Describe tu consulta con detalle..."
             rows="5"
-            value={form.mensaje}
-            onChange={onChange}
             required
+            value={mensaje}
+            onChange={(e) => setMensaje(e.target.value)}
             style={{ padding: "12px", fontSize: "16px" }}
           />
 
@@ -190,26 +229,12 @@ export default function Contacto() {
               fontSize: "16px",
               cursor: sending ? "not-allowed" : "pointer",
               borderRadius: "8px",
+              opacity: sending ? 0.9 : 1,
             }}
           >
             {sending ? "Enviando..." : "Enviar consulta"}
           </button>
         </form>
-
-        {status.text ? (
-          <div
-            style={{
-              marginTop: "16px",
-              padding: "12px 14px",
-              borderRadius: "8px",
-              background: status.type === "success" ? "#ecfdf5" : "#fef2f2",
-              color: status.type === "success" ? "#166534" : "#991b1b",
-              border: `1px solid ${status.type === "success" ? "#bbf7d0" : "#fecaca"}`,
-            }}
-          >
-            {status.text}
-          </div>
-        ) : null}
       </div>
 
       <p
