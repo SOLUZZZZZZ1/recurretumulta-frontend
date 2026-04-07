@@ -23,7 +23,7 @@ export default function Precios() {
           <h2 className="sr-h2">Presentación del recurso</h2>
 
           <p className="sr-p" style={{ fontSize: 28, fontWeight: 800, marginBottom: 10 }}>
-            Desde 20,00 €
+            Desde 19,90 € + impuestos 24,00 €
           </p>
 
           <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18, marginTop: 0 }}>
