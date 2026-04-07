@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 export default function Contacto() {
   return (
     <div style={{ padding: "40px 20px", maxWidth: "900px", margin: "0 auto" }}>
-
       {/* TÍTULO */}
       <h1 style={{ fontSize: "32px", marginBottom: "10px" }}>
         Contacto
@@ -16,13 +15,15 @@ export default function Contacto() {
       </p>
 
       {/* AVISO IMPORTANTE */}
-      <div style={{
-        background: "#f8f9fa",
-        padding: "20px",
-        borderRadius: "10px",
-        marginBottom: "30px",
-        border: "1px solid #e5e7eb"
-      }}>
+      <div
+        style={{
+          background: "#f8f9fa",
+          padding: "20px",
+          borderRadius: "10px",
+          marginBottom: "30px",
+          border: "1px solid #e5e7eb",
+        }}
+      >
         <p style={{ marginBottom: "10px", fontWeight: "600" }}>
           Antes de contactar
         </p>
@@ -30,45 +31,54 @@ export default function Contacto() {
           Si desea saber si su multa puede recurrirse, utilice directamente el proceso de análisis.
         </p>
 
-        <Link to="/" style={{
-          display: "inline-block",
-          padding: "12px 18px",
-          backgroundColor: "#22c55e",
-          color: "white",
-          textDecoration: "none",
-          borderRadius: "8px",
-          fontWeight: "600"
-        }}>
+        <Link
+          to="/"
+          style={{
+            display: "inline-block",
+            padding: "12px 18px",
+            backgroundColor: "#22c55e",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: "8px",
+            fontWeight: "600",
+          }}
+        >
           Subir mi multa ahora
         </Link>
       </div>
 
       {/* DATOS EMPRESA */}
-      <div style={{
-        background: "rgba(255,255,255,0.9)",
-        padding: "25px",
-        borderRadius: "12px",
-        marginBottom: "30px"
-      }}>
+      <div
+        style={{
+          background: "rgba(255,255,255,0.9)",
+          padding: "25px",
+          borderRadius: "12px",
+          marginBottom: "30px",
+        }}
+      >
         <h3 style={{ marginBottom: "10px" }}>Email</h3>
         <p style={{ marginBottom: "20px" }}>
-          soporte@recurretumulta.com
+          info@recurretumulta.eu
         </p>
 
         <h3 style={{ marginBottom: "10px" }}>Empresa</h3>
         <p>
-          LA TALAMANQUINA, S.L.<br/>
-          Calle Velázquez, 15<br/>
+          LA TALAMANQUINA, S.L.
+          <br />
+          Calle Velázquez, 15
+          <br />
           28001 Madrid (España)
         </p>
       </div>
 
       {/* FORMULARIO FILTRADO */}
-      <div style={{
-        background: "rgba(255,255,255,0.9)",
-        padding: "25px",
-        borderRadius: "12px"
-      }}>
+      <div
+        style={{
+          background: "rgba(255,255,255,0.9)",
+          padding: "25px",
+          borderRadius: "12px",
+        }}
+      >
         <h3 style={{ marginBottom: "15px" }}>Enviar consulta</h3>
 
         <p style={{ fontSize: "14px", color: "#666", marginBottom: "20px" }}>
@@ -82,12 +92,7 @@ export default function Contacto() {
           }}
           style={{ display: "flex", flexDirection: "column", gap: "15px" }}
         >
-
-          {/* TIPO DE CONSULTA */}
-          <select
-            required
-            style={{ padding: "12px", fontSize: "16px" }}
-          >
+          <select required style={{ padding: "12px", fontSize: "16px" }}>
             <option value="">Tipo de consulta</option>
             <option>Incidencia con un expediente</option>
             <option>Consulta sobre un servicio contratado</option>
@@ -125,7 +130,7 @@ export default function Contacto() {
               border: "none",
               fontSize: "16px",
               cursor: "pointer",
-              borderRadius: "8px"
+              borderRadius: "8px",
             }}
           >
             Enviar consulta
@@ -134,15 +139,16 @@ export default function Contacto() {
       </div>
 
       {/* NOTA FINAL */}
-      <p style={{
-        marginTop: "30px",
-        fontSize: "14px",
-        color: "#777",
-        textAlign: "center"
-      }}>
+      <p
+        style={{
+          marginTop: "30px",
+          fontSize: "14px",
+          color: "#777",
+          textAlign: "center",
+        }}
+      >
         Este canal está destinado a consultas serias y justificadas.
       </p>
-
     </div>
   );
 }
