@@ -41,8 +41,8 @@ export default function Inicio() {
           </p>
 
           <p className="sr-hero-sub" style={{ marginTop: 10 }}>
-            Si el caso es viable, preparamos el recurso y, si lo deseas, nos
-            encargamos también de presentarlo por ti.
+            Si el caso es viable, preparamos el recurso y nos
+            encargamos de presentarlo por ti.
           </p>
 
           <div className="sr-cta-row">
