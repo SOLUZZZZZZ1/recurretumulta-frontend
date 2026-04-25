@@ -1,107 +1,46 @@
-import Seo from "../components/Seo.jsx";
-import UploadExpediente from "../components/UploadExpediente.jsx";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import React from "react";
 
 export default function Inicio() {
-  const navigate = useNavigate();
-  const [caseId, setCaseId] = useState("");
-  const [msg, setMsg] = useState("");
-
-  function goResume() {
-    const v = (caseId || "").trim();
-    if (!v) {
-      setMsg("Introduce tu número de expediente para recuperarlo.");
-      return;
-    }
-    setMsg("");
-    navigate(`/resumen?case=${encodeURIComponent(v)}`);
-  }
-
   return (
-    <>
-      <Seo
-        title="RecurreTuMulta · Asistencia administrativa automatizada"
-        description="Sube hasta 5 documentos y analizamos el expediente para preparar el recurso adecuado."
-        canonical="https://www.recurretumulta.eu/"
-      />
+    <div style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
+      
+      {/* HERO */}
+      <h1 style={{ fontSize: "32px", marginBottom: "20px" }}>
+        No pagues una multa sin revisarla antes
+      </h1>
 
-      <main className="sr-hero-marmol">
-        <div className="sr-hero-panel">
-          <h1 className="sr-hero-title">Recurre tu trámite en minutos</h1>
+      <p style={{ fontSize: "18px", marginBottom: "20px" }}>
+        Analizamos tu multa con tecnología jurídica especializada y te indicamos si puedes recurrirla.
+        Si es viable, generamos el recurso o nos encargamos de todo por ti.
+      </p>
 
-          <p className="sr-hero-sub">
-            Sube tu <strong>expediente</strong> (hasta 5 documentos). El sistema
-            reconstruirá el hilo del procedimiento y propondrá el recurso
-            correcto.
-          </p>
+      <button style={{ padding: "12px 20px", fontSize: "16px", cursor: "pointer" }}>
+        Subir multa ahora
+      </button>
 
-          {/* CTA hero (sin "Subir documentos" duplicado) */}
-          <div className="sr-cta-row">
-            <Link to="/como-funciona" className="sr-btn-secondary">
-              Ver cómo funciona
-            </Link>
-          </div>
+      {/* BENEFICIOS */}
+      <ul style={{ marginTop: "30px", lineHeight: "1.8" }}>
+        <li>✔️ Análisis técnico en minutos</li>
+        <li>✔️ Sin desplazamientos ni papeleo</li>
+        <li>✔️ Recurso profesional listo para presentar</li>
+        <li>✔️ O nos encargamos nosotros por ti</li>
+      </ul>
 
-          <div id="subir" style={{ marginTop: 24 }}>
-            <UploadExpediente maxSizeMB={12} />
+      {/* TECNOLOGÍA */}
+      <h2 style={{ marginTop: "40px" }}>
+        Tecnología jurídica aplicada a tu favor
+      </h2>
 
-            {/* Recuperar expediente (backup del link por email) */}
-            <div className="sr-card" style={{ marginTop: 16, textAlign: "left" }}>
-              <h3 className="sr-h3" style={{ marginTop: 0 }}>
-                ¿Ya tienes un expediente?
-              </h3>
+      <p>
+        Nuestro sistema analiza cada multa con criterios técnicos y jurídicos,
+        detectando errores, inconsistencias y puntos de defensa que a simple vista pasan desapercibidos.
+      </p>
 
-              <p className="sr-p" style={{ marginTop: 6 }}>
-                Introduce tu número de expediente para añadir documentación sin
-                empezar de cero.
-              </p>
+      {/* FRASE CLAVE */}
+      <p style={{ marginTop: "30px", fontWeight: "bold" }}>
+        La mayoría de multas se pagan sin revisarse. Muchas pueden recurrirse.
+      </p>
 
-              <div
-                className="sr-cta-row"
-                style={{
-                  justifyContent: "flex-start",
-                  gap: 10,
-                  flexWrap: "wrap",
-                  marginTop: 10,
-                }}
-              >
-                <input
-                  value={caseId}
-                  onChange={(e) => {
-                    setCaseId(e.target.value);
-                    if (msg) setMsg("");
-                  }}
-                  placeholder="Ej.: 71132d2c-ec4f-41ce-96d4-657b4dfd01ca"
-                  style={{
-                    minWidth: 320,
-                    maxWidth: 560,
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    background: "rgba(255,255,255,0.8)",
-                  }}
-                />
-
-                <button type="button" className="sr-btn-secondary" onClick={goResume}>
-                  Recuperar expediente
-                </button>
-              </div>
-
-              {msg && (
-                <div className="sr-small" style={{ marginTop: 8, color: "#991b1b" }}>
-                  ❌ {msg}
-                </div>
-              )}
-
-              <div className="sr-small" style={{ marginTop: 8, color: "#6b7280" }}>
-                Te lo enviamos por email cuando revisamos tu documentación.
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </>
+    </div>
   );
 }
