@@ -25,7 +25,7 @@ export default function Inicio() {
         <li>✔️ Análisis técnico en minutos</li>
         <li>✔️ Sin desplazamientos ni papeleo</li>
         <li>✔️ Recurso profesional listo para presentar</li>
-        <li>✔️ O nos encargamos nosotros por ti</li>
+        <li>✔️ Nos encargamos nosotros por ti</li>
       </ul>
 
       {/* TECNOLOGÍA SIN DECIR IA */}
