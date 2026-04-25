@@ -1,67 +1,61 @@
-import Seo from "../components/Seo.jsx";
-import { Link } from "react-router-dom";
+import React from "react";
 
 export default function Precios() {
   return (
-    <>
-      <Seo
-        title="Precios · RecurreTuMulta"
-        description="Análisis gratuito. Pagas solo si presentamos el recurso."
-        canonical="https://www.recurretumulta.eu/precios"
-      />
+    <div style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
 
-      <main className="sr-container" style={{ paddingTop: 28, paddingBottom: 48 }}>
-        <h1 className="sr-h1">Precios claros y automáticos</h1>
+      <h1 style={{ textAlign: "center" }}>
+        Elige cómo quieres gestionar tu multa
+      </h1>
 
-        <p className="sr-p" style={{ maxWidth: 900, marginBottom: 18 }}>
-          En RecurreTuMulta el análisis del expediente es <b>gratuito</b>. Solo
-          pagas si decides que presentemos el recurso ante la
-          Administración.
-        </p>
+      <p style={{ textAlign: "center", marginBottom: "40px" }}>
+        Antes de pagar una multa, revisa si realmente tienes que hacerlo.
+      </p>
 
-        <section className="sr-card">
-          <h2 className="sr-h2">Presentación del recurso</h2>
+      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
 
-          <p className="sr-p" style={{ fontSize: 28, fontWeight: 800, marginBottom: 10 }}>
-            Desde 19,90 € + impuestos 24,00 €
-          </p>
+        {/* PLAN BÁSICO */}
+        <div style={{ flex: 1, border: "1px solid #ddd", padding: "20px", borderRadius: "10px" }}>
+          <h2>Recurso básico</h2>
+          <h3 style={{ fontSize: "28px" }}>19,90€</h3>
 
-          <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18, marginTop: 0 }}>
-            <li>Incluye 1 documento</li>
-            <li>Presentación oficial por registro</li>
-            <li>Justificante incluido</li>
+          <ul>
+            <li>✔️ Análisis completo de la multa</li>
+            <li>✔️ Detección de errores y puntos de defensa</li>
+            <li>✔️ Generación del recurso profesional</li>
+            <li>✔️ Descarga del documento listo para presentar</li>
           </ul>
 
-          <p className="sr-small" style={{ marginTop: 10 }}>
-            Documento adicional: <b>+5,00 €</b> por documento
-          </p>
+          <button style={{ marginTop: "20px", width: "100%", padding: "10px" }}>
+            Obtener recurso
+          </button>
+        </div>
 
-          <p className="sr-small" style={{ marginTop: 8, color: "#6b7280" }}>
-            El precio final se calcula automáticamente según la documentación
-            del expediente y se muestra antes de pagar.
-          </p>
+        {/* PLAN PRO */}
+        <div style={{ flex: 1, border: "2px solid black", padding: "20px", borderRadius: "10px" }}>
+          <h2>Nos encargamos de todo</h2>
+          <h3 style={{ fontSize: "28px" }}>49€</h3>
 
-          <div style={{ marginTop: 14 }}>
-            <Link to="/" className="sr-btn-primary">
-              Empezar (gratis)
-            </Link>
-          </div>
-        </section>
-
-        <section className="sr-card" style={{ marginTop: 18 }}>
-          <h3 className="sr-h3">Avisos importantes</h3>
-          <ul className="sr-p" style={{ listStyle: "disc", paddingLeft: 18, marginBottom: 0 }}>
-            <li>
-              En algunos procedimientos, presentar recursos implica renunciar al
-              descuento por pronto pago.
-            </li>
-            <li>
-              No garantizamos el resultado del procedimiento; el servicio
-              consiste en la preparación y presentación del escrito.
-            </li>
+          <ul>
+            <li>✔️ Todo lo del plan básico</li>
+            <li>✔️ Preparación completa del expediente</li>
+            <li>✔️ Presentación del recurso por nosotros</li>
+            <li>✔️ Seguimiento del proceso</li>
+            <li>✔️ Justificante de presentación</li>
           </ul>
-        </section>
-      </main>
-    </>
+
+          <button style={{ marginTop: "20px", width: "100%", padding: "10px" }}>
+            Que lo hagan por mí
+          </button>
+        </div>
+
+      </div>
+
+      {/* FRASE CLAVE */}
+      <p style={{ marginTop: "40px", textAlign: "center", fontWeight: "bold" }}>
+        Antes de renunciar al descuento, asegúrate de que realmente tienes que pagar la multa.
+      </p>
+
+    </div>
   );
 }
