@@ -19,14 +19,14 @@ export default function ComoFunciona() {
 
         <li>
           <strong>Eliges cómo continuar</strong><br />
-          Puedes descargar el recurso o dejar que lo presentemos por ti.
+          No presentar recurso o dejar que lo presentemos por ti.
         </li>
       </ol>
 
       <h2 style={{ marginTop: "40px" }}>Tú decides</h2>
 
       <p>
-        Puedes gestionar el recurso por tu cuenta o dejarlo en nuestras manos.
+        Puedes dejarlo en nuestras manos.
         Nos encargamos de todo el proceso para que no tengas que preocuparte de nada.
       </p>
 
