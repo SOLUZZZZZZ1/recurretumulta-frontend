@@ -1,5 +1,6 @@
 import React from "react";
 import UploadExpediente from "../components/UploadExpediente";
+import AppendDocuments from "../components/AppendDocuments";
 
 export default function Inicio() {
   return (
@@ -15,9 +16,21 @@ export default function Inicio() {
         Si es viable, generamos el recurso o nos encargamos de todo por ti.
       </p>
 
-      {/* UPLOAD (LO MANTENEMOS) */}
-      <div style={{ marginBottom: "30px" }}>
+      {/* BLOQUE PRINCIPAL: SUBIR MULTA */}
+      <div style={{ marginBottom: "40px" }}>
+        <h2>Analizar multa</h2>
         <UploadExpediente />
+      </div>
+
+      {/* BLOQUE SECUNDARIO: AÑADIR DOCUMENTOS */}
+      <div style={{ marginBottom: "40px" }}>
+        <h3>¿Ya tienes un expediente en curso?</h3>
+
+        <p style={{ marginBottom: "10px" }}>
+          Si ya has iniciado un caso, puedes añadir más documentos aquí:
+        </p>
+
+        <AppendDocuments />
       </div>
 
       {/* BENEFICIOS */}
@@ -25,20 +38,18 @@ export default function Inicio() {
         <li>✔️ Análisis técnico en minutos</li>
         <li>✔️ Sin desplazamientos ni papeleo</li>
         <li>✔️ Recurso profesional listo para presentar</li>
-        <li>✔️ Nos encargamos nosotros por ti</li>
+        <li>✔️ O nos encargamos nosotros por ti</li>
       </ul>
 
-      {/* TECNOLOGÍA SIN DECIR IA */}
-      <h2 style={{ marginTop: "40px" }}>
-        Tecnología jurídica aplicada a tu favor
-      </h2>
+      {/* TECNOLOGÍA */}
+      <h2>Tecnología jurídica aplicada a tu favor</h2>
 
       <p>
         Nuestro sistema analiza cada multa con criterios técnicos y jurídicos,
         detectando errores, inconsistencias y puntos de defensa que a simple vista pasan desapercibidos.
       </p>
 
-      {/* FRASE QUE CONVIERTE */}
+      {/* FRASE CLAVE */}
       <p style={{ marginTop: "30px", fontWeight: "bold" }}>
         La mayoría de multas se pagan sin revisarse. Muchas pueden recurrirse.
       </p>
