@@ -69,7 +69,7 @@ export default function Precios() {
           textAlign: "center",
           fontWeight: "bold"
         }}>
-          Antes de renunciar al descuento por pronto pago, asegúrate de que realmente tienes que pagar la multa.
+          Antes de pagar la multa, comprueba si realmente es correcta o se puede recurrir.
         </p>
 
       </main>
