@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import logo from "/rtm-logo-transparente.png";
+import logo from "/rtm-logo-transparente-recortado.png";
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -21,7 +21,7 @@ export default function Navbar() {
       style={{
         width: "100%",
         background: "#0b4aa2",
-        padding: "10px 18px", // 🔵 dejamos altura original
+        padding: "10px 18px",
         boxSizing: "border-box",
       }}
     >
@@ -35,20 +35,20 @@ export default function Navbar() {
           gap: 14,
         }}
       >
-        {/* LOGO */}
         <Link
           to="/"
           style={{
             display: "flex",
             alignItems: "center",
             textDecoration: "none",
+            flex: "0 0 auto",
           }}
         >
           <img
             src={logo}
             alt="RecurreTuMulta"
             style={{
-              height: 60, // 🔥 MÁS GRANDE sin romper barra
+              height: 52,
               width: "auto",
               display: "block",
               objectFit: "contain",
@@ -56,7 +56,6 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* MENÚ */}
         <nav
           style={{
             display: "flex",
