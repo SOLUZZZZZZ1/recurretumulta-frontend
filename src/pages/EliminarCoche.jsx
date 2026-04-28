@@ -43,6 +43,10 @@ export default function EliminarCoche() {
     [form.dni_nie]
   );
 
+  const emailOk = useMemo(() => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+  }, [form.email]);
+
   const update = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setMessage("");
@@ -55,6 +59,8 @@ export default function EliminarCoche() {
     if (!form.full_name.trim()) return "Indica el nombre completo del titular.";
     if (!normalizedDni) return "Indica el DNI/NIE del titular.";
     if (!form.phone.trim()) return "Indica un teléfono de contacto.";
+    if (!form.email.trim()) return "Indica un email para enviarte la confirmación y documentación.";
+    if (!emailOk) return "Indica un email válido.";
     if (!normalizedPlate) return "Indica la matrícula.";
     if (!form.city.trim()) return "Indica la ciudad o municipio donde está el vehículo.";
     return "";
@@ -146,7 +152,7 @@ export default function EliminarCoche() {
           full_name: form.full_name.trim(),
           dni_nie: normalizedDni,
           phone: form.phone.trim(),
-          email: form.email.trim() || null,
+          email: form.email.trim(),
           plate: normalizedPlate,
           city: form.city.trim(),
           notes: form.notes.trim() || null,
@@ -193,8 +199,7 @@ export default function EliminarCoche() {
               ✅ Pago realizado correctamente
             </h2>
             <p style={{ margin: 0, lineHeight: 1.6 }}>
-              Hemos recibido tu solicitud para gestionar la baja del vehículo.
-              Revisaremos los datos y contactaremos contigo para continuar.
+              Hemos recibido tu solicitud. Te enviaremos la confirmación y próximos pasos por email.
             </p>
             {caseId && (
               <p style={{ margin: "10px 0 0", fontSize: 13 }}>
@@ -249,7 +254,7 @@ export default function EliminarCoche() {
         >
           <Card title="⚠️ Riesgo real" text="Aunque no uses el coche, puedes seguir acumulando problemas por seguro, ITV o abandono." />
           <Card title="✅ Verificación previa" text="Comprobamos que el permiso de circulación coincide con los datos indicados." />
-          <Card title="📄 Justificante" text="El objetivo es obtener certificado y documentación para cubrirte." />
+          <Card title="📩 Email obligatorio" text="Lo necesitamos para enviarte confirmación, seguimiento y documentación." />
         </div>
 
         <div
@@ -266,7 +271,7 @@ export default function EliminarCoche() {
               <li>Revisión inicial del caso.</li>
               <li>Verificación del titular y matrícula con el permiso de circulación.</li>
               <li>Gestión de contacto con vía autorizada.</li>
-              <li>Seguimiento hasta completar la baja o informar de impedimentos.</li>
+              <li>Seguimiento por email hasta completar la gestión.</li>
             </ul>
 
             <div
@@ -337,10 +342,11 @@ export default function EliminarCoche() {
             />
 
             <Field
-              label="Email (opcional)"
+              label="Email para confirmación y documentación"
               value={form.email}
               onChange={(v) => update("email", v)}
               placeholder="tu@email.com"
+              type="email"
             />
 
             <Field
@@ -499,11 +505,12 @@ function Card({ title, text }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder }) {
+function Field({ label, value, onChange, placeholder, type = "text" }) {
   return (
     <label style={{ display: "block", marginBottom: 14 }}>
       <span style={{ display: "block", fontWeight: 700, marginBottom: 6 }}>{label}</span>
       <input
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder || ""}
