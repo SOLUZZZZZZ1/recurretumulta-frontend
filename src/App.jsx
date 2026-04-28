@@ -12,6 +12,7 @@ import Inicio from "./pages/Inicio.jsx";
 import ComoFunciona from "./pages/ComoFunciona.jsx";
 import Precios from "./pages/Precios.jsx";
 import FAQ from "./pages/FAQ.jsx";
+import Contacto from "./pages/Contacto.jsx";
 import Gestorias from "./pages/Gestorias.jsx";
 import ReservasRestaurante from "./pages/ReservasRestaurante.jsx";
 import AdminRestaurantes from "./pages/AdminRestaurantes.jsx";
@@ -21,6 +22,7 @@ import PartnerPanelExpedientes from "./pages/PartnerPanelExpedientes.jsx";
 import SolicitarAltaGestoria from "./pages/SolicitarAltaGestoria.jsx";
 import AdminCrearAsesoria from "./pages/AdminCrearAsesoria.jsx";
 import OPSQueueSmart from "./pages/OPSQueueSmart.jsx";
+import EliminarCoche from "./pages/EliminarCoche.jsx";
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -60,7 +62,9 @@ export default function App() {
         <Route path="/" element={<Inicio />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
+        <Route path="/eliminar-coche" element={<EliminarCoche />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/contacto" element={<Contacto />} />
         <Route path="/gestorias" element={<Gestorias />} />
         <Route path="/resumen" element={<ResumenExpediente />} />
         <Route path="/autorizar" element={<Autorizar />} />
