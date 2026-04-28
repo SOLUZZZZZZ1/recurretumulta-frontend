@@ -22,6 +22,7 @@ export default function EliminarCoche() {
     plate: "",
     city: "",
     notes: "",
+    authorization_accepted: false,
   });
 
   const [registrationFile, setRegistrationFile] = useState(null);
@@ -34,12 +35,12 @@ export default function EliminarCoche() {
   const [message, setMessage] = useState("");
 
   const normalizedPlate = useMemo(
-    () => form.plate.trim().toUpperCase().replace(/\s+/g, ""),
+    () => form.plate.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
     [form.plate]
   );
 
   const normalizedDni = useMemo(
-    () => form.dni_nie.trim().toUpperCase().replace(/\s+/g, ""),
+    () => form.dni_nie.trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
     [form.dni_nie]
   );
 
@@ -50,9 +51,12 @@ export default function EliminarCoche() {
   const update = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setMessage("");
-    setVerified(false);
-    setVerifyResult(null);
-    setVerifyMsg("");
+
+    if (field !== "authorization_accepted") {
+      setVerified(false);
+      setVerifyResult(null);
+      setVerifyMsg("");
+    }
   };
 
   const validateBase = () => {
@@ -110,12 +114,12 @@ export default function EliminarCoche() {
       } else if (data.review_required) {
         setVerified(false);
         setVerifyMsg(
-          "⚠️ No se ha podido confirmar claramente la coincidencia. Revisa que la foto sea legible y que nombre, DNI/NIE y matrícula correspondan al titular."
+          "⚠️ No se ha podido confirmar claramente la coincidencia. Revisa que la foto sea legible y que nombre y matrícula correspondan al titular."
         );
       } else {
         setVerified(false);
         setVerifyMsg(
-          "❌ Los datos no coinciden con el permiso de circulación. Revisa nombre completo, DNI/NIE y matrícula."
+          "❌ Los datos no coinciden con el permiso de circulación. Revisa nombre completo y matrícula."
         );
       }
     } catch (err) {
@@ -140,6 +144,11 @@ export default function EliminarCoche() {
       return;
     }
 
+    if (!form.authorization_accepted) {
+      setMessage("Debes aceptar la autorización para iniciar la gestión.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
@@ -156,6 +165,8 @@ export default function EliminarCoche() {
           plate: normalizedPlate,
           city: form.city.trim(),
           notes: form.notes.trim() || null,
+          authorization_accepted: form.authorization_accepted,
+          authorization_version: "vehicle-removal-v1",
         }),
       });
 
@@ -254,7 +265,7 @@ export default function EliminarCoche() {
         >
           <Card title="⚠️ Riesgo real" text="Aunque no uses el coche, puedes seguir acumulando problemas por seguro, ITV o abandono." />
           <Card title="✅ Verificación previa" text="Comprobamos que el permiso de circulación coincide con los datos indicados." />
-          <Card title="📩 Email obligatorio" text="Lo necesitamos para enviarte confirmación, seguimiento y documentación." />
+          <Card title="🔐 Autorización" text="Guardamos aceptación, IP y navegador para dejar constancia de la solicitud." />
         </div>
 
         <div
@@ -270,7 +281,7 @@ export default function EliminarCoche() {
             <ul style={{ lineHeight: 2, color: "#374151", paddingLeft: 22 }}>
               <li>Revisión inicial del caso.</li>
               <li>Verificación del titular y matrícula con el permiso de circulación.</li>
-              <li>Gestión de contacto con vía autorizada.</li>
+              <li>Autorización expresa para iniciar la gestión.</li>
               <li>Seguimiento por email hasta completar la gestión.</li>
             </ul>
 
@@ -284,8 +295,8 @@ export default function EliminarCoche() {
                 marginTop: 18,
               }}
             >
-              <strong>Dato importante:</strong> el nombre completo y el DNI/NIE deben
-              corresponder al titular/propietario que consta en la documentación del vehículo.
+              <strong>Dato importante:</strong> el nombre completo debe corresponder al titular/propietario
+              que consta en el permiso de circulación. El DNI/NIE se solicita para el expediente, pero no se compara con el permiso porque normalmente no aparece.
             </div>
 
             <div
@@ -320,48 +331,12 @@ export default function EliminarCoche() {
               <div style={{ fontSize: 42, fontWeight: 900 }}>39€</div>
             </div>
 
-            <Field
-              label="Nombre completo del titular"
-              value={form.full_name}
-              onChange={(v) => update("full_name", v)}
-              placeholder="Nombre y apellidos"
-            />
-
-            <Field
-              label="DNI/NIE del titular"
-              value={form.dni_nie}
-              onChange={(v) => update("dni_nie", v)}
-              placeholder="Ej. 12345678Z"
-            />
-
-            <Field
-              label="Teléfono"
-              value={form.phone}
-              onChange={(v) => update("phone", v)}
-              placeholder="Ej. 600 000 000"
-            />
-
-            <Field
-              label="Email para confirmación y documentación"
-              value={form.email}
-              onChange={(v) => update("email", v)}
-              placeholder="tu@email.com"
-              type="email"
-            />
-
-            <Field
-              label="Matrícula"
-              value={form.plate}
-              onChange={(v) => update("plate", v)}
-              placeholder="Ej. 3148BSS"
-            />
-
-            <Field
-              label="Ciudad o municipio"
-              value={form.city}
-              onChange={(v) => update("city", v)}
-              placeholder="Ej. Talamanca"
-            />
+            <Field label="Nombre completo del titular" value={form.full_name} onChange={(v) => update("full_name", v)} placeholder="Nombre y apellidos" />
+            <Field label="DNI/NIE del titular" value={form.dni_nie} onChange={(v) => update("dni_nie", v)} placeholder="Ej. 12345678Z" />
+            <Field label="Teléfono" value={form.phone} onChange={(v) => update("phone", v)} placeholder="Ej. 600 000 000" />
+            <Field label="Email para confirmación y documentación" value={form.email} onChange={(v) => update("email", v)} placeholder="tu@email.com" type="email" />
+            <Field label="Matrícula" value={form.plate} onChange={(v) => update("plate", v)} placeholder="Ej. 3148BSS, 3148 BSS o 3148-BSS" />
+            <Field label="Ciudad o municipio" value={form.city} onChange={(v) => update("city", v)} placeholder="Ej. Talamanca" />
 
             <label style={{ display: "block", marginBottom: 14 }}>
               <span style={{ display: "block", fontWeight: 700, marginBottom: 6 }}>
@@ -447,11 +422,32 @@ export default function EliminarCoche() {
                 <br />
                 Matrícula: {verifyResult.checks.plate_match ? "✅ coincide" : "❌ no coincide"}
                 <br />
-                DNI/NIE: {verifyResult.checks.dni_match ? "✅ coincide" : "⚠️ no detectado/no coincide"}
-                <br />
                 Titular: {verifyResult.checks.name_match ? "✅ coincide" : "⚠️ no detectado/no coincide"}
+                <br />
+                DNI/NIE: {verifyResult.checks.dni_collected ? "✅ recibido para expediente" : "⚠️ pendiente"}
+                {verifyResult.checks.plate_candidates?.length ? (
+                  <>
+                    <br />
+                    Matrículas detectadas: {verifyResult.checks.plate_candidates.join(", ")}
+                  </>
+                ) : null}
               </div>
             )}
+
+            <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 14 }}>
+              <input
+                type="checkbox"
+                checked={form.authorization_accepted}
+                onChange={(e) => update("authorization_accepted", e.target.checked)}
+                style={{ marginTop: 4 }}
+              />
+              <span style={{ fontSize: 13, color: "#374151", lineHeight: 1.45 }}>
+                Autorizo a RecurreTuMulta a revisar la documentación aportada y a iniciar las gestiones
+                necesarias para la baja/retirada del vehículo indicado, incluyendo el contacto con centros
+                autorizados o colaboradores necesarios. Declaro que los datos facilitados son ciertos y que soy
+                titular o actúo con autorización del titular.
+              </span>
+            </label>
 
             <label style={{ display: "block", marginBottom: 14 }}>
               <span style={{ display: "block", fontWeight: 700, marginBottom: 6 }}>
@@ -474,20 +470,26 @@ export default function EliminarCoche() {
 
             <button
               type="submit"
-              disabled={!verified || loading}
+              disabled={!verified || loading || !form.authorization_accepted}
               style={{
                 width: "100%",
-                background: !verified || loading ? "#94a3b8" : "#2bb673",
+                background: !verified || loading || !form.authorization_accepted ? "#94a3b8" : "#2bb673",
                 color: "white",
                 border: 0,
                 borderRadius: 14,
                 padding: "14px 18px",
                 fontWeight: 900,
-                cursor: !verified || loading ? "not-allowed" : "pointer",
+                cursor: !verified || loading || !form.authorization_accepted ? "not-allowed" : "pointer",
                 fontSize: 16,
               }}
             >
-              {loading ? "Preparando pago..." : verified ? "Continuar al pago" : "Verifica el permiso para continuar"}
+              {loading
+                ? "Preparando pago..."
+                : !verified
+                ? "Verifica el permiso para continuar"
+                : !form.authorization_accepted
+                ? "Acepta la autorización para continuar"
+                : "Continuar al pago"}
             </button>
           </form>
         </div>
@@ -509,13 +511,7 @@ function Field({ label, value, onChange, placeholder, type = "text" }) {
   return (
     <label style={{ display: "block", marginBottom: 14 }}>
       <span style={{ display: "block", fontWeight: 700, marginBottom: 6 }}>{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder || ""}
-        style={inputStyle}
-      />
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder || ""} style={inputStyle} />
     </label>
   );
 }
