@@ -22,6 +22,7 @@ import PartnerPanelExpedientes from "./pages/PartnerPanelExpedientes.jsx";
 import SolicitarAltaGestoria from "./pages/SolicitarAltaGestoria.jsx";
 import AdminCrearAsesoria from "./pages/AdminCrearAsesoria.jsx";
 import OPSQueueSmart from "./pages/OPSQueueSmart.jsx";
+import OpsVehicleRemoval from "./pages/OpsVehicleRemoval.jsx";
 import EliminarCoche from "./pages/EliminarCoche.jsx";
 
 // Pago (post-pago: datos + autorización)
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/gestorias/alta" element={<SolicitarAltaGestoria />} />
         <Route path="/admin/crear-asesoria" element={<AdminCrearAsesoria />} />
         <Route path="/ops/queue-smart" element={<OPSQueueSmart />} />
+        <Route path="/ops/vehicle-removal" element={<OpsVehicleRemoval />} />
 
         <Route path="/pago-ok" element={<PagoOk />} />
         <Route path="/pago-cancel" element={<PagoCancel />} />
