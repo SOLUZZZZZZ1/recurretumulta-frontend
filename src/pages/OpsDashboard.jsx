@@ -266,6 +266,13 @@ export default function OpsDashboard() {
                 🔥 Cola inteligente
               </Link>
 
+              <Link
+                to="/ops/vehicle-removal"
+                className="rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-600"
+              >
+                🚗 OPS vehículos
+              </Link>
+
               <button
                 type="button"
                 onClick={runTick}
