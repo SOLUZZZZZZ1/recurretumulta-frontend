@@ -68,6 +68,11 @@ export default function Navbar() {
           <Link to="/" style={linkStyle("/")}>Inicio</Link>
           <Link to="/como-funciona" style={linkStyle("/como-funciona")}>Cómo funciona</Link>
           <Link to="/precios" style={linkStyle("/precios")}>Precios</Link>
+
+          <Link to="/eliminar-coche" style={linkStyle("/eliminar-coche")}>
+            🚗 Eliminar coche
+          </Link>
+
           <Link to="/gestorias" style={linkStyle("/gestorias")}>Asesorías</Link>
           <Link to="/faq" style={linkStyle("/faq")}>FAQ</Link>
           <Link to="/contacto" style={linkStyle("/contacto")}>Contacto</Link>
