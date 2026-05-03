@@ -7,11 +7,17 @@ const API_BASE =
   "/api";
 
 const MAX_FILES = 5;
-const MAX_UPLOAD_BYTES = 2.0 * 1024 * 1024;
-const TARGET_IMAGE_BYTES = 1.35 * 1024 * 1024;
-const IMAGE_MAX_SIDE = 1400;
+
+// Versión ultra segura anti-413.
+// Aunque el usuario suba JPG de 6, 10 o 20 MB, el sistema intenta dejarlo < 700 KB.
+// Además bloquea antes de enviar si pasa de 900 KB.
+const HARD_SEND_LIMIT_BYTES = 900 * 1024;
+const TARGET_IMAGE_BYTES = 700 * 1024;
+const IMAGE_MAX_SIDE = 1100;
 
 function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return "";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
@@ -61,120 +67,115 @@ async function loadImage(file) {
   }
 }
 
-async function compressImage(file) {
+async function compressImageUltra(file) {
   const img = await loadImage(file);
 
-  let width = img.naturalWidth || img.width;
-  let height = img.naturalHeight || img.height;
+  let originalWidth = img.naturalWidth || img.width;
+  let originalHeight = img.naturalHeight || img.height;
 
-  if (!width || !height) throw new Error("No se pudo leer el tamaño de la imagen.");
-
-  const longest = Math.max(width, height);
-  if (longest > IMAGE_MAX_SIDE) {
-    const ratio = IMAGE_MAX_SIDE / longest;
-    width = Math.round(width * ratio);
-    height = Math.round(height * ratio);
+  if (!originalWidth || !originalHeight) {
+    throw new Error("No se pudo leer el tamaño de la imagen.");
   }
 
-  async function render(w, h, q) {
+  let side = IMAGE_MAX_SIDE;
+  let bestBlob = null;
+  let bestWidth = 0;
+  let bestHeight = 0;
+
+  for (const maxSide of [1100, 950, 800, 650]) {
+    let width = originalWidth;
+    let height = originalHeight;
+
+    const longest = Math.max(width, height);
+    if (longest > maxSide) {
+      const ratio = maxSide / longest;
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
+
     const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = width;
+    canvas.height = height;
 
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("No se pudo preparar la compresión.");
 
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
 
-    return canvasToBlob(canvas, q);
-  }
-
-  let best = null;
-
-  for (const q of [0.72, 0.62, 0.52, 0.42, 0.34, 0.26]) {
-    const blob = await render(width, height, q);
-    if (!best || blob.size < best.size) best = blob;
-    if (blob.size <= TARGET_IMAGE_BYTES) {
-      best = blob;
-      break;
-    }
-  }
-
-  if (best && best.size > TARGET_IMAGE_BYTES) {
-    const ratio = Math.max(0.38, Math.sqrt(TARGET_IMAGE_BYTES / best.size) * 0.78);
-    width = Math.max(720, Math.round(width * ratio));
-    height = Math.max(720, Math.round(height * ratio));
-
-    for (const q of [0.52, 0.42, 0.34, 0.26, 0.2]) {
-      const blob = await render(width, height, q);
-      if (!best || blob.size < best.size) best = blob;
+    for (const q of [0.68, 0.56, 0.46, 0.36, 0.28, 0.22, 0.16]) {
+      const blob = await canvasToBlob(canvas, q);
+      if (!bestBlob || blob.size < bestBlob.size) {
+        bestBlob = blob;
+        bestWidth = width;
+        bestHeight = height;
+      }
       if (blob.size <= TARGET_IMAGE_BYTES) {
-        best = blob;
-        break;
+        const base = String(file.name || "documento").replace(/\.[^.]+$/, "");
+        return {
+          file: new File([blob], `${base}-optimizado-anti413.jpg`, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          }),
+          width,
+          height,
+          quality: q,
+        };
       }
     }
+
+    side = maxSide;
   }
 
-  if (!best) throw new Error("No se pudo optimizar la imagen.");
+  if (!bestBlob) {
+    throw new Error("No se pudo optimizar la imagen.");
+  }
 
-  if (best.size > MAX_UPLOAD_BYTES) {
+  if (bestBlob.size > HARD_SEND_LIMIT_BYTES) {
     throw new Error(
-      `La imagen optimizada sigue pesando ${formatBytes(best.size)}. Haz una captura más simple del documento.`
+      `La imagen optimizada sigue pesando ${formatBytes(bestBlob.size)}. Haz una captura más cercana/simple del documento.`
     );
   }
 
   const base = String(file.name || "documento").replace(/\.[^.]+$/, "");
-  return new File([best], `${base}-optimizado-anti413.jpg`, {
-    type: "image/jpeg",
-    lastModified: Date.now(),
-  });
+  return {
+    file: new File([bestBlob], `${base}-optimizado-anti413.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    }),
+    width: bestWidth,
+    height: bestHeight,
+    quality: "mínima",
+  };
 }
 
 async function prepareFile(file) {
   if (!file) throw new Error("Archivo no válido.");
 
   if (isImage(file)) {
-    const optimized = await compressImage(file);
+    const optimized = await compressImageUltra(file);
     return {
       id: crypto.randomUUID(),
-      file: optimized,
+      file: optimized.file,
       originalName: file.name,
       originalSize: file.size,
       optimized: true,
+      meta: {
+        width: optimized.width,
+        height: optimized.height,
+        quality: optimized.quality,
+      },
     };
   }
 
   if (isPdf(file)) {
-    if (file.size > MAX_UPLOAD_BYTES) {
-      throw new Error(
-        `Este PDF pesa ${formatBytes(file.size)}. Para evitar 413, sube una foto/captura clara del documento.`
-      );
-    }
-
-    return {
-      id: crypto.randomUUID(),
-      file,
-      originalName: file.name,
-      originalSize: file.size,
-      optimized: false,
-    };
-  }
-
-  if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error(
-      `El archivo pesa ${formatBytes(file.size)}. Sube una foto/captura para que el sistema la optimice.`
+      "Ahora mismo los PDF pesados pueden provocar 413. Sube una foto JPG/captura clara del documento; el sistema la optimiza automáticamente."
     );
   }
 
-  return {
-    id: crypto.randomUUID(),
-    file,
-    originalName: file.name,
-    originalSize: file.size,
-    optimized: false,
-  };
+  throw new Error("Formato no recomendado. Sube una imagen JPG/PNG o una captura clara.");
 }
 
 async function readApi(response) {
@@ -183,7 +184,7 @@ async function readApi(response) {
   if (!response.ok) {
     if (response.status === 413) {
       throw new Error(
-        "413: el servidor recibió un archivo demasiado grande. Si ves este mensaje, la subida no estaba por debajo de 2 MB o la página no usa el componente ANTI-413."
+        "413: el servidor recibió demasiado peso. Esta versión bloquea >900 KB; si ves esto, estás usando otra pantalla o el navegador no desplegó la última versión."
       );
     }
 
@@ -223,11 +224,9 @@ export default function UploadExpediente() {
           const item = await prepareFile(file);
           prepared.push(item);
 
-          if (item.optimized) {
-            notes.push(`✅ Imagen optimizada ANTI-413: ${formatBytes(item.originalSize)} → ${formatBytes(item.file.size)}`);
-          } else {
-            notes.push(`✅ Documento preparado: ${formatBytes(item.file.size)}`);
-          }
+          notes.push(
+            `✅ Imagen optimizada ULTRA ANTI-413: ${formatBytes(item.originalSize)} → ${formatBytes(item.file.size)} (${item.meta.width}x${item.meta.height})`
+          );
         } catch (err) {
           notes.push(err?.message || `No se pudo preparar ${file.name}.`);
         }
@@ -259,10 +258,20 @@ export default function UploadExpediente() {
       return;
     }
 
-    const tooBig = items.find((x) => x.file.size > MAX_UPLOAD_BYTES);
+    const totalBytes = items.reduce((sum, x) => sum + (x.file?.size || 0), 0);
+    const tooBig = items.find((x) => (x.file?.size || 0) > HARD_SEND_LIMIT_BYTES);
+
     if (tooBig) {
       setMessage(
         `Bloqueado antes de subir: ${tooBig.file.name} pesa ${formatBytes(tooBig.file.size)}. No se enviará para evitar 413.`
+      );
+      return;
+    }
+
+    // Bloqueo adicional para varios documentos.
+    if (totalBytes > HARD_SEND_LIMIT_BYTES * 1.8) {
+      setMessage(
+        `Bloqueado antes de subir: el conjunto pesa ${formatBytes(totalBytes)}. Sube un solo documento principal para evitar 413.`
       );
       return;
     }
@@ -274,13 +283,28 @@ export default function UploadExpediente() {
         const fd = new FormData();
         fd.append("file", items[0].file);
 
+        // Marca de diagnóstico visible en consola.
+        console.log("[RTM ANTI-413] Enviando archivo:", {
+          name: items[0].file.name,
+          size: items[0].file.size,
+          sizeHuman: formatBytes(items[0].file.size),
+          type: items[0].file.type,
+        });
+
+        setMessage(`Enviando archivo optimizado de ${formatBytes(items[0].file.size)}…`);
+
         const response = await fetch(`${API_BASE}/analyze`, {
           method: "POST",
           body: fd,
         });
 
         const data = await readApi(response);
-        const caseId = data?.case_id || data?.caseId || data?.id || data?.extracted?.case_id || data?.extracted?.id;
+        const caseId =
+          data?.case_id ||
+          data?.caseId ||
+          data?.id ||
+          data?.extracted?.case_id ||
+          data?.extracted?.id;
 
         if (!caseId) throw new Error("El análisis terminó, pero no devolvió número de caso.");
 
@@ -292,6 +316,14 @@ export default function UploadExpediente() {
 
       const fd = new FormData();
       items.forEach((item) => fd.append("files", item.file));
+
+      console.log("[RTM ANTI-413] Enviando expediente:", {
+        count: items.length,
+        totalBytes,
+        totalHuman: formatBytes(totalBytes),
+      });
+
+      setMessage(`Enviando expediente optimizado de ${formatBytes(totalBytes)}…`);
 
       const response = await fetch(`${API_BASE}/analyze/expediente`, {
         method: "POST",
@@ -327,7 +359,7 @@ export default function UploadExpediente() {
           fontSize: 13,
         }}
       >
-        ✅ ANTI-413 ACTIVO — las fotos se comprimen antes de subir
+        ✅ ULTRA ANTI-413 ACTIVO — envío bloqueado por encima de 900 KB
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -336,7 +368,7 @@ export default function UploadExpediente() {
             Subir documentos del expediente
           </h2>
           <p className="sr-p" style={{ marginBottom: 0 }}>
-            Sube la multa o documentos relacionados. Las fotos grandes se optimizan automáticamente.
+            Sube la multa en JPG/PNG. El sistema la reduce automáticamente antes de enviarla.
           </p>
         </div>
 
@@ -383,7 +415,7 @@ export default function UploadExpediente() {
           ref={inputRef}
           type="file"
           multiple
-          accept="image/*,.pdf,.doc,.docx"
+          accept="image/*,.jpg,.jpeg,.png,.webp"
           style={{ display: "none" }}
           onChange={(e) => addFiles(e.target.files)}
         />
@@ -394,7 +426,7 @@ export default function UploadExpediente() {
               <strong>Arrastra y suelta</strong> aquí tus documentos o haz clic para seleccionar.
             </p>
             <p className="sr-small" style={{ marginTop: 6, opacity: 0.85 }}>
-              Fotos: compresión automática · PDF seguro máximo: 2 MB · Recomendado: foto/captura clara
+              Solo imágenes · compresión automática · objetivo 700 KB
             </p>
           </div>
 
@@ -470,7 +502,7 @@ export default function UploadExpediente() {
             className="sr-small"
             style={{
               alignSelf: "center",
-              color: message.startsWith("✅") ? "#166534" : "#991b1b",
+              color: message.startsWith("✅") || message.startsWith("Enviando") ? "#166534" : "#991b1b",
               lineHeight: 1.45,
             }}
           >
