@@ -3,15 +3,8 @@ import { useParams, Link } from "react-router-dom";
 
 const API = "/api";
 
-async function fetchJson(url, options = {}) {
-  const r = await fetch(url, options);
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data?.detail || `Error HTTP ${r.status}`);
-  return data;
-}
-
 function fmt(d) {
-  if (!d) return "—";
+  if (!d) return "";
   try {
     return new Date(d).toLocaleString();
   } catch {
@@ -19,268 +12,157 @@ function fmt(d) {
   }
 }
 
-function guessFilename(doc) {
-  const key = doc?.key || "";
-  const fromKey = key.split("/").pop();
-  if (fromKey) return fromKey;
-  const kind = (doc?.kind || "documento").toLowerCase();
-  if (kind.includes("pdf")) return "documento.pdf";
-  if (kind.includes("docx")) return "documento.docx";
-  return "documento.bin";
+async function fetchJson(url, options = {}) {
+  const r = await fetch(url, options);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.detail || "Error API");
+  return data;
 }
 
 export default function OpsCaseDetail() {
   const { caseId } = useParams();
-
-  const [documents, setDocuments] = useState([]);
-  const [aiResult, setAiResult] = useState(null);
-
-  const [loading, setLoading] = useState(false);
-  const [runningAI, setRunningAI] = useState(false);
-  const [downloadingId, setDownloadingId] = useState(null);
-  const [error, setError] = useState("");
-
-  const token = localStorage.getItem("ops_token") || "";
+  const token = localStorage.getItem("ops_token");
   const headers = { "X-Operator-Token": token };
 
-  async function loadCase() {
-    setError("");
-    if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const docsRes = await fetchJson(
-        `${API}/ops/cases/${encodeURIComponent(caseId)}/documents`,
-        { headers }
-      );
-      const evRes = await fetchJson(
-        `${API}/ops/cases/${encodeURIComponent(caseId)}/events`,
-        { headers }
-      );
-
-      const docs = docsRes.documents || docsRes.items || [];
-      const evs = evRes.events || evRes.items || [];
-
-      setDocuments(docs);
-
-      const aiEvent = evs.find((e) => e.type === "ai_expediente_result");
-      setAiResult(aiEvent?.payload || null);
-    } catch (e) {
-      setError(e.message || "Error cargando expediente");
-      setDocuments([]);
-      setAiResult(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [docs, setDocs] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [registro, setRegistro] = useState("");
+  const [note, setNote] = useState("");
+  const [justificante, setJustificante] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    loadCase();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    load();
   }, [caseId]);
 
-  async function runAI() {
-    setError("");
-    if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
-      return;
-    }
-
-    setRunningAI(true);
-    try {
-      const data = await fetchJson(`${API}/ai/expediente/run`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ case_id: caseId }),
-      });
-      setAiResult(data);
-      await loadCase();
-    } catch (e) {
-      setError(e.message || "Error ejecutando Modo Dios");
-    } finally {
-      setRunningAI(false);
-    }
+  async function load() {
+    const [d, e] = await Promise.all([
+      fetchJson(`${API}/ops/cases/${caseId}/documents`, { headers }),
+      fetchJson(`${API}/ops/cases/${caseId}/events`, { headers }),
+    ]);
+    setDocs(d.items || []);
+    setEvents(e.items || []);
   }
 
-  async function downloadDoc(doc) {
-    setError("");
-    if (!token) {
-      setError("Falta token de operador. Accede primero al panel OPS y entra con PIN.");
-      return;
-    }
-    if (!doc?.id) {
-      setError("Este documento no tiene id (no se puede descargar).");
-      return;
-    }
-
-    const url = `${API}/ops/documents/${encodeURIComponent(doc.id)}/download`;
-    const filename = guessFilename(doc);
-
-    setDownloadingId(doc.id);
-    try {
-      const r = await fetch(url, { headers });
-      if (!r.ok) {
-        const data = await r.json().catch(() => ({}));
-        throw new Error(data?.detail || `Error descargando (HTTP ${r.status})`);
-      }
-
-      const blob = await r.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-      setError(e.message || "Error descargando documento");
-    } finally {
-      setDownloadingId(null);
-    }
+  async function presignAndOpen(bucket, key) {
+    const url = `${API}/files/presign?case_id=${caseId}&bucket=${bucket}&key=${key}`;
+    const data = await fetchJson(url);
+    window.open(data.url, "_blank", "noopener,noreferrer");
   }
 
-  const admissibility = aiResult?.admissibility?.admissibility;
-  const recommended = aiResult?.phase?.recommended_action?.action;
+  async function markSubmitted() {
+    const fd = new FormData();
+    if (registro) fd.append("registro", registro);
+    if (note) fd.append("note", note);
+
+    await fetchJson(`${API}/ops/cases/${caseId}/mark-submitted`, {
+      method: "POST",
+      headers,
+      body: fd,
+    });
+
+    alert("✅ Caso marcado como presentado");
+    load();
+  }
+
+  async function uploadJustificante() {
+    if (!justificante) return alert("Selecciona un archivo");
+    setUploading(true);
+
+    const fd = new FormData();
+    fd.append("file", justificante);
+
+    await fetchJson(`${API}/ops/cases/${caseId}/upload-justificante`, {
+      method: "POST",
+      headers,
+      body: fd,
+    });
+
+    setUploading(false);
+    setJustificante(null);
+    alert("📎 Justificante subido");
+    load();
+  }
 
   return (
-    <div className="sr-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h1 className="sr-h2" style={{ margin: 0 }}>
-          Expediente {caseId}
-        </h1>
+    <div className="sr-container py-8">
+      <Link to="/ops" className="sr-btn-secondary">
+        ← Volver al panel
+      </Link>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link to="/ops" className="sr-btn-secondary">
-            ← Volver a OPS
-          </Link>
+      <h1 className="sr-h2 mt-4">Expediente {caseId}</h1>
 
-          <Link to={`/ops/review/${caseId}`} className="sr-btn-primary">
-            Abrir modo operador PRO
-          </Link>
-        </div>
+      <div className="sr-card mt-4" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>🟡 Revisión manual obligatoria</h3>
+        <p className="sr-p" style={{ marginBottom: 0 }}>
+          Fase inicial del producto: revisar manualmente datos, plazos, organismo, hecho denunciado, recurso generado
+          y canal de presentación antes de marcar el caso como presentado.
+        </p>
       </div>
 
-      {error && (
-        <div className="sr-card" style={{ marginTop: 14 }}>
-          <div className="sr-p" style={{ margin: 0, color: "#991b1b" }}>
-            ❌ {error}
-          </div>
+      <div className="sr-card mt-4">
+        <h3 className="sr-h3">Acciones</h3>
+
+        <div className="grid md:grid-cols-2 gap-3 mt-3">
+          <input
+            placeholder="Número de registro (opcional)"
+            value={registro}
+            onChange={(e) => setRegistro(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="Nota interna (opcional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
         </div>
-      )}
 
-      <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3 className="sr-h3" style={{ marginTop: 0 }}>
-          Documentos del expediente
-        </h3>
-
-        {loading && <p className="sr-p">Cargando…</p>}
-
-        {!loading && documents.length === 0 && (
-          <p className="sr-p">No hay documentos cargados (o falta token).</p>
-        )}
-
-        {!loading && documents.length > 0 && (
-          <div style={{ display: "grid", gap: 10 }}>
-            {documents.map((d, i) => (
-              <div
-                key={d?.id || i}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 10,
-                  background: "rgba(255,255,255,0.75)",
-                }}
-              >
-                <div className="sr-small" style={{ fontWeight: 800 }}>
-                  {d.kind || "documento"}
-                </div>
-
-                <div className="sr-small" style={{ color: "#6b7280" }}>
-                  {d.bucket}/{d.key}
-                </div>
-
-                <div className="sr-small" style={{ color: "#6b7280" }}>
-                  {d.mime || "—"} · {d.size_bytes ? `${d.size_bytes} bytes` : "—"} ·{" "}
-                  {fmt(d.created_at)}
-                </div>
-
-                <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <button
-                    className="sr-btn-secondary"
-                    onClick={() => downloadDoc(d)}
-                    disabled={!d?.id || downloadingId === d?.id}
-                    style={{ padding: "8px 12px" }}
-                  >
-                    {downloadingId === d?.id ? "Descargando…" : "Descargar"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="sr-card" style={{ marginTop: 14 }}>
-        <h3 className="sr-h3" style={{ marginTop: 0 }}>
-          Acciones
-        </h3>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className="sr-btn-primary" onClick={runAI} disabled={runningAI}>
-            {runningAI ? "Analizando…" : "Generar recurso ahora (Modo Dios)"}
+        <div className="flex gap-3 flex-wrap mt-4">
+          <button className="sr-btn-primary" onClick={markSubmitted}>
+            Marcar como presentado
           </button>
 
-          <button className="sr-btn-secondary" onClick={loadCase}>
-            Recargar
-          </button>
+          <input
+            type="file"
+            onChange={(e) => setJustificante(e.target.files?.[0] || null)}
+          />
 
-          <Link to={`/ops/review/${caseId}`} className="sr-btn-secondary">
-            Revisar en PRO
-          </Link>
+          <button
+            className="sr-btn-primary"
+            onClick={uploadJustificante}
+            disabled={uploading}
+          >
+            {uploading ? "Subiendo…" : "Subir justificante"}
+          </button>
         </div>
       </div>
 
-      {aiResult && (
-        <div className="sr-card" style={{ marginTop: 14 }}>
-          <h3 className="sr-h3" style={{ marginTop: 0 }}>
-            Resultado Modo Dios
-          </h3>
-
-          <p className="sr-p">
-            <b>Admisibilidad:</b> {admissibility || "—"}
-          </p>
-
-          {recommended && (
-            <p className="sr-p">
-              <b>Acción recomendada:</b> {recommended}
-            </p>
-          )}
-
-          {admissibility === "NOT_ADMISSIBLE" && (
-            <p className="sr-p" style={{ color: "#991b1b" }}>
-              ⚠️ El recurso no es admisible en este momento.
-            </p>
-          )}
-
-          {admissibility === "ADMISSIBLE" && (
-            <p className="sr-p" style={{ color: "#166534" }}>
-              ✅ Recurso admisible. Listo para generar DOCX/PDF y presentar.
-            </p>
-          )}
-
-          {!admissibility && (
-            <p className="sr-small" style={{ color: "#6b7280" }}>
-              (Sin decisión de admisibilidad en el resultado. Revisa /ai/expediente/run.)
-            </p>
-          )}
+      <div className="grid md:grid-cols-2 gap-4 mt-6">
+        <div className="sr-card">
+          <h3 className="sr-h3">Documentos</h3>
+          {docs.map((d, i) => (
+            <button
+              key={i}
+              onClick={() => presignAndOpen(d.bucket, d.key)}
+              className="block w-full text-left border rounded p-2 mt-2 text-xs"
+            >
+              <strong>{d.kind}</strong>
+              <div>{fmt(d.created_at)}</div>
+            </button>
+          ))}
         </div>
-      )}
+
+        <div className="sr-card">
+          <h3 className="sr-h3">Logs</h3>
+          {events.map((e, i) => (
+            <div key={i} className="border rounded p-2 mt-2 text-xs">
+              <strong>{e.type}</strong>
+              <div>{fmt(e.created_at)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
