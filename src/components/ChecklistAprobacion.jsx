@@ -12,7 +12,7 @@ export default function ChecklistAprobacion({
     {
       key: "pdfLeido",
       label: "He leído el último PDF regenerado",
-      help: "Nunca aprobar sin abrir el PDF final.",
+      help: "Nunca presentar sin abrir el PDF final y revisar los datos del expediente.",
     },
     {
       key: "hechoRevisado",
@@ -47,7 +47,7 @@ export default function ChecklistAprobacion({
   return (
     <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-100 px-5 py-4">
-        <h3 className="text-xl font-semibold text-slate-900">Checklist antes de aprobar</h3>
+        <h3 className="text-xl font-semibold text-slate-900">Checklist de revisión manual</h3>
       </div>
 
       <div className="p-5">

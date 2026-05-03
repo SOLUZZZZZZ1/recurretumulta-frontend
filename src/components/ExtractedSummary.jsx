@@ -1,4 +1,4 @@
-// src/components/ExtractedSummary.jsx — con botón 'Ver resumen'
+// src/components/ExtractedSummary.jsx — resumen con flujo manual
 import React from "react";
 import { Link } from "react-router-dom";
 
@@ -39,28 +39,35 @@ export default function ExtractedSummary({ data }) {
         <div className="flex gap-2 flex-wrap items-center">
           {extracted.organismo && <Badge>{extracted.organismo}</Badge>}
           {extracted.plazo_recurso_sugerido && <Badge>Plazo: {extracted.plazo_recurso_sugerido}</Badge>}
-          <Link to={`/resumen?case=${encodeURIComponent(caseId)}`} className="sr-btn-secondary">Ver resumen</Link>
+          <Badge>Revisión manual</Badge>
+          <Link to={`/resumen?case=${encodeURIComponent(caseId)}`} className="sr-btn-secondary">Continuar</Link>
+        </div>
+      </div>
+
+      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:14,padding:12,marginBottom:12}}>
+        <div className="sr-small" style={{fontWeight:900}}>🟡 Este expediente pasará a revisión manual</div>
+        <div className="sr-small" style={{marginTop:5}}>
+          Permitimos continuar aunque la viabilidad no sea alta. Solo se bloqueará automáticamente si el plazo está vencido.
         </div>
       </div>
 
       <Row label="Organismo" value={extracted.organismo} />
       <Row label="Nº expediente" value={extracted.expediente_ref} />
       <Row label="Importe" value={extracted.importe ? `${extracted.importe} €` : null} />
-      <Row label="Fecha notificación" value={extracted.fecha_notificacion} />
-      <Row label="Fecha documento" value={extracted.fecha_documento} />
-      <Row label="Tipo sanción" value={extracted.tipo_sancion} />
-      <Row label="Normativa aplicable (orientativa)" value="RDL 6/2015 (Ley de Tráfico); Ley 39/2015 (Procedimiento Administrativo Común)" />
+      <Row label="Fecha notificación" value={extracted.fecha_notificacion || extracted.fecha_documento} />
+      <Row label="Tipo detectado" value={extracted.tipo_infraccion || extracted.familia_resuelta} />
+      <Row label="Jurisdicción" value={extracted.jurisdiccion} />
+      <Row label="Hecho imputado" value={extracted.hecho_para_recurso || extracted.hecho_imputado || extracted.hecho_denunciado_resumido} />
+      <Row label="Resultado estratégico" value={extracted.resultado_estrategico} />
+      <Row label="Revisión automática" value="No bloqueante: revisión manual antes de presentar" />
 
-      <div style={{marginTop:10}}>
-        <div className="sr-small" style={{fontWeight:800}}>Observaciones</div>
-        <div className="sr-p">{extracted.observaciones || "—"}</div>
+      {storage?.key && <Row label="Documento guardado" value={storage.key} />}
+
+      <div className="sr-cta-row" style={{justifyContent:"flex-start",marginTop:14}}>
+        <Link to={`/resumen?case=${encodeURIComponent(caseId)}`} className="sr-btn-primary">
+          Continuar a autorización y revisión
+        </Link>
       </div>
-
-      {storage && (
-        <div className="sr-small" style={{marginTop:10,color:"#6b7280"}}>
-          Archivo guardado: <code>{storage.bucket}/{storage.key}</code>
-        </div>
-      )}
     </div>
   );
 }
