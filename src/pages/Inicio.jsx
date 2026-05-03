@@ -4,13 +4,262 @@ import Seo from "../components/Seo.jsx";
 
 const API = "/api";
 
+const DIRECT_BACKEND = "https://recurretumulta-backend.onrender.com";
+
+const API_CANDIDATES = [
+  import.meta.env.VITE_API_BASE_URL,
+  import.meta.env.VITE_API_URL,
+  DIRECT_BACKEND,
+  API,
+].filter(Boolean);
+
+const HARD_SEND_LIMIT_BYTES = 2.2 * 1024 * 1024;
+const TARGET_IMAGE_BYTES = 1.6 * 1024 * 1024;
+const IMAGE_MAX_SIDE = 1800;
+
+function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return "";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getExt(name = "") {
+  const m = String(name).match(/\.([a-zA-Z0-9]+)$/);
+  return m ? m[1].toLowerCase() : "";
+}
+
+function isImageFile(file) {
+  const ext = getExt(file?.name);
+  return file?.type?.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(ext);
+}
+
+function isPdfFile(file) {
+  return file?.type === "application/pdf" || getExt(file?.name) === "pdf";
+}
+
+function canvasToBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) reject(new Error("No se pudo comprimir la imagen."));
+        else resolve(blob);
+      },
+      "image/jpeg",
+      quality
+    );
+  });
+}
+
+async function loadImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () =>
+        reject(
+          new Error(
+            "No se pudo leer la imagen. Si el móvil la guardó como HEIC, haz una captura de pantalla y sube esa captura."
+          )
+        );
+      image.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function compressImageForUpload(file) {
+  const image = await loadImage(file);
+
+  const originalWidth = image.naturalWidth || image.width;
+  const originalHeight = image.naturalHeight || image.height;
+
+  if (!originalWidth || !originalHeight) {
+    throw new Error("No se pudo leer el tamaño de la imagen.");
+  }
+
+  let bestBlob = null;
+  let bestWidth = 0;
+  let bestHeight = 0;
+
+  for (const maxSide of [IMAGE_MAX_SIDE, 1600, 1400, 1100, 900]) {
+    let width = originalWidth;
+    let height = originalHeight;
+
+    const longest = Math.max(width, height);
+    if (longest > maxSide) {
+      const ratio = maxSide / longest;
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) throw new Error("No se pudo preparar la compresión.");
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+
+    for (const quality of [0.78, 0.68, 0.58, 0.48, 0.38, 0.3, 0.22]) {
+      const blob = await canvasToBlob(canvas, quality);
+      if (!bestBlob || blob.size < bestBlob.size) {
+        bestBlob = blob;
+        bestWidth = width;
+        bestHeight = height;
+      }
+      if (blob.size <= TARGET_IMAGE_BYTES) {
+        bestBlob = blob;
+        bestWidth = width;
+        bestHeight = height;
+        break;
+      }
+    }
+
+    if (bestBlob && bestBlob.size <= TARGET_IMAGE_BYTES) break;
+  }
+
+  if (!bestBlob) throw new Error("No se pudo optimizar la imagen.");
+
+  if (bestBlob.size > HARD_SEND_LIMIT_BYTES) {
+    throw new Error(
+      `La imagen sigue pesando ${formatBytes(bestBlob.size)} tras prepararla. Haz una captura más simple del documento.`
+    );
+  }
+
+  const base = String(file.name || "documento").replace(/\.[^.]+$/, "");
+  const optimizedFile = new File([bestBlob], `${base}-preparado.jpg`, {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
+
+  return {
+    file: optimizedFile,
+    originalSize: file.size,
+    finalSize: optimizedFile.size,
+    width: bestWidth,
+    height: bestHeight,
+    optimized: true,
+  };
+}
+
+async function prepareUploadFile(file) {
+  if (!file) throw new Error("Archivo no válido.");
+
+  if (isImageFile(file)) {
+    return compressImageForUpload(file);
+  }
+
+  if (isPdfFile(file)) {
+    if (file.size > HARD_SEND_LIMIT_BYTES) {
+      throw new Error(
+        `El PDF pesa ${formatBytes(file.size)}. Para evitar error de subida, sube una foto o captura clara del documento.`
+      );
+    }
+    return {
+      file,
+      originalSize: file.size,
+      finalSize: file.size,
+      optimized: false,
+    };
+  }
+
+  if (file.size > HARD_SEND_LIMIT_BYTES) {
+    throw new Error(
+      `El archivo pesa ${formatBytes(file.size)}. Sube una foto/captura para que el sistema la prepare automáticamente.`
+    );
+  }
+
+  return {
+    file,
+    originalSize: file.size,
+    finalSize: file.size,
+    optimized: false,
+  };
+}
+
+async function parseAnalyzeResponse(response) {
+  const text = await response.text().catch(() => "");
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const detail = data?.detail || data?.message || data?.error || text || `HTTP ${response.status}`;
+    throw new Error(typeof detail === "string" ? `HTTP ${response.status}: ${detail}` : `HTTP ${response.status}`);
+  }
+
+  return data;
+}
+
+async function postAnalyzeWithFallback(formData) {
+  const errors = [];
+
+  for (const base of API_CANDIDATES) {
+    const cleanBase = String(base).replace(/\/$/, "");
+    const url = `${cleanBase}/analyze`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+      return await parseAnalyzeResponse(response);
+    } catch (err) {
+      errors.push(`${url} → ${err?.message || "error"}`);
+    }
+  }
+
+  throw new Error(`No se pudo analizar el documento. ${errors.join(" | ")}`);
+}
+
+
 export default function Inicio() {
   const nav = useNavigate();
 
   const [file, setFile] = useState(null);
+  const [uploadInfo, setUploadInfo] = useState(null);
   const [caseId, setCaseId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [preparing, setPreparing] = useState(false);
   const [err, setErr] = useState("");
+
+  async function handleFileChange(selectedFile) {
+    setErr("");
+    setUploadInfo(null);
+
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
+
+    setPreparing(true);
+
+    try {
+      const prepared = await prepareUploadFile(selectedFile);
+      setFile(prepared.file);
+      setUploadInfo(prepared);
+
+      if (prepared.optimized) {
+        setErr(
+          `Imagen preparada correctamente: ${formatBytes(prepared.originalSize)} → ${formatBytes(prepared.finalSize)}`
+        );
+      }
+    } catch (e) {
+      setFile(null);
+      setUploadInfo(null);
+      setErr(e?.message || "No se pudo preparar el archivo.");
+    } finally {
+      setPreparing(false);
+    }
+  }
 
   async function handleUpload() {
     setErr("");
@@ -20,30 +269,35 @@ export default function Inicio() {
       return;
     }
 
+    if (file.size > HARD_SEND_LIMIT_BYTES) {
+      setErr(
+        `El archivo preparado pesa ${formatBytes(file.size)} y no se enviará para evitar error de subida.`
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API}/analyze`, {
-        method: "POST",
-        body: formData,
-      });
+      const data = await postAnalyzeWithFallback(formData);
 
-      const data = await res.json().catch(() => ({}));
+      localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
 
-      if (!res.ok) {
-        throw new Error(data?.detail || data?.message || "No se pudo analizar el documento.");
-      }
-
-      const newCaseId = data?.case_id || data?.caseId || data?.id;
+      const newCaseId =
+        data?.case_id ||
+        data?.caseId ||
+        data?.id ||
+        data?.extracted?.case_id ||
+        data?.extracted?.id;
 
       if (!newCaseId) {
         throw new Error("El análisis se completó, pero no se recibió número de expediente.");
       }
 
-      nav(`/resultado/${newCaseId}`);
+      nav(`/resumen?case=${encodeURIComponent(newCaseId)}`);
     } catch (e) {
       setErr(e.message || "Error al subir el documento.");
     } finally {
@@ -170,7 +424,7 @@ export default function Inicio() {
                 </h2>
 
                 <p style={{ color: "#64748b", lineHeight: 1.5, marginBottom: 18 }}>
-                  Acepta PDF, imagen o documento. Primero analizamos si el caso tiene recorrido.
+                  Sube una foto o captura de la multa. Si pesa mucho, la preparamos automáticamente antes de enviarla.
                 </p>
 
                 <label
@@ -187,8 +441,8 @@ export default function Inicio() {
                 >
                   <input
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    accept=".jpg,.jpeg,.png,.webp,image/*,.pdf"
+                    onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                     style={{ display: "none" }}
                   />
 
@@ -199,12 +453,18 @@ export default function Inicio() {
                   <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>
                     Multa, notificación o resolución
                   </div>
+
+                  {uploadInfo ? (
+                    <div style={{ color: "#166534", fontSize: 13, marginTop: 8, fontWeight: 800 }}>
+                      Archivo preparado: {formatBytes(uploadInfo.originalSize)} → {formatBytes(uploadInfo.finalSize)}
+                    </div>
+                  ) : null}
                 </label>
 
                 <button
                   type="button"
                   onClick={handleUpload}
-                  disabled={loading}
+                  disabled={loading || preparing}
                   style={{
                     width: "100%",
                     border: 0,
@@ -218,7 +478,7 @@ export default function Inicio() {
                     boxShadow: "0 14px 28px rgba(22,163,74,0.28)",
                   }}
                 >
-                  {loading ? "Analizando…" : "Analizar multa gratis"}
+                  {preparing ? "Preparando imagen…" : loading ? "Analizando…" : "Analizar multa gratis"}
                 </button>
 
                 <div style={{ marginTop: 14, color: "#64748b", fontSize: 14, lineHeight: 1.45 }}>
