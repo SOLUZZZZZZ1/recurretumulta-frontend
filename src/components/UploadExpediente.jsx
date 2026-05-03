@@ -1,64 +1,35 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API = "/api";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  "/api";
+
 const MAX_FILES = 5;
 
-// Render/proxy puede cortar antes de los 12 MB del backend.
-// Por eso el frontend optimiza imágenes a un tamaño seguro.
-const SAFE_UPLOAD_MAX_MB = 4.2;
-const SAFE_UPLOAD_MAX_BYTES = SAFE_UPLOAD_MAX_MB * 1024 * 1024;
-const IMAGE_TARGET_MAX_BYTES = 3.6 * 1024 * 1024;
-const IMAGE_MAX_DIMENSION = 2200;
-
-async function fetchJson(url, options = {}) {
-  const r = await fetch(url, options);
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const detail = data?.detail || data?.message;
-    if (r.status === 413) {
-      throw new Error(
-        "El archivo es demasiado grande para subirlo. Si es una foto, vuelve a seleccionarla para que el sistema la optimice automáticamente. Si es PDF pesado, conviértelo a foto o envía una captura clara."
-      );
-    }
-    throw new Error(typeof detail === "string" ? detail : "Error API");
-  }
-  return data;
-}
+// Límite conservador para evitar 413 en Vercel/Render/proxy.
+const MAX_UPLOAD_BYTES = 2.5 * 1024 * 1024;
+const TARGET_IMAGE_BYTES = 1.7 * 1024 * 1024;
+const IMAGE_MAX_SIDE = 1600;
 
 function formatBytes(bytes) {
   const mb = bytes / (1024 * 1024);
   return `${mb.toFixed(2)} MB`;
 }
 
-function fileExt(name = "") {
+function getExt(name = "") {
   const m = String(name).match(/\.([a-zA-Z0-9]+)$/);
   return m ? m[1].toLowerCase() : "";
 }
 
-function isImageFile(file) {
-  return file?.type?.startsWith("image/");
+function isImage(file) {
+  const ext = getExt(file?.name);
+  return file?.type?.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(ext);
 }
 
-function isPdfFile(file) {
-  return file?.type === "application/pdf" || fileExt(file?.name) === "pdf";
-}
-
-async function fileToImage(file) {
-  const url = URL.createObjectURL(file);
-
-  try {
-    const img = await new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("No se pudo leer la imagen."));
-      image.src = url;
-    });
-
-    return img;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+function isPdf(file) {
+  return file?.type === "application/pdf" || getExt(file?.name) === "pdf";
 }
 
 function canvasToBlob(canvas, quality) {
@@ -74,15 +45,28 @@ function canvasToBlob(canvas, quality) {
   });
 }
 
-async function compressImageFile(file) {
-  if (!isImageFile(file)) return { file, optimized: false, originalSize: file.size };
+async function loadImage(file) {
+  const url = URL.createObjectURL(file);
 
-  // Si ya es pequeña, la dejamos igual.
-  if (file.size <= SAFE_UPLOAD_MAX_BYTES) {
-    return { file, optimized: false, originalSize: file.size };
+  try {
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () =>
+        reject(
+          new Error(
+            "No se pudo leer la imagen. Si el móvil la guardó como HEIC, haz una captura de pantalla y sube la captura."
+          )
+        );
+      img.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
   }
+}
 
-  const img = await fileToImage(file);
+async function compressImage(file) {
+  const img = await loadImage(file);
 
   const originalWidth = img.naturalWidth || img.width;
   const originalHeight = img.naturalHeight || img.height;
@@ -95,53 +79,50 @@ async function compressImageFile(file) {
   let height = originalHeight;
 
   const longest = Math.max(width, height);
-  if (longest > IMAGE_MAX_DIMENSION) {
-    const ratio = IMAGE_MAX_DIMENSION / longest;
+  if (longest > IMAGE_MAX_SIDE) {
+    const ratio = IMAGE_MAX_SIDE / longest;
     width = Math.round(width * ratio);
     height = Math.round(height * ratio);
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  async function render(w, h, quality) {
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
 
-  const ctx = canvas.getContext("2d", { alpha: false });
-  if (!ctx) throw new Error("No se pudo preparar la compresión.");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) throw new Error("No se pudo preparar la compresión.");
 
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-  ctx.drawImage(img, 0, 0, width, height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+
+    return canvasToBlob(canvas, quality);
+  }
 
   let bestBlob = null;
 
-  // Intentos de calidad decreciente hasta quedar por debajo del objetivo.
-  for (const quality of [0.82, 0.74, 0.66, 0.58, 0.5, 0.42]) {
-    const blob = await canvasToBlob(canvas, quality);
-    bestBlob = blob;
-    if (blob.size <= IMAGE_TARGET_MAX_BYTES) break;
+  for (const quality of [0.78, 0.7, 0.62, 0.54, 0.46, 0.38, 0.32]) {
+    const blob = await render(width, height, quality);
+    bestBlob = !bestBlob || blob.size < bestBlob.size ? blob : bestBlob;
+    if (blob.size <= TARGET_IMAGE_BYTES) {
+      bestBlob = blob;
+      break;
+    }
   }
 
-  // Si aún pesa demasiado, reducimos dimensión una segunda vez.
-  if (bestBlob && bestBlob.size > IMAGE_TARGET_MAX_BYTES) {
-    const reducedScale = Math.sqrt(IMAGE_TARGET_MAX_BYTES / bestBlob.size) * 0.92;
-    const reducedWidth = Math.max(900, Math.round(width * reducedScale));
-    const reducedHeight = Math.max(900, Math.round(height * reducedScale));
+  if (bestBlob && bestBlob.size > TARGET_IMAGE_BYTES) {
+    const scale = Math.max(0.45, Math.sqrt(TARGET_IMAGE_BYTES / bestBlob.size) * 0.82);
+    width = Math.max(850, Math.round(width * scale));
+    height = Math.max(850, Math.round(height * scale));
 
-    const canvas2 = document.createElement("canvas");
-    canvas2.width = reducedWidth;
-    canvas2.height = reducedHeight;
-
-    const ctx2 = canvas2.getContext("2d", { alpha: false });
-    if (!ctx2) throw new Error("No se pudo preparar la compresión secundaria.");
-
-    ctx2.fillStyle = "#ffffff";
-    ctx2.fillRect(0, 0, reducedWidth, reducedHeight);
-    ctx2.drawImage(img, 0, 0, reducedWidth, reducedHeight);
-
-    for (const quality of [0.7, 0.62, 0.54, 0.46, 0.38]) {
-      const blob = await canvasToBlob(canvas2, quality);
-      bestBlob = blob;
-      if (blob.size <= IMAGE_TARGET_MAX_BYTES) break;
+    for (const quality of [0.62, 0.54, 0.46, 0.38, 0.3]) {
+      const blob = await render(width, height, quality);
+      bestBlob = !bestBlob || blob.size < bestBlob.size ? blob : bestBlob;
+      if (blob.size <= TARGET_IMAGE_BYTES) {
+        bestBlob = blob;
+        break;
+      }
     }
   }
 
@@ -149,155 +130,177 @@ async function compressImageFile(file) {
     throw new Error("No se pudo optimizar la imagen.");
   }
 
-  if (bestBlob.size > SAFE_UPLOAD_MAX_BYTES) {
+  if (bestBlob.size > MAX_UPLOAD_BYTES) {
     throw new Error(
-      "La imagen sigue siendo demasiado grande incluso tras optimizarla. Haz una foto más cercana o una captura más simple."
+      `La imagen optimizada pesa ${formatBytes(bestBlob.size)}. Haz una captura más simple y vuelve a subirla.`
     );
   }
 
-  const baseName = String(file.name || "documento").replace(/\.[^.]+$/, "");
-  const optimizedFile = new File([bestBlob], `${baseName}-optimizado.jpg`, {
+  const cleanName = String(file.name || "documento").replace(/\.[^.]+$/, "");
+  return new File([bestBlob], `${cleanName}-optimizado.jpg`, {
     type: "image/jpeg",
     lastModified: Date.now(),
   });
+}
+
+async function prepareFile(file) {
+  if (!file) throw new Error("Archivo no válido.");
+
+  if (isImage(file)) {
+    const compressed = await compressImage(file);
+    return {
+      file: compressed,
+      originalName: file.name,
+      originalSize: file.size,
+      optimized: true,
+    };
+  }
+
+  if (isPdf(file)) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error(
+        `El PDF pesa ${formatBytes(file.size)}. Para evitar error 413, sube una foto o captura del documento. Las fotos se optimizan automáticamente.`
+      );
+    }
+
+    return {
+      file,
+      originalName: file.name,
+      originalSize: file.size,
+      optimized: false,
+    };
+  }
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error(
+      `El archivo pesa ${formatBytes(file.size)}. Sube una foto/captura para que el sistema la optimice automáticamente.`
+    );
+  }
 
   return {
-    file: optimizedFile,
-    optimized: true,
+    file,
+    originalName: file.name,
     originalSize: file.size,
+    optimized: false,
   };
 }
 
-async function optimizeIncomingFile(file) {
-  if (isImageFile(file)) {
-    return compressImageFile(file);
+async function readJsonOrThrow(response) {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    if (response.status === 413) {
+      throw new Error(
+        "El servidor ha rechazado el archivo por tamaño. Si no aparece como optimizado antes de analizar, la web está usando una versión antigua."
+      );
+    }
+
+    const detail = data?.detail || data?.message;
+    throw new Error(typeof detail === "string" ? detail : "No se pudo analizar el documento.");
   }
 
-  // PDF/DOCX no se pueden comprimir de forma fiable en navegador sin romper contenido.
-  // Los dejamos pasar solo si están bajo el límite seguro.
-  if (isPdfFile(file) && file.size > SAFE_UPLOAD_MAX_BYTES) {
-    throw new Error(
-      `El PDF pesa ${formatBytes(file.size)}. Para evitar error de subida, sube una foto/captura del documento o un PDF más ligero. Las fotos se optimizan automáticamente.`
-    );
-  }
-
-  if (file.size > SAFE_UPLOAD_MAX_BYTES) {
-    throw new Error(
-      `El archivo pesa ${formatBytes(file.size)} y supera el límite seguro de subida. Si es una imagen, súbela como JPG/PNG para optimizarla automáticamente.`
-    );
-  }
-
-  return { file, optimized: false, originalSize: file.size };
+  return data;
 }
 
-export default function UploadExpediente({ maxSizeMB = 12 }) {
+export default function UploadExpediente() {
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
-  const [files, setFiles] = useState([]); // [{id,file,originalSize,optimized}]
+  const [items, setItems] = useState([]);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [optimizing, setOptimizing] = useState(false);
 
-  const maxBytes = useMemo(() => maxSizeMB * 1024 * 1024, [maxSizeMB]);
-
-  function pickFiles() {
-    inputRef.current?.click();
-  }
+  const openPicker = () => inputRef.current?.click();
 
   async function addFiles(fileList) {
-    setMsg("");
     const incoming = Array.from(fileList || []);
     if (!incoming.length) return;
 
-    const space = MAX_FILES - files.length;
-    const sliced = incoming.slice(0, Math.max(0, space));
-
-    if (incoming.length > sliced.length) {
-      setMsg(`Máximo ${MAX_FILES} documentos por expediente. Se han añadido solo los primeros.`);
-    }
-
-    setOptimizing(true);
+    setMessage("");
+    setBusy(true);
 
     try {
-      const valid = [];
+      const available = MAX_FILES - items.length;
+      const selected = incoming.slice(0, Math.max(0, available));
+      const nextItems = [];
       const notes = [];
 
-      for (const original of sliced) {
+      if (incoming.length > selected.length) {
+        notes.push(`Máximo ${MAX_FILES} documentos. Se han añadido solo los primeros.`);
+      }
+
+      for (const file of selected) {
         try {
-          // Primero validamos el límite absoluto del backend para documentos no imagen.
-          // En imágenes grandes, la optimización baja antes de subir.
-          if (!isImageFile(original) && original.size > maxBytes) {
-            notes.push(`${original.name}: supera ${maxSizeMB} MB.`);
-            continue;
-          }
+          const prepared = await prepareFile(file);
 
-          const optimized = await optimizeIncomingFile(original);
-
-          valid.push({
+          nextItems.push({
             id: crypto.randomUUID(),
-            file: optimized.file,
-            originalSize: optimized.originalSize,
-            optimized: optimized.optimized,
+            ...prepared,
           });
 
-          if (optimized.optimized) {
+          if (prepared.optimized) {
             notes.push(
-              `Imagen optimizada: ${formatBytes(optimized.originalSize)} → ${formatBytes(optimized.file.size)}`
+              `✅ Imagen optimizada: ${formatBytes(prepared.originalSize)} → ${formatBytes(prepared.file.size)}`
             );
           }
         } catch (err) {
-          notes.push(err?.message || `No se pudo preparar ${original.name}.`);
+          notes.push(err?.message || `No se pudo preparar ${file.name}.`);
         }
       }
 
-      if (valid.length) {
-        setFiles((prev) => [...prev, ...valid]);
+      if (nextItems.length) {
+        setItems((prev) => [...prev, ...nextItems]);
       }
 
       if (notes.length) {
-        const prefix = valid.length ? "✅ Documento preparado. " : "";
-        setMsg(prefix + notes.join(" "));
+        setMessage(notes.join(" "));
       }
     } finally {
-      setOptimizing(false);
+      setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
 
-  function removeFile(id) {
-    setFiles((prev) => prev.filter((x) => x.id !== id));
+  function removeItem(id) {
+    setItems((prev) => prev.filter((x) => x.id !== id));
   }
 
   function clearAll() {
-    setFiles([]);
-    setMsg("");
+    setItems([]);
+    setMessage("");
     if (inputRef.current) inputRef.current.value = "";
   }
 
   async function analyze() {
-    setMsg("");
+    setMessage("");
 
-    if (files.length === 0) {
-      setMsg("Primero añade al menos un documento.");
+    if (!items.length) {
+      setMessage("Primero añade al menos un documento.");
       return;
     }
 
-    setLoading(true);
+    const tooLarge = items.find((x) => x.file.size > MAX_UPLOAD_BYTES);
+    if (tooLarge) {
+      setMessage(
+        `${tooLarge.file.name} pesa ${formatBytes(tooLarge.file.size)} y no se subirá para evitar error 413.`
+      );
+      return;
+    }
+
+    setBusy(true);
 
     try {
-      // ✅ 1 archivo → /analyze
-      if (files.length === 1) {
+      if (items.length === 1) {
         const fd = new FormData();
-        fd.append("file", files[0].file);
+        fd.append("file", items[0].file);
 
-        const data = await fetchJson(`${API}/analyze`, {
+        const response = await fetch(`${API_BASE}/analyze`, {
           method: "POST",
           body: fd,
         });
 
-        localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
+        const data = await readJsonOrThrow(response);
 
         const caseId =
           data?.case_id ||
@@ -306,53 +309,40 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
           data?.extracted?.case_id ||
           data?.extracted?.id;
 
-        if (!caseId) throw new Error("No se pudo obtener el número de expediente.");
+        if (!caseId) {
+          throw new Error("El análisis terminó, pero no devolvió número de caso.");
+        }
 
-        setMsg("✅ Documento analizado. Abriendo resumen…");
+        localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
+        setMessage("✅ Documento analizado. Abriendo resumen…");
         navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
         return;
       }
 
-      // ✅ 2–5 archivos → /analyze/expediente
-      const fdMulti = new FormData();
-      files.forEach((f) => fdMulti.append("files", f.file));
+      const fd = new FormData();
+      items.forEach((item) => fd.append("files", item.file));
 
-      const dataMulti = await fetchJson(`${API}/analyze/expediente`, {
+      const response = await fetch(`${API_BASE}/analyze/expediente`, {
         method: "POST",
-        body: fdMulti,
+        body: fd,
       });
 
-      const caseId = dataMulti?.case_id;
-      if (!caseId) throw new Error("El backend no devolvió case_id para el expediente.");
+      const data = await readJsonOrThrow(response);
+      const caseId = data?.case_id;
 
-      localStorage.setItem(
-        "rtm_last_analysis",
-        JSON.stringify({
-          case_id: caseId,
-          extracted: {
-            extracted: {
-              organismo: null,
-              expediente_ref: null,
-              observaciones:
-                "Hemos recibido tu documentación y estamos revisando el expediente para comprobar si el recurso puede presentarse en este momento.",
-              tipo_recurso_sugerido: "Expediente multi-documento",
-              normativa_aplicable: "Ley 39/2015",
-            },
-          },
-          documents: dataMulti?.documents || [],
-        })
-      );
+      if (!caseId) {
+        throw new Error("El expediente terminó, pero no devolvió número de caso.");
+      }
 
-      setMsg("✅ Expediente creado. Abriendo resumen…");
+      localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
+      setMessage("✅ Expediente analizado. Abriendo resumen…");
       navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
-    } catch (e) {
-      setMsg(e?.message || "Error al analizar el expediente.");
+    } catch (err) {
+      setMessage(err?.message || "No se pudo analizar el documento.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
-
-  const labelBtn = files.length <= 1 ? "Analizar documento" : "Analizar expediente";
 
   return (
     <div className="sr-card" style={{ textAlign: "left" }}>
@@ -362,16 +352,17 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
             Subir documentos del expediente
           </h2>
           <p className="sr-p" style={{ marginBottom: 0 }}>
-            Puedes subir hasta <b>{MAX_FILES}</b> documentos relacionados con el mismo procedimiento.
+            Sube la multa o documentos relacionados. Las fotos grandes se optimizan automáticamente.
           </p>
         </div>
 
         <div className="sr-small" style={{ color: "#6b7280" }}>
-          {files.length}/{MAX_FILES} documentos
+          {items.length}/{MAX_FILES} documentos
         </div>
       </div>
 
       <div
+        onClick={openPicker}
         onDragEnter={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -391,14 +382,13 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
         }}
         role="button"
         tabIndex={0}
-        onClick={pickFiles}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") pickFiles();
+          if (e.key === "Enter" || e.key === " ") openPicker();
         }}
         style={{
           marginTop: 14,
           border: `2px dashed ${dragOver ? "#111827" : "#cbd5e1"}`,
-          background: dragOver ? "rgba(17,24,39,0.04)" : "rgba(255,255,255,0.75)",
+          background: dragOver ? "rgba(17,24,39,0.05)" : "rgba(255,255,255,0.78)",
           borderRadius: 16,
           padding: 18,
           cursor: "pointer",
@@ -417,10 +407,10 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <p className="sr-p" style={{ margin: 0 }}>
-              <strong>Arrastra y suelta</strong> aquí tus documentos, o haz clic para seleccionar.
+              <strong>Arrastra y suelta</strong> aquí tus documentos o haz clic para seleccionar.
             </p>
             <p className="sr-small" style={{ marginTop: 6, opacity: 0.85 }}>
-              Fotos grandes: se optimizan automáticamente antes de subir · PDF/DOCX: máximo seguro {SAFE_UPLOAD_MAX_MB} MB
+              Fotos: compresión automática · PDF seguro máximo: 2,5 MB · Recomendado: foto/captura clara
             </p>
           </div>
 
@@ -429,33 +419,33 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
             className="sr-btn-primary"
             onClick={(e) => {
               e.stopPropagation();
-              pickFiles();
+              openPicker();
             }}
-            disabled={optimizing || loading}
+            disabled={busy}
           >
-            {optimizing ? "Optimizando…" : "Añadir documento"}
+            {busy ? "Preparando…" : "Añadir documento"}
           </button>
         </div>
       </div>
 
-      {files.length > 0 && (
+      {items.length > 0 && (
         <div className="sr-card" style={{ marginTop: 12 }}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="sr-h3">Documentos añadidos</div>
-            <button className="sr-btn-secondary" type="button" onClick={clearAll} disabled={loading || optimizing}>
+            <div className="sr-h3">Documentos preparados</div>
+            <button className="sr-btn-secondary" type="button" onClick={clearAll} disabled={busy}>
               Limpiar todo
             </button>
           </div>
 
           <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-            {files.map((f, idx) => (
+            {items.map((item, index) => (
               <div
-                key={f.id}
+                key={item.id}
                 style={{
                   border: "1px solid #e5e7eb",
                   borderRadius: 12,
                   padding: 10,
-                  background: "rgba(255,255,255,0.7)",
+                  background: "rgba(255,255,255,0.75)",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -464,19 +454,20 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
               >
                 <div>
                   <div className="sr-small" style={{ fontWeight: 800 }}>
-                    Documento {idx + 1}
+                    Documento {index + 1}
                   </div>
                   <div className="sr-small" style={{ color: "#6b7280" }}>
-                    {f.file.name} · {formatBytes(f.file.size)}
-                    {f.optimized ? (
+                    {item.file.name} · {formatBytes(item.file.size)}
+                    {item.optimized && (
                       <span style={{ color: "#166534", fontWeight: 800 }}>
-                        {" "}· optimizado desde {formatBytes(f.originalSize)}
+                        {" "}
+                        · optimizado desde {formatBytes(item.originalSize)}
                       </span>
-                    ) : null}
+                    )}
                   </div>
                 </div>
 
-                <button className="sr-btn-secondary" type="button" onClick={() => removeFile(f.id)} disabled={loading || optimizing}>
+                <button className="sr-btn-secondary" type="button" onClick={() => removeItem(item.id)} disabled={busy}>
                   Quitar
                 </button>
               </div>
@@ -486,19 +477,20 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
       )}
 
       <div className="sr-cta-row" style={{ marginTop: 14, justifyContent: "flex-start" }}>
-        <button className="sr-btn-primary" onClick={analyze} disabled={loading || optimizing}>
-          {optimizing ? "Optimizando documento…" : loading ? "Procesando…" : labelBtn}
+        <button className="sr-btn-primary" onClick={analyze} disabled={busy || !items.length}>
+          {busy ? "Procesando…" : items.length > 1 ? "Analizar expediente" : "Analizar documento"}
         </button>
 
-        {msg && (
+        {message && (
           <span
             className="sr-small"
             style={{
               alignSelf: "center",
-              color: msg.startsWith("✅") ? "#166534" : "#991b1b",
+              color: message.startsWith("✅") ? "#166534" : "#991b1b",
+              lineHeight: 1.45,
             }}
           >
-            {msg}
+            {message}
           </span>
         )}
       </div>
