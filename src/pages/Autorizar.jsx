@@ -3,24 +3,25 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 const DIRECT_BACKEND = "https://recurretumulta-backend.onrender.com";
 
-const API =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  DIRECT_BACKEND;
-
-function apiUrl(path) {
-  const base = String(API || DIRECT_BACKEND).replace(/\/$/, "");
-  return `${base}${path}`;
-}
+const API_CANDIDATES = [
+  "/api",
+  import.meta.env.VITE_API_BASE_URL,
+  import.meta.env.VITE_API_URL,
+  DIRECT_BACKEND,
+].filter(Boolean);
 
 function getCaseId(search) {
   const qs = new URLSearchParams(search);
   return qs.get("case") || qs.get("case_id") || qs.get("id") || "";
 }
 
-async function fetchJson(url, options = {}) {
-  const r = await fetch(url, options);
-  const text = await r.text().catch(() => "");
+function buildUrl(base, path) {
+  const cleanBase = String(base || "").replace(/\/$/, "");
+  return `${cleanBase}${path}`;
+}
+
+async function readResponse(response) {
+  const text = await response.text().catch(() => "");
   let data = {};
   try {
     data = text ? JSON.parse(text) : {};
@@ -28,12 +29,41 @@ async function fetchJson(url, options = {}) {
     data = {};
   }
 
-  if (!r.ok) {
-    const detail = data?.detail || data?.message || text || `HTTP ${r.status}`;
+  if (!response.ok) {
+    const detail = data?.detail || data?.message || text || `HTTP ${response.status}`;
     throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
   }
 
   return data;
+}
+
+async function fetchJsonFallback(path, options = {}) {
+  const errors = [];
+
+  for (const base of API_CANDIDATES) {
+    const url = buildUrl(base, path);
+
+    try {
+      const response = await fetch(url, options);
+      return await readResponse(response);
+    } catch (e) {
+      errors.push(`${url} → ${e?.message || "Failed to fetch"}`);
+    }
+  }
+
+  throw new Error(errors.join(" | "));
+}
+
+function openPdf(pathOrUrl) {
+  const url = String(pathOrUrl || "");
+  if (!url) return;
+
+  if (url.startsWith("http")) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  window.open(buildUrl("/api", url), "_blank", "noopener,noreferrer");
 }
 
 function unwrapExtracted(value) {
@@ -65,6 +95,7 @@ export default function Autorizar() {
   const [signedFile, setSignedFile] = useState(null);
   const [generated, setGenerated] = useState(false);
   const [msg, setMsg] = useState("");
+  const [debug, setDebug] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingCase, setLoadingCase] = useState(true);
 
@@ -77,9 +108,10 @@ export default function Autorizar() {
 
       setLoadingCase(true);
       setMsg("");
+      setDebug("");
 
       try {
-        const status = await fetchJson(apiUrl(`/cases/${caseId}/public-status`));
+        const status = await fetchJsonFallback(`/cases/${caseId}/public-status`);
         setCaseData(status);
 
         const interested = status?.interested_data || {};
@@ -93,72 +125,70 @@ export default function Autorizar() {
         })();
         const localExtracted = unwrapExtracted(analysis);
 
-        const fullName = firstValue(
-          interested.full_name,
-          interested.contact_name,
-          interested.name,
-          extracted.full_name,
-          extracted.nombre_completo,
-          extracted.titular,
-          extracted.nombre_multado,
-          localExtracted.full_name,
-          localExtracted.nombre_completo,
-          localExtracted.titular,
-          localExtracted.nombre_multado
-        );
-
-        const dni = firstValue(
-          interested.dni_nie,
-          interested.dni,
-          interested.nie,
-          extracted.dni_nie,
-          extracted.dni,
-          extracted.nie,
-          extracted.documento_identidad,
-          localExtracted.dni_nie,
-          localExtracted.dni,
-          localExtracted.nie,
-          localExtracted.documento_identidad
-        );
-
-        const address = firstValue(
-          interested.domicilio_notif,
-          interested.domicilio,
-          interested.address,
-          extracted.domicilio_notif,
-          extracted.domicilio,
-          extracted.direccion,
-          extracted.domicilio_multado,
-          localExtracted.domicilio_notif,
-          localExtracted.domicilio,
-          localExtracted.direccion,
-          localExtracted.domicilio_multado
-        );
-
-        const email = firstValue(
-          interested.email,
-          status?.contact_email,
-          localExtracted.email
-        );
-
-        const phone = firstValue(
-          interested.telefono,
-          interested.phone,
-          extracted.telefono,
-          extracted.phone,
-          localExtracted.telefono,
-          localExtracted.phone
-        );
-
         setForm((prev) => ({
-          full_name: fullName || prev.full_name,
-          dni_nie: dni || prev.dni_nie,
-          domicilio_notif: address || prev.domicilio_notif,
-          email: email || prev.email,
-          telefono: phone || prev.telefono,
+          full_name: firstValue(
+            interested.full_name,
+            interested.contact_name,
+            interested.name,
+            extracted.full_name,
+            extracted.nombre_completo,
+            extracted.titular,
+            extracted.nombre_multado,
+            extracted.interesado,
+            localExtracted.full_name,
+            localExtracted.nombre_completo,
+            localExtracted.titular,
+            localExtracted.nombre_multado,
+            localExtracted.interesado,
+            prev.full_name
+          ),
+          dni_nie: firstValue(
+            interested.dni_nie,
+            interested.dni,
+            interested.nie,
+            extracted.dni_nie,
+            extracted.dni,
+            extracted.nie,
+            extracted.documento_identidad,
+            localExtracted.dni_nie,
+            localExtracted.dni,
+            localExtracted.nie,
+            localExtracted.documento_identidad,
+            prev.dni_nie
+          ),
+          domicilio_notif: firstValue(
+            interested.domicilio_notif,
+            interested.domicilio,
+            interested.address,
+            extracted.domicilio_notif,
+            extracted.domicilio,
+            extracted.direccion,
+            extracted.domicilio_multado,
+            localExtracted.domicilio_notif,
+            localExtracted.domicilio,
+            localExtracted.direccion,
+            localExtracted.domicilio_multado,
+            prev.domicilio_notif
+          ),
+          email: firstValue(
+            interested.email,
+            status?.contact_email,
+            localExtracted.email,
+            prev.email
+          ),
+          telefono: firstValue(
+            interested.telefono,
+            interested.phone,
+            extracted.telefono,
+            extracted.phone,
+            localExtracted.telefono,
+            localExtracted.phone,
+            prev.telefono
+          ),
         }));
       } catch (e) {
-        setMsg(`❌ No se pudieron cargar los datos del expediente: ${e.message}`);
+        setMsg("❌ No se pudieron cargar los datos del expediente.");
+        setDebug(e?.message || "");
       } finally {
         setLoadingCase(false);
       }
@@ -170,9 +200,11 @@ export default function Autorizar() {
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setMsg("");
+    setDebug("");
   }
 
   function validateDetails() {
+    if (!caseId) return "No se ha encontrado el expediente.";
     if (!form.full_name.trim()) return "Indica nombre y apellidos.";
     if (!form.dni_nie.trim()) return "Indica DNI/NIE.";
     if (!form.domicilio_notif.trim()) return "Indica domicilio de notificaciones.";
@@ -183,6 +215,7 @@ export default function Autorizar() {
 
   async function saveDetailsAndDownloadPdf() {
     setMsg("");
+    setDebug("");
 
     const error = validateDetails();
     if (error) {
@@ -193,7 +226,7 @@ export default function Autorizar() {
     setLoading(true);
 
     try {
-      await fetchJson(apiUrl(`/cases/${caseId}/details`), {
+      await fetchJsonFallback(`/cases/${caseId}/details`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -205,19 +238,15 @@ export default function Autorizar() {
         }),
       });
 
-      // Generamos/registramos la autorización online para capturar IP, fecha y snapshot.
-      // Después abrimos el PDF para que el cliente lo firme si se usa flujo manual.
-      let pdfUrl = apiUrl(`/cases/${caseId}/authorization-pdf`);
+      let pdfUrl = `/cases/${caseId}/authorization-pdf`;
 
       try {
-        const auth = await fetchJson(apiUrl(`/cases/${caseId}/authorize`), {
+        const auth = await fetchJsonFallback(`/cases/${caseId}/authorize`, {
           method: "POST",
         });
 
         if (auth?.download_url) {
-          pdfUrl = auth.download_url.startsWith("http")
-            ? auth.download_url
-            : apiUrl(auth.download_url);
+          pdfUrl = auth.download_url;
         }
       } catch {
         // Si authorize no devuelve URL, seguimos con endpoint directo del PDF.
@@ -225,10 +254,10 @@ export default function Autorizar() {
 
       setGenerated(true);
       setMsg("✅ Datos guardados. Se ha abierto la autorización para descargar, firmar y volver a subir.");
-
-      window.open(pdfUrl, "_blank", "noopener,noreferrer");
+      openPdf(pdfUrl);
     } catch (e) {
-      setMsg(`❌ ${e.message || "No se pudo generar la autorización."}`);
+      setMsg("❌ No se pudo generar la autorización.");
+      setDebug(e?.message || "");
     } finally {
       setLoading(false);
     }
@@ -236,6 +265,7 @@ export default function Autorizar() {
 
   async function uploadSignedAuthorization() {
     setMsg("");
+    setDebug("");
 
     if (!signedFile) {
       setMsg("❌ Selecciona la autorización firmada antes de subirla.");
@@ -248,17 +278,19 @@ export default function Autorizar() {
       const fd = new FormData();
       fd.append("file", signedFile);
 
-      await fetchJson(apiUrl(`/cases/${caseId}/upload-authorization-signed`), {
+      await fetchJsonFallback(`/cases/${caseId}/upload-authorization-signed`, {
         method: "POST",
         body: fd,
       });
 
       setMsg("✅ Autorización firmada subida correctamente. Ya puedes continuar con la gestión.");
+
       setTimeout(() => {
         navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
       }, 700);
     } catch (e) {
-      setMsg(`❌ ${e.message || "No se pudo subir la autorización firmada."}`);
+      setMsg("❌ No se pudo subir la autorización firmada.");
+      setDebug(e?.message || "");
     } finally {
       setLoading(false);
     }
@@ -398,6 +430,7 @@ export default function Autorizar() {
               onChange={(e) => {
                 setSignedFile(e.target.files?.[0] || null);
                 setMsg("");
+                setDebug("");
               }}
               style={inputStyle}
             />
@@ -433,6 +466,23 @@ export default function Autorizar() {
               }}
             >
               {msg}
+            </div>
+          ) : null}
+
+          {debug ? (
+            <div
+              style={{
+                marginTop: 10,
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 12,
+                padding: 10,
+                color: "#475569",
+                fontSize: 12,
+                wordBreak: "break-word",
+              }}
+            >
+              Detalle técnico: {debug}
             </div>
           ) : null}
         </div>
