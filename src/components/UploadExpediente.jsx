@@ -7,29 +7,26 @@ const API_BASE =
   "/api";
 
 const MAX_FILES = 5;
-
-// Límite conservador para evitar 413 en Vercel/Render/proxy.
-const MAX_UPLOAD_BYTES = 2.5 * 1024 * 1024;
-const TARGET_IMAGE_BYTES = 1.7 * 1024 * 1024;
-const IMAGE_MAX_SIDE = 1600;
+const MAX_UPLOAD_BYTES = 2.0 * 1024 * 1024;
+const TARGET_IMAGE_BYTES = 1.35 * 1024 * 1024;
+const IMAGE_MAX_SIDE = 1400;
 
 function formatBytes(bytes) {
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(2)} MB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function getExt(name = "") {
+function ext(name = "") {
   const m = String(name).match(/\.([a-zA-Z0-9]+)$/);
   return m ? m[1].toLowerCase() : "";
 }
 
 function isImage(file) {
-  const ext = getExt(file?.name);
-  return file?.type?.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(ext);
+  const e = ext(file?.name);
+  return file?.type?.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(e);
 }
 
 function isPdf(file) {
-  return file?.type === "application/pdf" || getExt(file?.name) === "pdf";
+  return file?.type === "application/pdf" || ext(file?.name) === "pdf";
 }
 
 function canvasToBlob(canvas, quality) {
@@ -47,18 +44,17 @@ function canvasToBlob(canvas, quality) {
 
 async function loadImage(file) {
   const url = URL.createObjectURL(file);
-
   try {
     return await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () =>
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () =>
         reject(
           new Error(
-            "No se pudo leer la imagen. Si el móvil la guardó como HEIC, haz una captura de pantalla y sube la captura."
+            "No se pudo leer la imagen. Si es HEIC, haz una captura de pantalla y sube esa captura."
           )
         );
-      img.src = url;
+      image.src = url;
     });
   } finally {
     URL.revokeObjectURL(url);
@@ -68,15 +64,10 @@ async function loadImage(file) {
 async function compressImage(file) {
   const img = await loadImage(file);
 
-  const originalWidth = img.naturalWidth || img.width;
-  const originalHeight = img.naturalHeight || img.height;
+  let width = img.naturalWidth || img.width;
+  let height = img.naturalHeight || img.height;
 
-  if (!originalWidth || !originalHeight) {
-    throw new Error("No se pudo leer el tamaño de la imagen.");
-  }
-
-  let width = originalWidth;
-  let height = originalHeight;
+  if (!width || !height) throw new Error("No se pudo leer el tamaño de la imagen.");
 
   const longest = Math.max(width, height);
   if (longest > IMAGE_MAX_SIDE) {
@@ -85,7 +76,7 @@ async function compressImage(file) {
     height = Math.round(height * ratio);
   }
 
-  async function render(w, h, quality) {
+  async function render(w, h, q) {
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
@@ -93,51 +84,49 @@ async function compressImage(file) {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("No se pudo preparar la compresión.");
 
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(img, 0, 0, w, h);
 
-    return canvasToBlob(canvas, quality);
+    return canvasToBlob(canvas, q);
   }
 
-  let bestBlob = null;
+  let best = null;
 
-  for (const quality of [0.78, 0.7, 0.62, 0.54, 0.46, 0.38, 0.32]) {
-    const blob = await render(width, height, quality);
-    bestBlob = !bestBlob || blob.size < bestBlob.size ? blob : bestBlob;
+  for (const q of [0.72, 0.62, 0.52, 0.42, 0.34, 0.26]) {
+    const blob = await render(width, height, q);
+    if (!best || blob.size < best.size) best = blob;
     if (blob.size <= TARGET_IMAGE_BYTES) {
-      bestBlob = blob;
+      best = blob;
       break;
     }
   }
 
-  if (bestBlob && bestBlob.size > TARGET_IMAGE_BYTES) {
-    const scale = Math.max(0.45, Math.sqrt(TARGET_IMAGE_BYTES / bestBlob.size) * 0.82);
-    width = Math.max(850, Math.round(width * scale));
-    height = Math.max(850, Math.round(height * scale));
+  if (best && best.size > TARGET_IMAGE_BYTES) {
+    const ratio = Math.max(0.38, Math.sqrt(TARGET_IMAGE_BYTES / best.size) * 0.78);
+    width = Math.max(720, Math.round(width * ratio));
+    height = Math.max(720, Math.round(height * ratio));
 
-    for (const quality of [0.62, 0.54, 0.46, 0.38, 0.3]) {
-      const blob = await render(width, height, quality);
-      bestBlob = !bestBlob || blob.size < bestBlob.size ? blob : bestBlob;
+    for (const q of [0.52, 0.42, 0.34, 0.26, 0.2]) {
+      const blob = await render(width, height, q);
+      if (!best || blob.size < best.size) best = blob;
       if (blob.size <= TARGET_IMAGE_BYTES) {
-        bestBlob = blob;
+        best = blob;
         break;
       }
     }
   }
 
-  if (!bestBlob) {
-    throw new Error("No se pudo optimizar la imagen.");
-  }
+  if (!best) throw new Error("No se pudo optimizar la imagen.");
 
-  if (bestBlob.size > MAX_UPLOAD_BYTES) {
+  if (best.size > MAX_UPLOAD_BYTES) {
     throw new Error(
-      `La imagen optimizada pesa ${formatBytes(bestBlob.size)}. Haz una captura más simple y vuelve a subirla.`
+      `La imagen optimizada sigue pesando ${formatBytes(best.size)}. Haz una captura más simple del documento.`
     );
   }
 
-  const cleanName = String(file.name || "documento").replace(/\.[^.]+$/, "");
-  return new File([bestBlob], `${cleanName}-optimizado.jpg`, {
+  const base = String(file.name || "documento").replace(/\.[^.]+$/, "");
+  return new File([best], `${base}-optimizado-anti413.jpg`, {
     type: "image/jpeg",
     lastModified: Date.now(),
   });
@@ -147,9 +136,10 @@ async function prepareFile(file) {
   if (!file) throw new Error("Archivo no válido.");
 
   if (isImage(file)) {
-    const compressed = await compressImage(file);
+    const optimized = await compressImage(file);
     return {
-      file: compressed,
+      id: crypto.randomUUID(),
+      file: optimized,
       originalName: file.name,
       originalSize: file.size,
       optimized: true,
@@ -159,11 +149,12 @@ async function prepareFile(file) {
   if (isPdf(file)) {
     if (file.size > MAX_UPLOAD_BYTES) {
       throw new Error(
-        `El PDF pesa ${formatBytes(file.size)}. Para evitar error 413, sube una foto o captura del documento. Las fotos se optimizan automáticamente.`
+        `Este PDF pesa ${formatBytes(file.size)}. Para evitar 413, sube una foto/captura clara del documento.`
       );
     }
 
     return {
+      id: crypto.randomUUID(),
       file,
       originalName: file.name,
       originalSize: file.size,
@@ -173,11 +164,12 @@ async function prepareFile(file) {
 
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error(
-      `El archivo pesa ${formatBytes(file.size)}. Sube una foto/captura para que el sistema la optimice automáticamente.`
+      `El archivo pesa ${formatBytes(file.size)}. Sube una foto/captura para que el sistema la optimice.`
     );
   }
 
   return {
+    id: crypto.randomUUID(),
     file,
     originalName: file.name,
     originalSize: file.size,
@@ -185,13 +177,13 @@ async function prepareFile(file) {
   };
 }
 
-async function readJsonOrThrow(response) {
+async function readApi(response) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     if (response.status === 413) {
       throw new Error(
-        "El servidor ha rechazado el archivo por tamaño. Si no aparece como optimizado antes de analizar, la web está usando una versión antigua."
+        "413: el servidor recibió un archivo demasiado grande. Si ves este mensaje, la subida no estaba por debajo de 2 MB o la página no usa el componente ANTI-413."
       );
     }
 
@@ -223,39 +215,26 @@ export default function UploadExpediente() {
     try {
       const available = MAX_FILES - items.length;
       const selected = incoming.slice(0, Math.max(0, available));
-      const nextItems = [];
+      const prepared = [];
       const notes = [];
-
-      if (incoming.length > selected.length) {
-        notes.push(`Máximo ${MAX_FILES} documentos. Se han añadido solo los primeros.`);
-      }
 
       for (const file of selected) {
         try {
-          const prepared = await prepareFile(file);
+          const item = await prepareFile(file);
+          prepared.push(item);
 
-          nextItems.push({
-            id: crypto.randomUUID(),
-            ...prepared,
-          });
-
-          if (prepared.optimized) {
-            notes.push(
-              `✅ Imagen optimizada: ${formatBytes(prepared.originalSize)} → ${formatBytes(prepared.file.size)}`
-            );
+          if (item.optimized) {
+            notes.push(`✅ Imagen optimizada ANTI-413: ${formatBytes(item.originalSize)} → ${formatBytes(item.file.size)}`);
+          } else {
+            notes.push(`✅ Documento preparado: ${formatBytes(item.file.size)}`);
           }
         } catch (err) {
           notes.push(err?.message || `No se pudo preparar ${file.name}.`);
         }
       }
 
-      if (nextItems.length) {
-        setItems((prev) => [...prev, ...nextItems]);
-      }
-
-      if (notes.length) {
-        setMessage(notes.join(" "));
-      }
+      if (prepared.length) setItems((prev) => [...prev, ...prepared]);
+      if (notes.length) setMessage(notes.join(" "));
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -280,10 +259,10 @@ export default function UploadExpediente() {
       return;
     }
 
-    const tooLarge = items.find((x) => x.file.size > MAX_UPLOAD_BYTES);
-    if (tooLarge) {
+    const tooBig = items.find((x) => x.file.size > MAX_UPLOAD_BYTES);
+    if (tooBig) {
       setMessage(
-        `${tooLarge.file.name} pesa ${formatBytes(tooLarge.file.size)} y no se subirá para evitar error 413.`
+        `Bloqueado antes de subir: ${tooBig.file.name} pesa ${formatBytes(tooBig.file.size)}. No se enviará para evitar 413.`
       );
       return;
     }
@@ -300,18 +279,10 @@ export default function UploadExpediente() {
           body: fd,
         });
 
-        const data = await readJsonOrThrow(response);
+        const data = await readApi(response);
+        const caseId = data?.case_id || data?.caseId || data?.id || data?.extracted?.case_id || data?.extracted?.id;
 
-        const caseId =
-          data?.case_id ||
-          data?.caseId ||
-          data?.id ||
-          data?.extracted?.case_id ||
-          data?.extracted?.id;
-
-        if (!caseId) {
-          throw new Error("El análisis terminó, pero no devolvió número de caso.");
-        }
+        if (!caseId) throw new Error("El análisis terminó, pero no devolvió número de caso.");
 
         localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
         setMessage("✅ Documento analizado. Abriendo resumen…");
@@ -327,12 +298,10 @@ export default function UploadExpediente() {
         body: fd,
       });
 
-      const data = await readJsonOrThrow(response);
+      const data = await readApi(response);
       const caseId = data?.case_id;
 
-      if (!caseId) {
-        throw new Error("El expediente terminó, pero no devolvió número de caso.");
-      }
+      if (!caseId) throw new Error("El expediente terminó, pero no devolvió número de caso.");
 
       localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
       setMessage("✅ Expediente analizado. Abriendo resumen…");
@@ -346,6 +315,21 @@ export default function UploadExpediente() {
 
   return (
     <div className="sr-card" style={{ textAlign: "left" }}>
+      <div
+        style={{
+          background: "#ecfdf5",
+          color: "#166534",
+          border: "1px solid #bbf7d0",
+          borderRadius: 12,
+          padding: "8px 10px",
+          marginBottom: 12,
+          fontWeight: 900,
+          fontSize: 13,
+        }}
+      >
+        ✅ ANTI-413 ACTIVO — las fotos se comprimen antes de subir
+      </div>
+
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="sr-h2" style={{ marginBottom: 6 }}>
@@ -410,7 +394,7 @@ export default function UploadExpediente() {
               <strong>Arrastra y suelta</strong> aquí tus documentos o haz clic para seleccionar.
             </p>
             <p className="sr-small" style={{ marginTop: 6, opacity: 0.85 }}>
-              Fotos: compresión automática · PDF seguro máximo: 2,5 MB · Recomendado: foto/captura clara
+              Fotos: compresión automática · PDF seguro máximo: 2 MB · Recomendado: foto/captura clara
             </p>
           </div>
 
