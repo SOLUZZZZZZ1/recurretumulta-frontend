@@ -436,20 +436,7 @@ export default function Inicio() {
                   boxShadow: "0 24px 70px rgba(15,23,42,0.30)",
                 }}
               >
-                <div
-                  style={{
-                    background: "#ecfdf5",
-                    color: "#166534",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: 12,
-                    padding: "8px 10px",
-                    marginBottom: 12,
-                    fontWeight: 900,
-                    fontSize: 13,
-                  }}
-                >
-                  ✅ ANTI-413 ACTIVO — el inicio optimiza fotos antes de subir
-                </div>
+                
 
                 <h2 style={{ fontSize: 26, margin: "0 0 8px", fontWeight: 950 }}>
                   Sube tu multa
