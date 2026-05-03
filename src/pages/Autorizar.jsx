@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
 
-const API = "/api";
+const API = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "https://recurretumulta-backend.onrender.com";
 
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
