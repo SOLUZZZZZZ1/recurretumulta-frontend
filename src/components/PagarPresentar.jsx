@@ -9,7 +9,7 @@ async function fetchJson(url, options = {}) {
   return data;
 }
 
-export default function PagarPresentar({ caseId, manualReviewMode = true }) {
+export default function PagarPresentar({ caseId }) {
   const [status, setStatus] = useState(null);
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -30,7 +30,6 @@ export default function PagarPresentar({ caseId, manualReviewMode = true }) {
   async function pagar() {
     setErr("");
     setLoading(true);
-
     try {
       const data = await fetchJson(`${API}/billing/checkout-dgt`, {
         method: "POST",
@@ -65,27 +64,23 @@ export default function PagarPresentar({ caseId, manualReviewMode = true }) {
         <h3 className="sr-h3">Autorización necesaria</h3>
 
         <p className="sr-p">
-          Antes de pagar necesitamos tu autorización expresa para actuar en tu nombre y gestionar el recurso.
+          Antes de pagar necesitamos tu autorización expresa para actuar en tu nombre y
+          presentar el recurso correctamente.
         </p>
 
-        {manualReviewMode && (
-          <div className="sr-card" style={{ marginTop: 12, background: "#fffbeb", border: "1px solid #fde68a" }}>
-            <div className="sr-small" style={{ fontWeight: 900 }}>
-              🟡 Revisión manual antes de presentar
-            </div>
-            <div className="sr-small" style={{ marginTop: 6 }}>
-              Podrás continuar aunque la viabilidad no sea alta. Nuestro equipo revisará el expediente antes de
-              presentar nada oficialmente.
-            </div>
-          </div>
-        )}
-
         <div className="sr-card" style={{ marginTop: 12 }}>
-          <div className="sr-small" style={{ fontWeight: 800 }}>Orden del proceso</div>
-          <div className="sr-small" style={{ marginTop: 6 }}>1. Autorizar gestión</div>
-          <div className="sr-small">2. Pagar</div>
-          <div className="sr-small">3. Revisión manual del expediente</div>
-          <div className="sr-small">4. Presentación y justificante si procede</div>
+          <div className="sr-small" style={{ fontWeight: 800 }}>
+            Orden del proceso
+          </div>
+          <div className="sr-small" style={{ marginTop: 6 }}>
+            1. Autorizar presentación
+          </div>
+          <div className="sr-small">
+            2. Pagar
+          </div>
+          <div className="sr-small">
+            3. Presentar y obtener justificante
+          </div>
         </div>
 
         <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 14 }}>
@@ -105,29 +100,20 @@ export default function PagarPresentar({ caseId, manualReviewMode = true }) {
   if (!status || status.payment_status !== "paid") {
     return (
       <div className="sr-card mt-6">
-        <h3 className="sr-h3">Continuar con revisión y gestión</h3>
+        <h3 className="sr-h3">Continuar con la gestión</h3>
 
         <p className="sr-p">
-          Ya tenemos tu autorización. Ahora puedes pagar para que revisemos manualmente el expediente y,
-          si está en plazo, preparemos la presentación del recurso.
+          Ya tenemos tu autorización. Ahora puedes iniciar la gestión para que preparemos
+          el recurso y tramitemos el caso en tu nombre.
         </p>
-
-        {manualReviewMode && (
-          <div className="sr-card" style={{ marginTop: 12, background: "#ecfdf5", border: "1px solid #bbf7d0" }}>
-            <div className="sr-small" style={{ fontWeight: 900, color: "#166534" }}>
-              ✅ Modo revisión manual activo
-            </div>
-            <div className="sr-small" style={{ marginTop: 6, color: "#166534" }}>
-              No bloqueamos por viabilidad baja/media. Solo bloqueamos si el plazo está vencido.
-            </div>
-          </div>
-        )}
 
         {quote && quote.ok && (
           <div className="sr-card" style={{ marginTop: 12 }}>
-            <div className="sr-small" style={{ fontWeight: 800 }}>Tu precio</div>
+            <div className="sr-small" style={{ fontWeight: 800 }}>
+              Tu precio
+            </div>
             <div className="sr-small">
-              Revisión y gestión del recurso: <b>{(quote.base_cents / 100).toFixed(2)} €</b>
+              Presentación del recurso: <b>{(quote.base_cents / 100).toFixed(2)} €</b>
             </div>
             <div className="sr-small">
               Documentos extra ({quote.docs_extra} × {(quote.extra_cents / 100).toFixed(2)} €):{" "}
@@ -150,7 +136,7 @@ export default function PagarPresentar({ caseId, manualReviewMode = true }) {
 
         <div className="sr-cta-row" style={{ justifyContent: "flex-start", marginTop: 14 }}>
           <button className="sr-btn-primary" onClick={pagar} disabled={loading}>
-            {loading ? "Redirigiendo…" : "Pagar y enviar a revisión"}
+            {loading ? "Redirigiendo…" : "Pagar e iniciar gestión"}
           </button>
         </div>
       </div>
@@ -159,10 +145,10 @@ export default function PagarPresentar({ caseId, manualReviewMode = true }) {
 
   return (
     <div className="sr-card mt-6">
-      <h3 className="sr-h3">Expediente en revisión manual</h3>
+      <h3 className="sr-h3">Gestión iniciada</h3>
       <p className="sr-p">
-        Pago y autorización registrados correctamente. Nuestro equipo revisará el expediente antes de presentar
-        el recurso y te avisará cuando haya una decisión o justificante.
+        Pago y autorización registrados correctamente. Te avisaremos con los próximos pasos
+        y el estado de la tramitación.
       </p>
     </div>
   );
