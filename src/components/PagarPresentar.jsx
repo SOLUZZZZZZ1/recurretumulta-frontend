@@ -10,8 +10,7 @@ const API_CANDIDATES = [
 ].filter(Boolean);
 
 function buildUrl(base, path) {
-  const cleanBase = String(base || "").replace(/\/$/, "");
-  return `${cleanBase}${path}`;
+  return `${String(base || "").replace(/\/$/, "")}${path}`;
 }
 
 async function readResponse(response) {
@@ -52,7 +51,36 @@ function getEmail(publicStatus) {
   return (
     publicStatus?.interested_data?.email ||
     publicStatus?.contact_email ||
+    publicStatus?.email ||
     ""
+  );
+}
+
+function isAuthorizedForPayment(publicStatus, billingAuthorized) {
+  if (billingAuthorized) return true;
+  if (!publicStatus) return false;
+
+  const msg = String(publicStatus?.message || "").toLowerCase();
+  const signedLabel = String(
+    publicStatus?.authorization_signed ||
+      publicStatus?.authorization_status ||
+      publicStatus?.authorization_firmada ||
+      ""
+  ).toLowerCase();
+
+  return (
+    publicStatus?.authorized === true ||
+    publicStatus?.authorized === "true" ||
+    signedLabel === "true" ||
+    signedLabel === "received" ||
+    signedLabel === "recibida" ||
+    publicStatus?.status === "ready_to_pay" ||
+    publicStatus?.status === "manual_review" ||
+    publicStatus?.status === "in_review" ||
+    msg.includes("ya tenemos tu autorización") ||
+    msg.includes("ya tenemos tu autorizacion") ||
+    msg.includes("autorización firmada") ||
+    msg.includes("autorizacion firmada")
   );
 }
 
@@ -61,19 +89,29 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
   const [msg, setMsg] = useState("");
   const [debug, setDebug] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
+  const [billingAuthorized, setBillingAuthorized] = useState(false);
 
   const email = useMemo(() => getEmail(publicStatus), [publicStatus]);
-  const paid = publicStatus?.payment_status === "paid" || paymentStatus === "paid";
-  const authorized = Boolean(publicStatus?.authorized);
+
+  const paid =
+    publicStatus?.payment_status === "paid" ||
+    paymentStatus === "paid";
+
+  const canPay = isAuthorizedForPayment(publicStatus, billingAuthorized);
 
   useEffect(() => {
     async function loadPaymentStatus() {
       if (!caseId) return;
+
       try {
         const data = await fetchJsonFallback(`/billing/status/${caseId}`);
         setPaymentStatus(data?.payment_status || "");
+
+        if (data?.authorized === true || data?.authorized === "true") {
+          setBillingAuthorized(true);
+        }
       } catch {
-        // No bloqueamos el frontend si status falla.
+        // No bloqueamos la pantalla si este estado falla.
       }
     }
 
@@ -89,13 +127,13 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
       return;
     }
 
-    if (!authorized) {
-      setMsg("❌ Primero debes completar la autorización.");
+    if (!canPay) {
+      setMsg("❌ Primero completa la autorización del expediente.");
       return;
     }
 
     if (!email) {
-      setMsg("❌ Falta el email del interesado. Completa los datos de autorización antes de pagar.");
+      setMsg("❌ Falta el email del interesado. Vuelve a autorización y guarda los datos.");
       return;
     }
 
@@ -122,11 +160,13 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
         return;
       }
 
-      if (!data?.url && !data?.redirect) {
+      const url = data?.url || data?.redirect;
+
+      if (!url) {
         throw new Error("El backend no devolvió URL de Stripe.");
       }
 
-      window.location.href = data.url || data.redirect;
+      window.location.assign(url);
     } catch (e) {
       setMsg("❌ No se pudo iniciar el pago.");
       setDebug(e?.message || "");
@@ -156,7 +196,7 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
         el recurso y tramitemos el caso en tu nombre.
       </p>
 
-      {!authorized ? (
+      {!canPay ? (
         <div
           style={{
             background: "#fff7ed",
@@ -177,7 +217,7 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
           type="button"
           className="sr-btn-primary"
           onClick={startCheckout}
-          disabled={loading || !authorized}
+          disabled={loading}
         >
           {loading ? "Redirigiendo…" : "Pagar e iniciar gestión"}
         </button>
