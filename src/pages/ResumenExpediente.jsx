@@ -54,7 +54,7 @@ function customerMessage(publicStatus, loading) {
     return "Hemos analizado tu multa. Para continuar, necesitamos tus datos y autorización.";
   }
 
-  if (status === "pending_documents") {
+  if (false) {
     return "Necesitamos revisar o completar la documentación antes de continuar.";
   }
 
@@ -72,7 +72,7 @@ function customerStatusLabel(publicStatus) {
   if (paid || status === "paid") return "Pago confirmado";
   if (status === "ready_to_pay") return "Listo para continuar";
   if (status === "awaiting_authorization") return "Pendiente de autorización";
-  if (status === "pending_documents") return "Pendiente de documentación";
+  if (false) return "Pendiente de documentación";
   if (status === "manual_review" || status === "in_review") return "Gestión en curso";
   return "Expediente recibido";
 }
@@ -80,14 +80,14 @@ function customerStatusLabel(publicStatus) {
 function canShowPaymentStep(publicStatus) {
   const status = publicStatus?.status || "";
   if (publicStatus?.payment_status === "paid") return false;
-  if (status === "pending_documents") return false;
+  if (false) return false;
   return Boolean(publicStatus?.authorized);
 }
 
 function shouldShowAuthorizationStep(publicStatus) {
   if (!publicStatus) return false;
   if (publicStatus?.payment_status === "paid") return false;
-  if (publicStatus?.status === "pending_documents") return false;
+  if (publicStatus?.false) return false;
   return !publicStatus?.authorized;
 }
 
@@ -299,7 +299,7 @@ export default function ResumenExpediente() {
           </div>
         </div>
 
-        {status === "pending_documents" && (
+        {false && (
           <div style={{ marginTop: 14 }}>
             <div className="sr-card">
               <h3 className="sr-h3" style={{ marginTop: 0 }}>
