@@ -1,38 +1,17 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-const DIRECT_BACKEND = "https://recurretumulta-backend.onrender.com";
-
-const API =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  DIRECT_BACKEND;
-
-function apiUrl(path) {
-  const base = String(API || DIRECT_BACKEND).replace(/\/$/, "");
-  return `${base}${path}`;
-}
+const API = "https://recurretumulta-backend.onrender.com";
 
 function getCaseId(search) {
   const qs = new URLSearchParams(search);
-  return qs.get("case") || qs.get("case_id") || qs.get("id") || "";
+  return qs.get("case") || "";
 }
 
 async function fetchJson(url, options = {}) {
   const r = await fetch(url, options);
-  const text = await r.text().catch(() => "");
-  let data = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = {};
-  }
-
-  if (!r.ok) {
-    const detail = data?.detail || data?.message || text || `HTTP ${r.status}`;
-    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
-  }
-
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.detail || "Error");
   return data;
 }
 
@@ -41,123 +20,81 @@ export default function Autorizar() {
   const navigate = useNavigate();
   const caseId = useMemo(() => getCaseId(location.search), [location.search]);
 
+  const [form, setForm] = useState({
+    full_name: "",
+    dni_nie: "",
+    domicilio_notif: "",
+    email: "",
+  });
+
   const [file, setFile] = useState(null);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function uploadSignedAuthorization() {
+  function update(field, value) {
+    setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSubmit() {
     setMsg("");
-
-    if (!caseId) {
-      setMsg("❌ No se ha encontrado el expediente.");
-      return;
-    }
-
-    if (!file) {
-      setMsg("❌ Selecciona primero la autorización firmada.");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-
-      await fetchJson(apiUrl(`/cases/${caseId}/upload-authorization-signed`), {
+      // 1. Guardar datos
+      await fetchJson(`${API}/cases/${caseId}/details`, {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form)
       });
 
-      setMsg("✅ Autorización firmada subida correctamente.");
+      // 2. Subir PDF firmado
+      if (file) {
+        const fd = new FormData();
+        fd.append("file", file);
+
+        await fetchJson(`${API}/cases/${caseId}/upload-authorization-signed`, {
+          method: "POST",
+          body: fd
+        });
+      }
+
+      setMsg("✅ Autorización completada correctamente");
+      navigate(`/#/resumen?case=${caseId}`);
+
     } catch (e) {
-      setMsg(`❌ ${e?.message || "No se pudo subir la autorización firmada."}`);
+      setMsg("❌ " + e.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="sr-page">
-      <section className="sr-section">
-        <div className="sr-card" style={{ maxWidth: 760, margin: "0 auto" }}>
-          <p className="sr-kicker">Autorización</p>
-          <h1 className="sr-h1">Subir autorización firmada</h1>
+    <div style={{ maxWidth: 600, margin: "40px auto" }}>
+      <h2>Autorización completa</h2>
 
-          <p className="sr-p">
-            Sube aquí la autorización firmada por el interesado. El documento quedará
-            vinculado al expediente y permitirá continuar con la gestión.
-          </p>
+      <input placeholder="Nombre completo"
+        value={form.full_name}
+        onChange={e => update("full_name", e.target.value)} />
 
-          <div
-            style={{
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              borderRadius: 14,
-              padding: 14,
-              marginBottom: 16,
-              color: "#334155",
-              fontWeight: 700,
-            }}
-          >
-            Expediente: {caseId || "—"}
-          </div>
+      <input placeholder="DNI/NIE"
+        value={form.dni_nie}
+        onChange={e => update("dni_nie", e.target.value)} />
 
-          <input
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png,image/*"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] || null);
-              setMsg("");
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              border: "1px solid #cbd5e1",
-              borderRadius: 12,
-              padding: 12,
-              background: "#fff",
-            }}
-          />
+      <input placeholder="Domicilio"
+        value={form.domicilio_notif}
+        onChange={e => update("domicilio_notif", e.target.value)} />
 
-          {file ? (
-            <p className="sr-small" style={{ marginTop: 8, color: "#475569" }}>
-              Archivo seleccionado: {file.name}
-            </p>
-          ) : null}
+      <input placeholder="Email"
+        value={form.email}
+        onChange={e => update("email", e.target.value)} />
 
-          {msg ? (
-            <div
-              style={{
-                marginTop: 14,
-                color: msg.startsWith("✅") ? "#166534" : "#991b1b",
-                fontWeight: 800,
-              }}
-            >
-              {msg}
-            </div>
-          ) : null}
+      <input type="file" onChange={e => setFile(e.target.files[0])} />
 
-          <div className="sr-cta-row" style={{ marginTop: 18, justifyContent: "flex-start" }}>
-            <button
-              type="button"
-              className="sr-btn-primary"
-              onClick={uploadSignedAuthorization}
-              disabled={loading || !file}
-            >
-              {loading ? "Subiendo…" : "Subir autorización firmada"}
-            </button>
+      <button onClick={handleSubmit} disabled={loading}>
+        {loading ? "Procesando..." : "Completar autorización"}
+      </button>
 
-            <button
-              type="button"
-              className="sr-btn-secondary"
-              onClick={() => navigate(`/resumen?case=${encodeURIComponent(caseId)}`)}
-            >
-              Volver al expediente
-            </button>
-          </div>
-        </div>
-      </section>
-    </main>
+      {msg && <p>{msg}</p>}
+    </div>
   );
 }
