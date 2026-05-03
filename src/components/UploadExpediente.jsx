@@ -97,6 +97,7 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
           data?.extracted?.id;
 
         if (!caseId) throw new Error("No se pudo obtener el número de expediente.");
+        setMsg(`✅ Documento analizado. Expediente: ${caseId}. Abriendo resumen…`);
         navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
         return;
       }
@@ -132,7 +133,7 @@ export default function UploadExpediente({ maxSizeMB = 12 }) {
         })
       );
 
-      setMsg("✅ Expediente creado. Abriendo resumen…");
+      setMsg(`✅ Expediente creado: ${caseId}. Abriendo resumen…`);
       navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
     } catch (e) {
       setMsg(e?.message || "Error al analizar el expediente.");
