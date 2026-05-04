@@ -47,36 +47,37 @@ async function fetchJsonFallback(path, options = {}) {
   throw new Error(errors.join(" | "));
 }
 
-function getEmail(publicStatus) {
+function getEmailFromStatus(status) {
   return (
-    publicStatus?.interested_data?.email ||
-    publicStatus?.contact_email ||
-    publicStatus?.email ||
+    status?.interested_data?.email ||
+    status?.authorization_email ||
+    status?.contact_email ||
+    status?.email ||
     ""
   );
 }
 
-function isAuthorizedForPayment(publicStatus, billingAuthorized) {
+function isAuthorizedForPayment(status, billingAuthorized) {
   if (billingAuthorized) return true;
-  if (!publicStatus) return false;
+  if (!status) return false;
 
-  const msg = String(publicStatus?.message || "").toLowerCase();
+  const msg = String(status?.message || "").toLowerCase();
   const signedLabel = String(
-    publicStatus?.authorization_signed ||
-      publicStatus?.authorization_status ||
-      publicStatus?.authorization_firmada ||
+    status?.authorization_signed ||
+      status?.authorization_status ||
+      status?.authorization_firmada ||
       ""
   ).toLowerCase();
 
   return (
-    publicStatus?.authorized === true ||
-    publicStatus?.authorized === "true" ||
+    status?.authorized === true ||
+    status?.authorized === "true" ||
     signedLabel === "true" ||
     signedLabel === "received" ||
     signedLabel === "recibida" ||
-    publicStatus?.status === "ready_to_pay" ||
-    publicStatus?.status === "manual_review" ||
-    publicStatus?.status === "in_review" ||
+    status?.status === "ready_to_pay" ||
+    status?.status === "manual_review" ||
+    status?.status === "in_review" ||
     msg.includes("ya tenemos tu autorización") ||
     msg.includes("ya tenemos tu autorizacion") ||
     msg.includes("autorización firmada") ||
@@ -90,18 +91,49 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
   const [debug, setDebug] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [billingAuthorized, setBillingAuthorized] = useState(false);
+  const [freshStatus, setFreshStatus] = useState(null);
+  const [manualEmail, setManualEmail] = useState("");
 
-  const email = useMemo(() => getEmail(publicStatus), [publicStatus]);
+  const effectiveStatus = freshStatus || publicStatus || {};
+
+  const email = useMemo(() => {
+    return getEmailFromStatus(effectiveStatus) || manualEmail.trim();
+  }, [effectiveStatus, manualEmail]);
 
   const paid =
+    effectiveStatus?.payment_status === "paid" ||
     publicStatus?.payment_status === "paid" ||
     paymentStatus === "paid";
 
-  const canPay = isAuthorizedForPayment(publicStatus, billingAuthorized);
+  const canPay = isAuthorizedForPayment(effectiveStatus, billingAuthorized);
+
+  async function refreshStatus() {
+    if (!caseId) return null;
+
+    try {
+      const data = await fetchJsonFallback(`/cases/${caseId}/public-status`);
+      setFreshStatus(data);
+
+      const e = getEmailFromStatus(data);
+      if (e && !manualEmail) setManualEmail(e);
+
+      if (typeof onUpdated === "function") {
+        try {
+          await onUpdated();
+        } catch {}
+      }
+
+      return data;
+    } catch {
+      return null;
+    }
+  }
 
   useEffect(() => {
-    async function loadPaymentStatus() {
+    async function load() {
       if (!caseId) return;
+
+      await refreshStatus();
 
       try {
         const data = await fetchJsonFallback(`/billing/status/${caseId}`);
@@ -110,12 +142,11 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
         if (data?.authorized === true || data?.authorized === "true") {
           setBillingAuthorized(true);
         }
-      } catch {
-        // No bloqueamos la pantalla si este estado falla.
-      }
+      } catch {}
     }
 
-    loadPaymentStatus();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
 
   async function startCheckout() {
@@ -127,13 +158,17 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
       return;
     }
 
-    if (!canPay) {
+    const latest = (await refreshStatus()) || effectiveStatus;
+    const latestEmail = getEmailFromStatus(latest) || manualEmail.trim();
+    const latestCanPay = isAuthorizedForPayment(latest, billingAuthorized);
+
+    if (!latestCanPay) {
       setMsg("❌ Primero completa la autorización del expediente.");
       return;
     }
 
-    if (!email) {
-      setMsg("❌ Falta el email del interesado. Vuelve a autorización y guarda los datos.");
+    if (!latestEmail) {
+      setMsg("❌ Falta el email del interesado. Escríbelo aquí para continuar.");
       return;
     }
 
@@ -148,7 +183,7 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
         body: JSON.stringify({
           case_id: caseId,
           product: "dgt",
-          email,
+          email: latestEmail,
           locale: "es",
         }),
       });
@@ -209,6 +244,32 @@ export default function PagarPresentar({ caseId, publicStatus, onUpdated }) {
           }}
         >
           Primero completa la autorización del expediente.
+        </div>
+      ) : null}
+
+      {!email ? (
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontWeight: 900, marginBottom: 6 }}>
+            Email para confirmación
+          </label>
+          <input
+            type="email"
+            value={manualEmail}
+            onChange={(e) => {
+              setManualEmail(e.target.value);
+              setMsg("");
+            }}
+            placeholder="tu@email.com"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              border: "1px solid #cbd5e1",
+              borderRadius: 12,
+              padding: "11px 12px",
+              fontSize: 15,
+              background: "#fff",
+            }}
+          />
         </div>
       ) : null}
 
