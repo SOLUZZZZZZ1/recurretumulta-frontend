@@ -52,10 +52,10 @@ export default function Autorizar() {
     full_name: "",
     dni_nie: "",
     domicilio_notif: "",
+    matricula: "",
     email: "",
     telefono: "",
-    matricula: "",
-});
+  });
 
   const [acceptedText, setAcceptedText] = useState(false);
   const [confirmedIdentity, setConfirmedIdentity] = useState(false);
@@ -307,53 +307,82 @@ export default function Autorizar() {
 
           <div className="grid gap-3" style={{ maxWidth: 760, marginTop: 10 }}>
             <div>
-              <label className="sr-small" style={{ fontWeight: 800 }}>Nombre y apellidos</label>
-              <input className="sr-input" value={form.full_name} onChange={(e) => setField("full_name", e.target.value)} />
-            </div>
+              
+              <div className="auth-form-grid">
+                <label>
+                  <span>Nombre y apellidos</span>
+                  <input
+                    type="text"
+                    value={form.full_name}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, full_name: e.target.value }))
+                    }
+                    placeholder="Nombre y apellidos"
+                  />
+                </label>
 
-            <div>
-              <label className="sr-small" style={{ fontWeight: 800 }}>DNI / NIE / Pasaporte</label>
+                <label>
+                  <span>DNI / NIE / Pasaporte</span>
+                  <input
+                    type="text"
+                    value={form.dni_nie}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, dni_nie: e.target.value.toUpperCase() }))
+                    }
+                    placeholder="DNI / NIE / Pasaporte"
+                  />
+                </label>
 
-              <label>
-                <span>Matrícula</span>
-                <input
-                  name="matricula"
-                  value={form.matricula || ""}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      matricula: e.target.value.toUpperCase(),
-                    }))
-                  }
-                  placeholder="0799HZP"
-                />
-              </label>
-              <input className="sr-input" value={form.dni_nie} onChange={(e) => setField("dni_nie", e.target.value.toUpperCase())} />
-            </div>
+                <label>
+                  <span>Matrícula</span>
+                  <input
+                    type="text"
+                    value={form.matricula || ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, matricula: e.target.value.toUpperCase() }))
+                    }
+                    placeholder="0799HZP"
+                  />
+                </label>
 
-            <div>
-              <label className="sr-small" style={{ fontWeight: 800 }}>Domicilio a efectos de notificaciones</label>
-              <input
-                className="sr-input"
-                placeholder="Calle, número, piso, CP, ciudad, provincia"
-                value={form.domicilio_notif}
-                onChange={(e) => setField("domicilio_notif", e.target.value)}
-              />
-            </div>
+                <label className="auth-wide">
+                  <span>Domicilio a efectos de notificaciones</span>
+                  <input
+                    type="text"
+                    value={form.domicilio_notif}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, domicilio_notif: e.target.value }))
+                    }
+                    placeholder="Calle, número, piso, CP, ciudad"
+                  />
+                </label>
 
-            <div className="grid md:grid-cols-2 gap-3">
-              <div>
-                <label className="sr-small" style={{ fontWeight: 800 }}>Email</label>
-                <input className="sr-input" type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} />
+                <label>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, email: e.target.value }))
+                    }
+                    placeholder="email@ejemplo.com"
+                  />
+                </label>
+
+                <label>
+                  <span>Teléfono</span>
+                  <input
+                    type="tel"
+                    value={form.telefono}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, telefono: e.target.value }))
+                    }
+                    placeholder="Teléfono"
+                  />
+                </label>
               </div>
-              <div>
-                <label className="sr-small" style={{ fontWeight: 800 }}>Teléfono</label>
-                <input className="sr-input" type="tel" value={form.telefono} onChange={(e) => setField("telefono", e.target.value)} />
-              </div>
-            </div>
-          </div>
 
-          <h3 className="sr-h3" style={{ marginTop: 18 }}>Paso 2 · Confirmación</h3>
+Paso 2 · Confirmación</h3>
 
           <div className="sr-card" style={{ background: "#f9fafb" }}>
             <p className="sr-p" style={{ whiteSpace: "pre-line", margin: 0 }}>
