@@ -92,6 +92,11 @@ export default function Autorizar() {
     telefono: "",
   });
 
+  const [checks, setChecks] = useState({
+    autorizo_gestion: false,
+    acepto_responsabilidad: false,
+  });
+
   const [caseData, setCaseData] = useState(null);
   const [signedFile, setSignedFile] = useState(null);
   const [generated, setGenerated] = useState(false);
@@ -171,6 +176,22 @@ export default function Autorizar() {
             localExtracted.domicilio_multado,
             prev.domicilio_notif
           ),
+          matricula: firstValue(
+            interested.matricula,
+            interested.plate,
+            interested.vehicle_plate,
+            extracted.matricula,
+            extracted.matrícula,
+            extracted.plate,
+            extracted.vehicle_plate,
+            extracted.matricula_vehiculo,
+            localExtracted.matricula,
+            localExtracted.matrícula,
+            localExtracted.plate,
+            localExtracted.vehicle_plate,
+            localExtracted.matricula_vehiculo,
+            prev.matricula
+          ),
           email: firstValue(
             interested.email,
             status?.contact_email,
@@ -208,7 +229,10 @@ export default function Autorizar() {
     if (!caseId) return "No se ha encontrado el expediente.";
     if (!form.full_name.trim()) return "Indica nombre y apellidos.";
     if (!form.dni_nie.trim()) return "Indica DNI/NIE.";
+    if (!form.matricula.trim()) return "Indica la matrícula del vehículo.";
     if (!form.domicilio_notif.trim()) return "Indica domicilio de notificaciones.";
+    if (!checks.autorizo_gestion) return "Debes marcar la autorización de gestión.";
+    if (!checks.acepto_responsabilidad) return "Debes confirmar que los datos son correctos.";
     if (!form.email.trim()) return "Indica email.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return "Indica un email válido.";
     return "";
@@ -233,7 +257,10 @@ export default function Autorizar() {
         body: JSON.stringify({
           full_name: form.full_name.trim(),
           dni_nie: form.dni_nie.trim().toUpperCase(),
+          matricula: form.matricula.trim().toUpperCase(),
           domicilio_notif: form.domicilio_notif.trim(),
+          autorizo_gestion: checks.autorizo_gestion,
+          acepto_responsabilidad: checks.acepto_responsabilidad,
           email: form.email.trim(),
           telefono: form.telefono.trim() || null,
         }),
@@ -356,6 +383,7 @@ export default function Autorizar() {
             >
               <Field label="Nombre y apellidos" value={form.full_name} onChange={(v) => update("full_name", v)} />
               <Field label="DNI/NIE/Pasaporte" value={form.dni_nie} onChange={(v) => update("dni_nie", v)} />
+              <Field label="Matrícula" value={form.matricula} onChange={(v) => update("matricula", v.toUpperCase())} />
               <Field label="Email" value={form.email} onChange={(v) => update("email", v)} type="email" />
               <Field label="Teléfono" value={form.telefono} onChange={(v) => update("telefono", v)} />
             </div>
@@ -386,6 +414,31 @@ export default function Autorizar() {
               (RecurreTuMulta) a actuar en mi nombre para la tramitación administrativa
               del expediente asociado a este proceso, incluyendo la preparación y presentación
               de alegaciones y/o recursos ante la DGT u organismo competente.
+            </div>
+
+
+            <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+              <CheckRow
+                checked={checks.autorizo_gestion}
+                onChange={(value) => {
+                  setChecks((prev) => ({ ...prev, autorizo_gestion: value }));
+                  setMsg("");
+                  setDebug("");
+                }}
+              >
+                Autorizo expresamente a LA TALAMANQUINA, S.L. (RecurreTuMulta) a gestionar este expediente en mi nombre ante la Administración u organismo competente.
+              </CheckRow>
+
+              <CheckRow
+                checked={checks.acepto_responsabilidad}
+                onChange={(value) => {
+                  setChecks((prev) => ({ ...prev, acepto_responsabilidad: value }));
+                  setMsg("");
+                  setDebug("");
+                }}
+              >
+                Confirmo que los datos introducidos son correctos y que dispongo de legitimación para solicitar esta gestión.
+              </CheckRow>
             </div>
 
             <div className="sr-cta-row" style={{ marginTop: 16, justifyContent: "flex-start" }}>
@@ -489,6 +542,34 @@ export default function Autorizar() {
         </div>
       </section>
     </main>
+  );
+}
+
+function CheckRow({ checked, onChange, children }) {
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
+        borderRadius: 14,
+        padding: 12,
+        color: "#334155",
+        fontWeight: 700,
+        lineHeight: 1.45,
+        cursor: "pointer",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ marginTop: 3, width: 18, height: 18, flex: "0 0 auto" }}
+      />
+      <span>{children}</span>
+    </label>
   );
 }
 
