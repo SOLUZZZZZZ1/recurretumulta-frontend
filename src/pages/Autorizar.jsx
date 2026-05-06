@@ -87,6 +87,7 @@ export default function Autorizar() {
     full_name: "",
     dni_nie: "",
     domicilio_notif: "",
+    matricula: "",
     email: "",
     telefono: "",
   });
@@ -169,6 +170,14 @@ export default function Autorizar() {
             localExtracted.direccion,
             localExtracted.domicilio_multado,
             prev.domicilio_notif
+          ),
+          matricula: firstValue(
+            interested.matricula,
+            extracted.matricula,
+            extracted["matrícula"],
+            localExtracted.matricula,
+            localExtracted["matrícula"],
+            prev.matricula
           ),
           email: firstValue(
             interested.email,
