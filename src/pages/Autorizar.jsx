@@ -84,10 +84,10 @@ export default function Autorizar() {
   const caseId = useMemo(() => getCaseId(location.search), [location.search]);
 
   const [form, setForm] = useState({
-    matricula: "",
     full_name: "",
     dni_nie: "",
     domicilio_notif: "",
+    matricula: "",
     email: "",
     telefono: "",
   });
