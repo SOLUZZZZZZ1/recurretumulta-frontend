@@ -30,7 +30,7 @@ export default function Precios() {
           <h2>Gestión completa</h2>
 
           <h3 style={{ fontSize: "32px", margin: "10px 0" }}>
-            49€
+            39,90€
           </h3>
 
           <p style={{ color: "#666", marginBottom: "20px" }}>
