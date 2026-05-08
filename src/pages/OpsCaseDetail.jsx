@@ -60,11 +60,16 @@ async function fetchJsonFallback(path, options = {}) {
 function docLabel(kind = "") {
   const k = String(kind || "").toLowerCase();
 
-  if (k.includes("final_resource_pdf")) return "Recurso final PDF";
-  if (k.includes("final_resource_docx")) return "Recurso final Word";
-  if (k.includes("final_resource_text")) return "Recurso final texto";
   if (k.includes("authorization_signed")) return "Autorización firmada";
   if (k.includes("authorization")) return "Autorización";
+  if (k.includes("justificante_presentacion")) return "Justificante de presentación";
+  if (k.includes("instancia_firmada")) return "Instancia firmada";
+  if (k.includes("csv_registro")) return "CSV / resguardo registro";
+  if (k.includes("resolucion")) return "Resolución";
+  if (k.includes("requerimiento")) return "Requerimiento";
+  if (k.includes("contestacion_ayuntamiento")) return "Contestación ayuntamiento";
+  if (k.includes("prueba_externa")) return "Prueba externa";
+  if (k.includes("documento_externo")) return "Documento externo";
   if (k.includes("submission_receipt")) return "Justificante de presentación";
   if (k.includes("original")) return "Documento original";
   if (k.includes("generated") && k.includes("pdf")) return "Recurso PDF";
@@ -80,45 +85,70 @@ function isResource(kind = "") {
   return (
     k.includes("generated") ||
     k.includes("recurso") ||
-    k.includes("final_resource") ||
     k.includes("pdf") ||
     k.includes("docx")
   );
 }
 
-function resourceStatusLabel(resource) {
-  if (!resource) return "Sin borrador";
-  if (resource.is_final) return `Versión final v${resource.version}`;
-  return `Borrador v${resource.version}`;
+function isExternalProcedureDoc(kind = "") {
+  const k = String(kind || "").toLowerCase();
+  return (
+    k.includes("justificante_presentacion") ||
+    k.includes("instancia_firmada") ||
+    k.includes("csv_registro") ||
+    k.includes("resolucion") ||
+    k.includes("requerimiento") ||
+    k.includes("contestacion_ayuntamiento") ||
+    k.includes("prueba_externa") ||
+    k.includes("documento_externo")
+  );
+}
+
+function eventLabel(type = "") {
+  const t = String(type || "").toLowerCase();
+  if (t === "manual_submission_registered") return "Presentación manual registrada";
+  if (t === "external_document_uploaded") return "Documento externo adjuntado";
+  if (t === "justificante_uploaded") return "Justificante subido";
+  if (t === "paid_ok") return "Pago confirmado";
+  if (t === "checkout_started") return "Checkout iniciado";
+  if (t === "resource_generated_auto") return "Recurso generado automáticamente";
+  if (t === "ai_expediente_result") return "Análisis IA registrado";
+  if (t === "case_authorized") return "Autorización registrada";
+  if (t === "case_details_saved") return "Datos del interesado guardados";
+  if (t === "ops_mark_submitted") return "Marcado como presentado";
+  return type || "Evento";
 }
 
 export default function OpsCaseDetail() {
   const { caseId } = useParams();
   const token = localStorage.getItem("ops_token") || "";
   const headers = token ? { "X-Operator-Token": token } : {};
-  const jsonHeaders = token
-    ? { "Content-Type": "application/json", "X-Operator-Token": token }
-    : { "Content-Type": "application/json" };
 
   const [docs, setDocs] = useState([]);
   const [events, setEvents] = useState([]);
   const [registro, setRegistro] = useState("");
   const [note, setNote] = useState("");
   const [justificante, setJustificante] = useState(null);
+
+  const [manualOrganismo, setManualOrganismo] = useState("Ajuntament de Terrassa");
+  const [manualRegistro, setManualRegistro] = useState("");
+  const [manualCsv, setManualCsv] = useState("");
+  const [manualSubmittedAt, setManualSubmittedAt] = useState("");
+  const [manualChannel, setManualChannel] = useState("ayuntamiento_manual");
+  const [manualNote, setManualNote] = useState("");
+  const [manualFile, setManualFile] = useState(null);
+  const [registeringManual, setRegisteringManual] = useState(false);
+
+  const [externalKind, setExternalKind] = useState("documento_externo");
+  const [externalNote, setExternalNote] = useState("");
+  const [externalFile, setExternalFile] = useState(null);
+  const [uploadingExternal, setUploadingExternal] = useState(false);
+
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [debug, setDebug] = useState("");
-
-  const [resourceText, setResourceText] = useState("");
-  const [resourceMeta, setResourceMeta] = useState(null);
-  const [loadingResource, setLoadingResource] = useState(false);
-  const [savingResource, setSavingResource] = useState(false);
-  const [finalizingResource, setFinalizingResource] = useState(false);
-  const [sendingComplete, setSendingComplete] = useState(false);
-  const [sendDestination, setSendDestination] = useState("");
-  const [sendNote, setSendNote] = useState("");
 
   useEffect(() => {
     load();
@@ -138,132 +168,11 @@ export default function OpsCaseDetail() {
 
       setDocs(d.documents || d.items || []);
       setEvents(e.events || e.items || []);
-      await loadFinalResource(false);
     } catch (err) {
-      setMsg("❌ No se pudieron cargar documentos, logs o recurso final.");
+      setMsg("❌ No se pudieron cargar documentos o logs.");
       setDebug(err?.message || "");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loadFinalResource(showMessage = true) {
-    setLoadingResource(true);
-    if (showMessage) {
-      setMsg("");
-      setDebug("");
-    }
-
-    try {
-      const data = await fetchJsonFallback(`/ops/cases/${caseId}/final-resource`, { headers });
-      const resource = data?.resource || null;
-      setResourceMeta(resource);
-      setResourceText(resource?.content || "");
-      if (showMessage) setMsg(resource ? "✅ Recurso editable cargado." : "ℹ️ Aún no hay borrador guardado.");
-    } catch (err) {
-      if (showMessage) {
-        setMsg("❌ No se pudo cargar el recurso editable.");
-        setDebug(err?.message || "");
-      }
-    } finally {
-      setLoadingResource(false);
-    }
-  }
-
-  async function saveDraft() {
-    const content = resourceText.trim();
-    if (!content) {
-      setMsg("❌ El recurso no puede estar vacío.");
-      return;
-    }
-
-    setSavingResource(true);
-    setMsg("");
-    setDebug("");
-
-    try {
-      const data = await fetchJsonFallback(`/ops/cases/${caseId}/final-resource`, {
-        method: "POST",
-        headers: jsonHeaders,
-        body: JSON.stringify({ content, created_by: "operator" }),
-      });
-
-      setResourceMeta(data.resource || null);
-      setResourceText(data.resource?.content || content);
-      setMsg(`✅ Borrador guardado${data.resource?.version ? ` v${data.resource.version}` : ""}.`);
-      await load();
-    } catch (err) {
-      setMsg("❌ No se pudo guardar el borrador.");
-      setDebug(err?.message || "");
-    } finally {
-      setSavingResource(false);
-    }
-  }
-
-  async function finalizeResource() {
-    const content = resourceText.trim();
-    if (!content) {
-      setMsg("❌ El recurso final no puede estar vacío.");
-      return;
-    }
-
-    const ok = window.confirm(
-      "¿Guardar como versión final? El expediente pasará a final_ready y se guardará copia documental."
-    );
-    if (!ok) return;
-
-    setFinalizingResource(true);
-    setMsg("");
-    setDebug("");
-
-    try {
-      const data = await fetchJsonFallback(`/ops/cases/${caseId}/finalize-resource`, {
-        method: "POST",
-        headers: jsonHeaders,
-        body: JSON.stringify({ content, created_by: "operator" }),
-      });
-
-      setResourceMeta(data.resource || null);
-      setResourceText(data.resource?.content || content);
-      const docsCount = Array.isArray(data.documents) ? data.documents.length : 0;
-      setMsg(`✅ Versión final guardada. Estado: ${data.status || "final_ready"}. ${docsCount ? `Documentos finales creados: ${docsCount}.` : ""}`);
-      await load();
-    } catch (err) {
-      setMsg("❌ No se pudo guardar la versión final.");
-      setDebug(err?.message || "");
-    } finally {
-      setFinalizingResource(false);
-    }
-  }
-
-  async function sendCompleteFile() {
-    const ok = window.confirm(
-      "¿Marcar el expediente completo como enviado? Debe existir una versión final guardada."
-    );
-    if (!ok) return;
-
-    setSendingComplete(true);
-    setMsg("");
-    setDebug("");
-
-    try {
-      const data = await fetchJsonFallback(`/ops/cases/${caseId}/send-complete`, {
-        method: "POST",
-        headers: jsonHeaders,
-        body: JSON.stringify({
-          destination: sendDestination.trim() || null,
-          channel: "ops",
-          note: sendNote.trim() || null,
-        }),
-      });
-
-      setMsg(`✅ Expediente completo enviado/marcado como enviado. Estado: ${data.status || "sent"}.`);
-      await load();
-    } catch (err) {
-      setMsg("❌ No se pudo enviar/marcar el expediente completo.");
-      setDebug(err?.message || "");
-    } finally {
-      setSendingComplete(false);
     }
   }
 
@@ -311,7 +220,7 @@ export default function OpsCaseDetail() {
     setDebug("");
 
     try {
-      const data = await fetchJsonFallback("/generate/dgt", {
+      await fetchJsonFallback("/generate/dgt", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -322,20 +231,8 @@ export default function OpsCaseDetail() {
         }),
       });
 
-      if (data?.cuerpo) {
-        setResourceText(data.cuerpo);
-        setResourceMeta(null);
-        setMsg("✅ Recurso generado y cargado en el editor. Revísalo y pulsa ‘Guardar borrador’ o ‘Guardar versión final’.");
-      } else {
-        setMsg("✅ Recurso generado. Actualizando documentos…");
-      }
-
-      const [d, e] = await Promise.all([
-        fetchJsonFallback(`/ops/cases/${caseId}/documents`, { headers }),
-        fetchJsonFallback(`/ops/cases/${caseId}/events`, { headers }),
-      ]);
-      setDocs(d.documents || d.items || []);
-      setEvents(e.events || e.items || []);
+      setMsg("✅ Recurso generado. Actualizando documentos…");
+      await load();
     } catch (err) {
       setMsg("❌ No se pudo generar el recurso.");
       setDebug(err?.message || "");
@@ -398,10 +295,92 @@ export default function OpsCaseDetail() {
     }
   }
 
+
+  async function registerManualSubmission() {
+    setMsg("");
+    setDebug("");
+
+    if (!manualOrganismo.trim()) {
+      setMsg("❌ Indica el organismo donde se presentó.");
+      return;
+    }
+    if (!manualRegistro.trim()) {
+      setMsg("❌ Indica el número de registro de entrada.");
+      return;
+    }
+
+    setRegisteringManual(true);
+
+    try {
+      const fd = new FormData();
+      fd.append("organismo", manualOrganismo.trim());
+      fd.append("registro", manualRegistro.trim());
+      if (manualCsv.trim()) fd.append("csv", manualCsv.trim());
+      if (manualSubmittedAt.trim()) fd.append("submitted_at", manualSubmittedAt.trim());
+      if (manualChannel.trim()) fd.append("channel", manualChannel.trim());
+      if (manualNote.trim()) fd.append("note", manualNote.trim());
+      if (manualFile) fd.append("file", manualFile);
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/register-manual-submission`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Presentación manual registrada y expediente marcado como presentado.");
+      setManualFile(null);
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo registrar la presentación manual.");
+      setDebug(err?.message || "");
+    } finally {
+      setRegisteringManual(false);
+    }
+  }
+
+  async function uploadExternalDocument() {
+    if (!externalFile) {
+      setMsg("❌ Selecciona un documento externo.");
+      return;
+    }
+
+    setUploadingExternal(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("file", externalFile);
+      fd.append("kind", externalKind);
+      if (externalNote.trim()) fd.append("note", externalNote.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/upload-external-document`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setExternalFile(null);
+      setExternalNote("");
+      setMsg("✅ Documento externo adjuntado al expediente.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo adjuntar el documento externo.");
+      setDebug(err?.message || "");
+    } finally {
+      setUploadingExternal(false);
+    }
+  }
+
   const resourceDocs = docs.filter((d) => isResource(d.kind));
-  const otherDocs = docs.filter((d) => !isResource(d.kind));
-  const chars = resourceText.length;
-  const words = resourceText.trim() ? resourceText.trim().split(/\s+/).length : 0;
+  const externalDocs = docs.filter((d) => isExternalProcedureDoc(d.kind));
+  const otherDocs = docs.filter((d) => !isResource(d.kind) && !isExternalProcedureDoc(d.kind));
+
+  const timelineEvents = [...events].sort((a, b) => {
+    const da = new Date(a.created_at || 0).getTime();
+    const db = new Date(b.created_at || 0).getTime();
+    return db - da;
+  });
 
   return (
     <div className="sr-container py-8">
@@ -425,100 +404,8 @@ export default function OpsCaseDetail() {
         </p>
       </div>
 
-      <div className="sr-card mt-4" style={{ border: "2px solid #1d4ed8" }}>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="sr-h3" style={{ marginTop: 0 }}>💣 Nora OPS Editor Final</h3>
-            <p className="sr-p" style={{ marginBottom: 0 }}>
-              Edita el recurso en pantalla, guarda borrador, fija versión final y marca el expediente completo como enviado.
-            </p>
-          </div>
-          <div
-            style={{
-              padding: "8px 12px",
-              borderRadius: 999,
-              background: resourceMeta?.is_final ? "#dcfce7" : "#eff6ff",
-              color: resourceMeta?.is_final ? "#166534" : "#1d4ed8",
-              fontWeight: 900,
-              fontSize: 13,
-            }}
-          >
-            {resourceStatusLabel(resourceMeta)}
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-3 mt-4 text-sm">
-          <div className="border rounded p-3" style={{ background: "#f8fafc" }}>
-            <strong>Versión</strong>
-            <div>{resourceMeta?.version || "—"}</div>
-          </div>
-          <div className="border rounded p-3" style={{ background: "#f8fafc" }}>
-            <strong>Caracteres / palabras</strong>
-            <div>{chars} / {words}</div>
-          </div>
-          <div className="border rounded p-3" style={{ background: "#f8fafc" }}>
-            <strong>Última actualización</strong>
-            <div>{fmt(resourceMeta?.updated_at) || "—"}</div>
-          </div>
-        </div>
-
-        <textarea
-          value={resourceText}
-          onChange={(e) => setResourceText(e.target.value)}
-          placeholder="Pega o redacta aquí el recurso final revisado por OPS…"
-          className="border rounded px-3 py-3 text-sm mt-4"
-          style={{
-            width: "100%",
-            minHeight: 420,
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            lineHeight: 1.55,
-            background: "#ffffff",
-          }}
-        />
-
-        <div className="grid md:grid-cols-2 gap-3 mt-3">
-          <input
-            placeholder="Destino envío completo (email/gestoría/opcional)"
-            value={sendDestination}
-            onChange={(e) => setSendDestination(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
-          />
-          <input
-            placeholder="Nota envío completo (opcional)"
-            value={sendNote}
-            onChange={(e) => setSendNote(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
-          />
-        </div>
-
-        <div className="flex gap-3 flex-wrap mt-4">
-          <button className="sr-btn-secondary" onClick={() => loadFinalResource(true)} disabled={loadingResource}>
-            {loadingResource ? "Cargando…" : "Cargar último borrador"}
-          </button>
-          <button className="sr-btn-primary" onClick={saveDraft} disabled={savingResource}>
-            {savingResource ? "Guardando…" : "Guardar borrador"}
-          </button>
-          <button
-            className="sr-btn-primary"
-            onClick={finalizeResource}
-            disabled={finalizingResource}
-            style={{ background: "#166534" }}
-          >
-            {finalizingResource ? "Guardando final…" : "Guardar versión final"}
-          </button>
-          <button
-            className="sr-btn-primary"
-            onClick={sendCompleteFile}
-            disabled={sendingComplete}
-            style={{ background: "#7c2d12" }}
-          >
-            {sendingComplete ? "Enviando…" : "Enviar expediente completo"}
-          </button>
-        </div>
-      </div>
-
       <div className="sr-card mt-4">
-        <h3 className="sr-h3">Acciones clásicas</h3>
+        <h3 className="sr-h3">Acciones</h3>
 
         <div className="grid md:grid-cols-2 gap-3 mt-3">
           <input
@@ -559,13 +446,136 @@ export default function OpsCaseDetail() {
         </div>
       </div>
 
+      <div className="grid md:grid-cols-2 gap-4 mt-4">
+        <div
+          className="sr-card"
+          style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}
+        >
+          <h3 className="sr-h3" style={{ marginTop: 0 }}>
+            📌 Registrar presentación manual
+          </h3>
+          <p className="sr-p" style={{ marginBottom: 12 }}>
+            Para ayuntamientos o presentaciones hechas fuera de OPS. Guarda el registro, CSV,
+            justificante y cambia el estado a presentado_manual_ayuntamiento.
+          </p>
+
+          <div className="grid gap-3">
+            <input
+              placeholder="Organismo (ej. Ajuntament de Terrassa)"
+              value={manualOrganismo}
+              onChange={(e) => setManualOrganismo(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
+              placeholder="Número de registro de entrada"
+              value={manualRegistro}
+              onChange={(e) => setManualRegistro(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
+              placeholder="CSV / código seguro de verificación (opcional)"
+              value={manualCsv}
+              onChange={(e) => setManualCsv(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
+              placeholder="Fecha/hora presentación (opcional, ej. 2026-05-07 10:43:34)"
+              value={manualSubmittedAt}
+              onChange={(e) => setManualSubmittedAt(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <select
+              value={manualChannel}
+              onChange={(e) => setManualChannel(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            >
+              <option value="ayuntamiento_manual">Ayuntamiento manual</option>
+              <option value="registro_general_manual">Registro general manual</option>
+              <option value="gestoria_manual">Gestoría / tercero</option>
+              <option value="otro_manual">Otro canal manual</option>
+            </select>
+            <input
+              placeholder="Observaciones internas (opcional)"
+              value={manualNote}
+              onChange={(e) => setManualNote(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.docx,.xml"
+              onChange={(e) => setManualFile(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <button
+            className="sr-btn-primary mt-4"
+            onClick={registerManualSubmission}
+            disabled={registeringManual}
+          >
+            {registeringManual ? "Registrando…" : "📌 Registrar presentación manual"}
+          </button>
+        </div>
+
+        <div
+          className="sr-card"
+          style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+        >
+          <h3 className="sr-h3" style={{ marginTop: 0 }}>
+            📎 Adjuntar documentación externa
+          </h3>
+          <p className="sr-p" style={{ marginBottom: 12 }}>
+            Añade resoluciones, requerimientos, instancias, justificantes o pruebas externas
+            al expediente completo.
+          </p>
+
+          <div className="grid gap-3">
+            <select
+              value={externalKind}
+              onChange={(e) => setExternalKind(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            >
+              <option value="documento_externo">Documento externo</option>
+              <option value="justificante_presentacion">Justificante de presentación</option>
+              <option value="instancia_firmada">Instancia firmada</option>
+              <option value="csv_registro">CSV / resguardo registro</option>
+              <option value="resolucion">Resolución</option>
+              <option value="requerimiento">Requerimiento</option>
+              <option value="contestacion_ayuntamiento">Contestación ayuntamiento</option>
+              <option value="prueba_externa">Prueba externa</option>
+              <option value="recurso_presentado">Recurso presentado</option>
+              <option value="multa_presentada">Multa presentada</option>
+              <option value="autorizacion_presentada">Autorización presentada</option>
+            </select>
+            <input
+              placeholder="Nota del documento (opcional)"
+              value={externalNote}
+              onChange={(e) => setExternalNote(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.docx,.xml"
+              onChange={(e) => setExternalFile(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <button
+            className="sr-btn-primary mt-4"
+            onClick={uploadExternalDocument}
+            disabled={uploadingExternal}
+          >
+            {uploadingExternal ? "Adjuntando…" : "📎 Adjuntar documento externo"}
+          </button>
+        </div>
+      </div>
+
       {msg ? (
         <div
           className="sr-card mt-4"
           style={{
-            color: msg.startsWith("✅") ? "#166534" : msg.startsWith("ℹ️") ? "#1d4ed8" : "#991b1b",
-            background: msg.startsWith("✅") ? "#ecfdf5" : msg.startsWith("ℹ️") ? "#eff6ff" : "#fef2f2",
-            border: msg.startsWith("✅") ? "1px solid #bbf7d0" : msg.startsWith("ℹ️") ? "1px solid #bfdbfe" : "1px solid #fecaca",
+            color: msg.startsWith("✅") ? "#166534" : "#991b1b",
+            background: msg.startsWith("✅") ? "#ecfdf5" : "#fef2f2",
+            border: msg.startsWith("✅") ? "1px solid #bbf7d0" : "1px solid #fecaca",
             fontWeight: 900,
           }}
         >
@@ -622,7 +632,39 @@ export default function OpsCaseDetail() {
                 color: "#64748b",
               }}
             >
-              Todavía no hay recurso visible. Pulsa “Generar recurso ahora” o guarda una versión final desde el editor.
+              Todavía no hay recurso visible. Pulsa “Generar recurso ahora”.
+            </div>
+          )}
+
+          <h3 className="sr-h3" style={{ marginTop: 22 }}>Documentación externa / procedimiento</h3>
+
+          {externalDocs.length ? (
+            externalDocs.map((d, i) => (
+              <button
+                key={`${d.id || d.kind}-external-${i}`}
+                onClick={() => openDocument(d)}
+                className="block w-full text-left border rounded p-3 mt-2 text-sm"
+                style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}
+              >
+                <strong>{docLabel(d.kind)}</strong>
+                <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(d.created_at)}</div>
+                <div style={{ color: "#64748b", marginTop: 3, wordBreak: "break-word", fontSize: 12 }}>
+                  {d.key || d.b2_key || d.id}
+                </div>
+              </button>
+            ))
+          ) : (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 14,
+                border: "1px dashed #bbf7d0",
+                borderRadius: 12,
+                color: "#166534",
+                background: "#f0fdf4",
+              }}
+            >
+              Todavía no hay documentación externa del procedimiento.
             </div>
           )}
 
@@ -655,12 +697,13 @@ export default function OpsCaseDetail() {
         </div>
 
         <div className="sr-card">
-          <h3 className="sr-h3">Logs</h3>
+          <h3 className="sr-h3">🕒 Timeline jurídico</h3>
 
-          {events.length ? (
-            events.map((e, i) => (
+          {timelineEvents.length ? (
+            timelineEvents.map((e, i) => (
               <div key={i} className="border rounded p-2 mt-2 text-xs">
-                <strong>{e.type}</strong>
+                <strong>{eventLabel(e.type)}</strong>
+                <div style={{ color: "#64748b" }}>{e.type}</div>
                 <div>{fmt(e.created_at)}</div>
                 {e.payload ? (
                   <pre
@@ -688,7 +731,7 @@ export default function OpsCaseDetail() {
                 color: "#64748b",
               }}
             >
-              Todavía no hay logs visibles.
+              Todavía no hay eventos visibles.
             </div>
           )}
         </div>
