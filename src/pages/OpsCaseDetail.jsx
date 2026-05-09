@@ -37,16 +37,6 @@ function fmt(d) {
   }
 }
 
-function safeText(value) {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
 function prettyBytes(size) {
   const n = Number(size || 0);
   if (!n) return "";
@@ -89,6 +79,26 @@ async function fetchJsonFallback(path, options = {}) {
   throw new Error(errors.join(" | "));
 }
 
+async function fetchBlobFallback(path, options = {}) {
+  const errors = [];
+
+  for (const base of API_CANDIDATES) {
+    const url = buildUrl(base, path);
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(text || `HTTP ${response.status}`);
+      }
+      return await response.blob();
+    } catch (e) {
+      errors.push(`${url} → ${e?.message || "Error"}`);
+    }
+  }
+
+  throw new Error(errors.join(" | "));
+}
+
 function docLabel(kind = "") {
   const k = String(kind || "").toLowerCase();
 
@@ -118,8 +128,36 @@ function docLabel(kind = "") {
 function docGroup(kind = "") {
   const k = String(kind || "").toLowerCase();
   if (k.includes("recurso") || k.includes("generated")) return "resource";
-  if (k.includes("justificante") || k.includes("instancia") || k.includes("csv") || k.includes("resolucion") || k.includes("requerimiento") || k.includes("contestacion")) return "external";
+  if (
+    k.includes("justificante") ||
+    k.includes("instancia") ||
+    k.includes("csv") ||
+    k.includes("resolucion") ||
+    k.includes("requerimiento") ||
+    k.includes("contestacion") ||
+    k.includes("prueba")
+  ) {
+    return "external";
+  }
   return "other";
+}
+
+function docIcon(doc = {}) {
+  const kind = String(doc.kind || "").toLowerCase();
+  const mime = String(doc.mime || "").toLowerCase();
+  const key = String(doc.key || doc.b2_key || "").toLowerCase();
+
+  if (kind.includes("justificante")) return "🏛️";
+  if (kind.includes("resolucion")) return "⚖️";
+  if (kind.includes("requerimiento")) return "📨";
+  if (kind.includes("recurso")) return "🧾";
+  if (kind.includes("multa")) return "🚗";
+  if (kind.includes("autoriz")) return "✍️";
+  if (kind.includes("csv")) return "#️⃣";
+  if (mime.includes("pdf") || key.endsWith(".pdf")) return "📄";
+  if (mime.includes("word") || key.endsWith(".docx")) return "📝";
+  if (mime.includes("image") || key.match(/\.(jpg|jpeg|png|webp)$/)) return "🖼️";
+  return "📎";
 }
 
 function isResource(kind = "") {
@@ -130,19 +168,61 @@ function isExternal(kind = "") {
   return docGroup(kind) === "external";
 }
 
-function eventLabel(type = "") {
+function eventMeta(type = "") {
   const t = String(type || "").toLowerCase();
-  if (t.includes("manual_submission_registered")) return "📌 Presentación manual registrada";
-  if (t.includes("external_document_uploaded")) return "📎 Documento externo adjuntado";
-  if (t.includes("justificante_uploaded")) return "📄 Justificante subido";
-  if (t.includes("paid")) return "💳 Pago confirmado";
-  if (t.includes("checkout")) return "💳 Pago iniciado";
-  if (t.includes("authorized")) return "✍️ Autorización";
-  if (t.includes("resource_generated") || t.includes("generated")) return "🧾 Recurso generado";
-  if (t.includes("submitted")) return "✅ Presentado";
-  if (t.includes("review")) return "🔎 Revisión";
-  if (t.includes("note")) return "📝 Nota";
-  return type || "Evento";
+
+  if (t.includes("manual_submission_registered")) {
+    return { icon: "📌", label: "Presentación manual registrada", color: "#16a34a", bg: "#dcfce7" };
+  }
+  if (t.includes("external_document_uploaded")) {
+    return { icon: "📎", label: "Documento externo adjuntado", color: "#2563eb", bg: "#dbeafe" };
+  }
+  if (t.includes("justificante_uploaded")) {
+    return { icon: "🏛️", label: "Justificante subido", color: "#16a34a", bg: "#dcfce7" };
+  }
+  if (t.includes("paid_ok") || t.includes("paid")) {
+    return { icon: "💳", label: "Pago confirmado", color: "#16a34a", bg: "#dcfce7" };
+  }
+  if (t.includes("checkout")) {
+    return { icon: "💳", label: "Pago iniciado", color: "#ca8a04", bg: "#fef9c3" };
+  }
+  if (t.includes("authorized") || t.includes("authorization")) {
+    return { icon: "✍️", label: "Autorización registrada", color: "#7c3aed", bg: "#ede9fe" };
+  }
+  if (t.includes("resource_generated") || t.includes("generated")) {
+    return { icon: "🧾", label: "Recurso generado", color: "#2563eb", bg: "#dbeafe" };
+  }
+  if (t.includes("submitted")) {
+    return { icon: "✅", label: "Expediente presentado", color: "#16a34a", bg: "#dcfce7" };
+  }
+  if (t.includes("review")) {
+    return { icon: "🔎", label: "Revisión", color: "#ca8a04", bg: "#fef9c3" };
+  }
+  if (t.includes("note")) {
+    return { icon: "📝", label: "Nota interna", color: "#64748b", bg: "#f1f5f9" };
+  }
+  if (t.includes("failed") || t.includes("error")) {
+    return { icon: "❌", label: "Error / incidencia", color: "#dc2626", bg: "#fee2e2" };
+  }
+
+  return { icon: "•", label: type || "Evento", color: "#64748b", bg: "#f1f5f9" };
+}
+
+function extractEventSummary(event = {}) {
+  const payload = event.payload || {};
+  if (typeof payload === "string") return payload.slice(0, 160);
+
+  const bits = [];
+  if (payload.organismo) bits.push(payload.organismo);
+  if (payload.registro) bits.push(`Registro: ${payload.registro}`);
+  if (payload.csv) bits.push(`CSV: ${payload.csv}`);
+  if (payload.kind) bits.push(docLabel(payload.kind));
+  if (payload.filename) bits.push(payload.filename);
+  if (payload.channel) bits.push(payload.channel);
+  if (payload.note) bits.push(payload.note);
+  if (payload.status) bits.push(payload.status);
+
+  return bits.join(" · ");
 }
 
 function Card({ children, className = "", style = {} }) {
@@ -194,25 +274,157 @@ function DocumentRow({ doc, onOpen }) {
   return (
     <button
       onClick={() => onOpen(doc)}
-      className="block w-full text-left border rounded p-3 mt-2 text-sm"
-      style={{ background: "#f8fafc" }}
+      className="block w-full text-left border rounded-xl p-3 mt-2 text-sm transition"
+      style={{
+        background: "#ffffff",
+        borderColor: "#e2e8f0",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
+      }}
     >
       <div className="flex items-start justify-between gap-3">
-        <div style={{ minWidth: 0 }}>
-          <strong>{docLabel(doc.kind)}</strong>
-          <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(doc.created_at)}</div>
-          <div style={{ color: "#64748b", marginTop: 3, fontSize: 12 }}>
-            {doc.mime || "application/octet-stream"} {doc.size_bytes ? `· ${prettyBytes(doc.size_bytes)}` : ""}
+        <div className="flex items-start gap-3" style={{ minWidth: 0 }}>
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 14,
+              background: "#f1f5f9",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+              flexShrink: 0,
+            }}
+          >
+            {docIcon(doc)}
           </div>
-          <div style={{ color: "#94a3b8", marginTop: 3, wordBreak: "break-word", fontSize: 11 }}>
-            {doc.key || doc.b2_key || doc.id}
+
+          <div style={{ minWidth: 0 }}>
+            <strong>{docLabel(doc.kind)}</strong>
+            <div style={{ color: "#64748b", marginTop: 3 }}>
+              {fmt(doc.created_at)}
+            </div>
+            <div style={{ color: "#64748b", marginTop: 3, fontSize: 12 }}>
+              {doc.mime || "application/octet-stream"}
+              {doc.size_bytes ? ` · ${prettyBytes(doc.size_bytes)}` : ""}
+            </div>
+            <div
+              style={{
+                color: "#94a3b8",
+                marginTop: 3,
+                wordBreak: "break-word",
+                fontSize: 11,
+              }}
+            >
+              {doc.key || doc.b2_key || doc.id}
+            </div>
           </div>
         </div>
+
         <span className="sr-btn-secondary" style={{ whiteSpace: "nowrap" }}>
           Descargar
         </span>
       </div>
     </button>
+  );
+}
+
+function EmptyBox({ children }) {
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: 14,
+        border: "1px dashed #cbd5e1",
+        borderRadius: 12,
+        color: "#64748b",
+        background: "#f8fafc",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function TimelineItem({ event, index }) {
+  const meta = eventMeta(event.type);
+  const summary = extractEventSummary(event);
+
+  return (
+    <div className="flex gap-3 mt-3">
+      <div style={{ width: 34, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 999,
+            background: meta.bg,
+            color: meta.color,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            fontWeight: 900,
+            border: `1px solid ${meta.color}33`,
+          }}
+        >
+          {meta.icon}
+        </div>
+        {index !== 999 ? (
+          <div style={{ width: 2, flex: 1, background: "#e2e8f0", minHeight: 20, marginTop: 4 }} />
+        ) : null}
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          border: "1px solid #e2e8f0",
+          borderRadius: 14,
+          padding: 12,
+          background: "#ffffff",
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <strong style={{ color: "#0f172a" }}>{meta.label}</strong>
+            <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>{event.type}</div>
+          </div>
+          <div style={{ color: "#64748b", fontSize: 12, whiteSpace: "nowrap" }}>
+            {fmt(event.created_at)}
+          </div>
+        </div>
+
+        {summary ? (
+          <div style={{ marginTop: 8, color: "#334155", fontSize: 13 }}>
+            {summary}
+          </div>
+        ) : null}
+
+        {event.payload ? (
+          <details style={{ marginTop: 8 }}>
+            <summary style={{ cursor: "pointer", color: "#2563eb", fontWeight: 800 }}>
+              Ver detalle
+            </summary>
+            <pre
+              style={{
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                marginTop: 8,
+                background: "#f8fafc",
+                padding: 10,
+                borderRadius: 10,
+                fontSize: 11,
+                color: "#334155",
+              }}
+            >
+              {typeof event.payload === "string"
+                ? event.payload
+                : JSON.stringify(event.payload, null, 2)}
+            </pre>
+          </details>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -229,6 +441,8 @@ export default function OpsCaseDetail() {
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [zipLoading, setZipLoading] = useState(false);
+  const [freezing, setFreezing] = useState(false);
   const [msg, setMsg] = useState("");
   const [debug, setDebug] = useState("");
 
@@ -253,7 +467,22 @@ export default function OpsCaseDetail() {
 
   const resourceDocs = useMemo(() => docs.filter((d) => isResource(d.kind)), [docs]);
   const externalDocs = useMemo(() => docs.filter((d) => isExternal(d.kind)), [docs]);
-  const otherDocs = useMemo(() => docs.filter((d) => !isResource(d.kind) && !isExternal(d.kind)), [docs]);
+  const otherDocs = useMemo(
+    () => docs.filter((d) => !isResource(d.kind) && !isExternal(d.kind)),
+    [docs]
+  );
+
+  const hasManualSubmission = useMemo(
+    () => events.some((e) => String(e.type || "").includes("manual_submission_registered")),
+    [events]
+  );
+
+  const hasFinalResource = useMemo(
+    () =>
+      events.some((e) => String(e.type || "").includes("final")) ||
+      docs.some((d) => String(d.kind || "").includes("final")),
+    [docs, events]
+  );
 
   async function load() {
     setLoading(true);
@@ -269,7 +498,7 @@ export default function OpsCaseDetail() {
       setDocs(d.documents || d.items || []);
       setEvents(e.events || e.items || []);
     } catch (err) {
-      setMsg("❌ No se pudieron cargar documentos o logs.");
+      setMsg("❌ No se pudieron cargar documentos o timeline.");
       setDebug(err?.message || "");
     } finally {
       setLoading(false);
@@ -282,19 +511,10 @@ export default function OpsCaseDetail() {
 
     try {
       if (doc.id) {
-        for (const base of API_CANDIDATES) {
-          const url = buildUrl(base, `/ops/documents/${doc.id}/download`);
-          try {
-            const r = await fetch(url, { headers });
-            if (!r.ok) continue;
-            const blob = await r.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            window.open(objectUrl, "_blank", "noopener,noreferrer");
-            return;
-          } catch {
-            // probar siguiente base
-          }
-        }
+        const blob = await fetchBlobFallback(`/ops/documents/${doc.id}/download`, { headers });
+        const objectUrl = URL.createObjectURL(blob);
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+        return;
       }
 
       const bucket = doc.bucket || doc.b2_bucket;
@@ -356,10 +576,10 @@ export default function OpsCaseDetail() {
         body: fd,
       });
 
-      setMsg("✅ Caso marcado como presentado.");
+      setMsg("✅ Caso marcado como presentado automático.");
       await load();
     } catch (err) {
-      setMsg("❌ No se pudo marcar como presentado.");
+      setMsg("❌ No se pudo marcar como presentado automático.");
       setDebug(err?.message || "");
     }
   }
@@ -442,7 +662,7 @@ export default function OpsCaseDetail() {
 
   async function uploadExternalDocument() {
     if (!externalFile) {
-      setMsg("❌ Selecciona un documento externo.");
+      setMsg("❌ Selecciona un archivo externo.");
       return;
     }
 
@@ -474,13 +694,97 @@ export default function OpsCaseDetail() {
     }
   }
 
+  async function freezeFinalResource() {
+    setFreezing(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      await fetchJsonFallback(`/ops/cases/${caseId}/finalize-resource`, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          note: "Versión final bloqueada desde OPS",
+        }),
+      });
+
+      setMsg("✅ Recurso marcado como versión final.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo marcar versión final. Puede faltar el endpoint backend.");
+      setDebug(err?.message || "");
+    } finally {
+      setFreezing(false);
+    }
+  }
+
+  async function downloadZip() {
+    setZipLoading(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const blob = await fetchBlobFallback(`/ops/cases/${caseId}/zip`, { headers });
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `expediente_${caseId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      setMsg("❌ No se pudo descargar el ZIP. Puede faltar el endpoint backend.");
+      setDebug(err?.message || "");
+    } finally {
+      setZipLoading(false);
+    }
+  }
+
   return (
     <div className="sr-container py-8">
       <Link to="/ops" className="sr-btn-secondary">
         ← Volver al panel
       </Link>
 
-      <h1 className="sr-h2 mt-4">Expediente {caseId}</h1>
+      <div className="flex items-start justify-between gap-4 flex-wrap mt-4">
+        <div>
+          <h1 className="sr-h2">Expediente {caseId}</h1>
+          <p className="sr-p" style={{ marginTop: 4 }}>
+            Gestión jurídica completa: recurso, documentos, presentación y trazabilidad.
+          </p>
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          <span
+            style={{
+              padding: "8px 12px",
+              borderRadius: 999,
+              fontWeight: 900,
+              background: hasManualSubmission ? "#dcfce7" : "#fef9c3",
+              color: hasManualSubmission ? "#166534" : "#854d0e",
+              border: hasManualSubmission ? "1px solid #86efac" : "1px solid #fde68a",
+            }}
+          >
+            {hasManualSubmission ? "Presentado manualmente" : "Pendiente / revisión"}
+          </span>
+          <span
+            style={{
+              padding: "8px 12px",
+              borderRadius: 999,
+              fontWeight: 900,
+              background: hasFinalResource ? "#ede9fe" : "#f1f5f9",
+              color: hasFinalResource ? "#5b21b6" : "#475569",
+              border: hasFinalResource ? "1px solid #c4b5fd" : "1px solid #e2e8f0",
+            }}
+          >
+            {hasFinalResource ? "Versión final" : "Editable"}
+          </span>
+        </div>
+      </div>
 
       <Card
         className="mt-4"
@@ -490,52 +794,86 @@ export default function OpsCaseDetail() {
           🟡 Revisión manual obligatoria
         </h3>
         <p className="sr-p" style={{ marginBottom: 0 }}>
-          Revisa datos, plazos, organismo, hecho denunciado, recurso generado y canal de presentación.
-          Para ayuntamientos, usa presentación manual asistida y registra el justificante aquí.
+          Para ayuntamientos, revisa el recurso y registra aquí la presentación manual con justificante,
+          CSV y documentos externos. DGT podrá ir por submitter automático cuando esté cerrado.
         </p>
       </Card>
 
-      <Card className="mt-4">
-        <h3 className="sr-h3">Acciones rápidas</h3>
+      <div className="grid md:grid-cols-2 gap-4 mt-4">
+        <Card>
+          <h3 className="sr-h3">⚙️ Acciones rápidas</h3>
 
-        <div className="grid md:grid-cols-2 gap-3 mt-3">
-          <input
-            placeholder="Número de registro automático/manual (opcional)"
-            value={registro}
-            onChange={(e) => setRegistro(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
-          />
-          <input
-            placeholder="Nota interna (opcional)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
-          />
-        </div>
+          <div className="grid md:grid-cols-2 gap-3 mt-3">
+            <input
+              placeholder="Número de registro automático/manual (opcional)"
+              value={registro}
+              onChange={(e) => setRegistro(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+            <input
+              placeholder="Nota interna (opcional)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+          </div>
 
-        <div className="flex gap-3 flex-wrap mt-4">
-          <button className="sr-btn-primary" onClick={generateResourceNow} disabled={generating}>
-            {generating ? "Generando recurso…" : "Generar recurso ahora"}
-          </button>
+          <div className="flex gap-3 flex-wrap mt-4">
+            <button className="sr-btn-primary" onClick={generateResourceNow} disabled={generating}>
+              {generating ? "Generando recurso…" : "Generar recurso ahora"}
+            </button>
 
-          <button className="sr-btn-primary" onClick={markSubmitted}>
-            Marcar como presentado automático
-          </button>
+            <button className="sr-btn-secondary" onClick={markSubmitted}>
+              Marcar automático
+            </button>
 
-          <input
-            type="file"
-            onChange={(e) => setJustificante(e.target.files?.[0] || null)}
-          />
+            <button className="sr-btn-secondary" onClick={freezeFinalResource} disabled={freezing}>
+              {freezing ? "Bloqueando…" : "🔒 Versión final"}
+            </button>
 
-          <button
-            className="sr-btn-primary"
-            onClick={uploadJustificante}
-            disabled={uploading}
-          >
-            {uploading ? "Subiendo…" : "Subir justificante"}
-          </button>
-        </div>
-      </Card>
+            <button className="sr-btn-secondary" onClick={downloadZip} disabled={zipLoading}>
+              {zipLoading ? "Preparando ZIP…" : "⬇ ZIP expediente"}
+            </button>
+          </div>
+
+          <div className="flex gap-3 flex-wrap items-center mt-4">
+            <input
+              type="file"
+              onChange={(e) => setJustificante(e.target.files?.[0] || null)}
+            />
+
+            <button
+              className="sr-btn-primary"
+              onClick={uploadJustificante}
+              disabled={uploading}
+            >
+              {uploading ? "Subiendo…" : "Subir justificante"}
+            </button>
+          </div>
+        </Card>
+
+        <Card style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+          <h3 className="sr-h3">📊 Resumen del expediente</h3>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div style={{ background: "#fff", borderRadius: 14, padding: 12, border: "1px solid #e2e8f0" }}>
+              <div style={{ color: "#64748b", fontSize: 12 }}>Documentos</div>
+              <div style={{ fontSize: 24, fontWeight: 900 }}>{docs.length}</div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 14, padding: 12, border: "1px solid #e2e8f0" }}>
+              <div style={{ color: "#64748b", fontSize: 12 }}>Eventos</div>
+              <div style={{ fontSize: 24, fontWeight: 900 }}>{events.length}</div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 14, padding: 12, border: "1px solid #e2e8f0" }}>
+              <div style={{ color: "#64748b", fontSize: 12 }}>Recursos</div>
+              <div style={{ fontSize: 24, fontWeight: 900 }}>{resourceDocs.length}</div>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 14, padding: 12, border: "1px solid #e2e8f0" }}>
+              <div style={{ color: "#64748b", fontSize: 12 }}>Externos</div>
+              <div style={{ fontSize: 24, fontWeight: 900 }}>{externalDocs.length}</div>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       <StatusBox msg={msg} debug={debug} />
 
@@ -647,101 +985,48 @@ export default function OpsCaseDetail() {
             </button>
           </div>
 
-          <h4 className="font-bold mt-4">Recursos generados</h4>
+          <h4 className="font-bold mt-4">🧾 Recursos generados</h4>
           {resourceDocs.length ? (
             resourceDocs.map((d, i) => (
               <DocumentRow key={`${d.id || d.kind}-${i}`} doc={d} onOpen={openDocument} />
             ))
           ) : (
-            <div
-              style={{
-                marginTop: 12,
-                padding: 14,
-                border: "1px dashed #cbd5e1",
-                borderRadius: 12,
-                color: "#64748b",
-              }}
-            >
-              Todavía no hay recurso visible. Pulsa “Generar recurso ahora”.
-            </div>
+            <EmptyBox>Todavía no hay recurso visible. Pulsa “Generar recurso ahora”.</EmptyBox>
           )}
 
-          <h4 className="font-bold mt-5">Documentación externa / presentación</h4>
+          <h4 className="font-bold mt-5">🏛️ Documentación externa / presentación</h4>
           {externalDocs.length ? (
             externalDocs.map((d, i) => (
               <DocumentRow key={`${d.id || d.kind}-external-${i}`} doc={d} onOpen={openDocument} />
             ))
           ) : (
-            <div
-              style={{
-                marginTop: 12,
-                padding: 14,
-                border: "1px dashed #cbd5e1",
-                borderRadius: 12,
-                color: "#64748b",
-              }}
-            >
-              No hay documentación externa todavía.
-            </div>
+            <EmptyBox>No hay documentación externa todavía.</EmptyBox>
           )}
 
-          <h4 className="font-bold mt-5">Otros documentos</h4>
+          <h4 className="font-bold mt-5">📎 Otros documentos</h4>
           {otherDocs.length ? (
             otherDocs.map((d, i) => (
               <DocumentRow key={`${d.id || d.kind}-other-${i}`} doc={d} onOpen={openDocument} />
             ))
           ) : (
-            <div
-              style={{
-                marginTop: 12,
-                padding: 14,
-                border: "1px dashed #cbd5e1",
-                borderRadius: 12,
-                color: "#64748b",
-              }}
-            >
-              No hay otros documentos visibles.
-            </div>
+            <EmptyBox>No hay otros documentos visibles.</EmptyBox>
           )}
         </Card>
 
         <Card>
-          <h3 className="sr-h3">🕒 Timeline jurídico</h3>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="sr-h3">🕒 Timeline jurídico</h3>
+            <button className="sr-btn-secondary" onClick={load} disabled={loading}>
+              Refrescar
+            </button>
+          </div>
 
           {events.length ? (
             events.map((e, i) => (
-              <div key={i} className="border rounded p-2 mt-2 text-xs">
-                <strong>{eventLabel(e.type)}</strong>
-                <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(e.created_at)}</div>
-                <div style={{ color: "#334155", marginTop: 3 }}>{e.type}</div>
-                {e.payload ? (
-                  <pre
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      marginTop: 6,
-                      background: "#f8fafc",
-                      padding: 8,
-                      borderRadius: 8,
-                    }}
-                  >
-                    {typeof e.payload === "string" ? e.payload : JSON.stringify(e.payload, null, 2)}
-                  </pre>
-                ) : null}
-              </div>
+              <TimelineItem key={`${e.type}-${e.created_at}-${i}`} event={e} index={i === events.length - 1 ? 999 : i} />
             ))
           ) : (
-            <div
-              style={{
-                marginTop: 12,
-                padding: 14,
-                border: "1px dashed #cbd5e1",
-                borderRadius: 12,
-                color: "#64748b",
-              }}
-            >
-              Todavía no hay logs visibles.
-            </div>
+            <EmptyBox>Todavía no hay eventos visibles.</EmptyBox>
           )}
         </Card>
       </div>
