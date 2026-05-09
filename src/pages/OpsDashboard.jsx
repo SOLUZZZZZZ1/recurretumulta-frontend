@@ -25,6 +25,19 @@ function shortId(id) {
   return `${id.slice(0, 8)}…${id.slice(-4)}`;
 }
 
+
+function followupTone(item) {
+  if (item?.overdue) return "danger";
+  if (typeof item?.days_left === "number" && item.days_left <= 7) return "warn";
+  return "info";
+}
+
+function followupLabel(item) {
+  if (item?.overdue) return "Vencido";
+  if (typeof item?.days_left === "number" && item.days_left <= 7) return "Próximo";
+  return "Pendiente";
+}
+
 function Pill({ children, tone = "default" }) {
   const tones = {
     default: "bg-slate-100 text-slate-700",
@@ -95,6 +108,8 @@ export default function OpsDashboard() {
   const [workerAlive, setWorkerAlive] = useState(true);
   const [smartQueue, setSmartQueue] = useState({ items: [], summary: {}, count: 0 });
   const [smartLoading, setSmartLoading] = useState(false);
+  const [followups, setFollowups] = useState([]);
+  const [followupsLoading, setFollowupsLoading] = useState(false);
   const [tickError, setTickError] = useState("");
   const [lastRefreshAt, setLastRefreshAt] = useState("");
 
@@ -141,6 +156,25 @@ export default function OpsDashboard() {
     }
   }
 
+
+  async function loadFollowups() {
+    if (!authed) return;
+    setFollowupsLoading(true);
+    setTickError("");
+
+    try {
+      const data = await fetchJson(`${API}/ops/followups/due?days=30&limit=100`, {
+        headers: authHeaders,
+      });
+      setFollowups(data.items || []);
+    } catch (e) {
+      setTickError(e.message || "No se pudieron cargar los seguimientos");
+      setFollowups([]);
+    } finally {
+      setFollowupsLoading(false);
+    }
+  }
+
   async function runTick() {
     setTickLoading(true);
     setTickError("");
@@ -160,7 +194,7 @@ export default function OpsDashboard() {
         setAutoMode(String(data.mode));
       }
 
-      await Promise.all([loadQueue(), loadSmartQueue()]);
+      await Promise.all([loadQueue(), loadSmartQueue(), loadFollowups()]);
     } catch (e) {
       setTickError(e.message || "No se pudo ejecutar el tick");
       setWorkerAlive(false);
@@ -196,6 +230,7 @@ export default function OpsDashboard() {
     if (authed) {
       loadQueue();
       loadSmartQueue();
+      loadFollowups();
     }
   }, [authed, status]);
 
@@ -219,6 +254,24 @@ export default function OpsDashboard() {
 
   const submittedItems = useMemo(
     () => (cases || []).filter((c) => String(c.status || "") === "submitted"),
+    [cases]
+  );
+
+  const overdueFollowups = useMemo(
+    () => (followups || []).filter((f) => !!f.overdue),
+    [followups]
+  );
+
+  const nextFollowups = useMemo(
+    () =>
+      (followups || []).filter(
+        (f) => !f.overdue && typeof f.days_left === "number" && f.days_left <= 7
+      ),
+    [followups]
+  );
+
+  const manualSubmittedItems = useMemo(
+    () => (cases || []).filter((c) => String(c.status || "").includes("presentado")),
     [cases]
   );
 
@@ -265,6 +318,13 @@ export default function OpsDashboard() {
               >
                 🔥 Cola inteligente
               </Link>
+
+              <a
+                href="#ops-alertas"
+                className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600"
+              >
+                ⏰ Alertas
+              </a>
 
               <Link
                 to="/ops/vehicle-removal"
@@ -354,11 +414,14 @@ export default function OpsDashboard() {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 mb-5">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7 mb-5">
           <StatCard title="Automáticos" value={automaticItems.length} tone="success" help="Casos limpios para auto-submit" />
           <StatCard title="Manuales" value={manualItems.length} tone="danger" help="Casos que requieren operador" />
           <StatCard title="En cola smart" value={smartQueue.count || 0} tone="info" help="Total en queue-smart" />
           <StatCard title="Submitted visibles" value={submittedItems.length} tone="default" help="Según filtro actual de la cola clásica" />
+          <StatCard title="Manual presentados" value={manualSubmittedItems.length} tone="success" help="Ayuntamientos / externo" />
+          <StatCard title="Alertas vencidas" value={overdueFollowups.length} tone="danger" help="Revisar ya" />
+          <StatCard title="Próx. 7 días" value={nextFollowups.length} tone="warn" help="Seguimiento cercano" />
           <StatCard title="Modo actual" value={String(autoMode || "review").toUpperCase()} tone="warn" help="Control visual del auto-submit" />
         </div>
 
@@ -382,6 +445,103 @@ export default function OpsDashboard() {
 
           {loading && <span className="text-sm text-gray-500">Cargando…</span>}
           {smartLoading && <span className="text-sm text-gray-500">Actualizando monitor…</span>}
+        </div>
+
+
+        <div id="ops-alertas" className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr] mb-5">
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-amber-100 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">⏰ Alertas jurídicas</h2>
+                <div className="text-xs text-slate-600">
+                  Seguimientos vencidos o próximos creados tras presentación manual.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={loadFollowups}
+                className="rounded-xl border border-amber-200 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+              >
+                {followupsLoading ? "Cargando..." : "Refrescar alertas"}
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {!followups.length ? (
+                <div className="rounded-2xl border border-dashed border-amber-200 bg-white/70 px-4 py-6 text-sm text-slate-500">
+                  No hay alertas pendientes en los próximos 30 días.
+                </div>
+              ) : (
+                followups.slice(0, 8).map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">{item.title}</div>
+                        <div className="mt-1 text-xs text-slate-600">{item.description || "—"}</div>
+                        <div className="mt-2 text-xs text-slate-500">
+                          Vence: {formatDate(item.due_at)}
+                        </div>
+                        <div className="mt-1 text-[11px] text-slate-400 break-all">
+                          {item.case_id}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2">
+                        <Pill tone={followupTone(item)}>{followupLabel(item)}</Pill>
+                        <Link
+                          to={`/ops/case/${encodeURIComponent(item.case_id)}`}
+                          className="text-xs font-semibold text-blue-700 underline"
+                        >
+                          Abrir expediente
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {followups.length > 8 ? (
+                <div className="text-xs text-slate-500">
+                  Mostrando 8 de {followups.length} alertas próximas.
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">⚖️ Control operativo jurídico</h2>
+              <div className="text-xs text-slate-500">
+                Visión rápida del trabajo no automatizable: ayuntamientos, plazos y revisiones.
+              </div>
+            </div>
+
+            <div className="grid gap-3 p-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <div className="text-[11px] uppercase tracking-wide text-rose-700/80">Vencidas</div>
+                <div className="mt-2 text-2xl font-semibold text-rose-700">{overdueFollowups.length}</div>
+                <div className="mt-1 text-xs text-rose-700/80">Revisar ya</div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="text-[11px] uppercase tracking-wide text-amber-700/80">Próximas</div>
+                <div className="mt-2 text-2xl font-semibold text-amber-700">{nextFollowups.length}</div>
+                <div className="mt-1 text-xs text-amber-700/80">7 días</div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="text-[11px] uppercase tracking-wide text-emerald-700/80">Presentados manual</div>
+                <div className="mt-2 text-2xl font-semibold text-emerald-700">{manualSubmittedItems.length}</div>
+                <div className="mt-1 text-xs text-emerald-700/80">Ayuntamientos/externo</div>
+              </div>
+            </div>
+
+            <div className="px-4 pb-4 text-sm text-slate-600">
+              El sistema avisa, pero la decisión jurídica final sigue pasando por revisión humana:
+              silencio, requerimientos, resolución y siguiente recurso.
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] mb-5">
