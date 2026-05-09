@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 const DIRECT_BACKEND = "https://recurretumulta-backend.onrender.com";
@@ -9,6 +9,20 @@ const API_CANDIDATES = [
   import.meta.env.VITE_API_URL,
   DIRECT_BACKEND,
 ].filter(Boolean);
+
+const EXTERNAL_KINDS = [
+  { value: "justificante_presentacion", label: "Justificante de presentación" },
+  { value: "instancia_firmada", label: "Instancia firmada" },
+  { value: "csv_registro", label: "CSV / registro" },
+  { value: "resolucion", label: "Resolución" },
+  { value: "requerimiento", label: "Requerimiento" },
+  { value: "contestacion_ayuntamiento", label: "Contestación del Ayuntamiento" },
+  { value: "prueba_externa", label: "Prueba externa" },
+  { value: "recurso_presentado", label: "Recurso presentado" },
+  { value: "multa_presentada", label: "Multa presentada" },
+  { value: "autorizacion_presentada", label: "Autorización presentada" },
+  { value: "documento_externo", label: "Documento externo" },
+];
 
 function buildUrl(base, path) {
   return `${String(base || "").replace(/\/$/, "")}${path}`;
@@ -21,6 +35,24 @@ function fmt(d) {
   } catch {
     return String(d);
   }
+}
+
+function safeText(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function prettyBytes(size) {
+  const n = Number(size || 0);
+  if (!n) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function readResponse(response) {
@@ -61,62 +93,127 @@ function docLabel(kind = "") {
   const k = String(kind || "").toLowerCase();
 
   if (k.includes("authorization_signed")) return "Autorización firmada";
-  if (k.includes("authorization")) return "Autorización";
-  if (k.includes("justificante_presentacion")) return "Justificante de presentación";
-  if (k.includes("instancia_firmada")) return "Instancia firmada";
-  if (k.includes("csv_registro")) return "CSV / resguardo registro";
+  if (k.includes("authorization") || k.includes("autorizacion")) return "Autorización";
+  if (k.includes("submission_receipt")) return "Justificante de presentación";
+  if (k.includes("justificante")) return "Justificante de presentación";
+  if (k.includes("instancia")) return "Instancia firmada";
   if (k.includes("resolucion")) return "Resolución";
   if (k.includes("requerimiento")) return "Requerimiento";
-  if (k.includes("contestacion_ayuntamiento")) return "Contestación ayuntamiento";
-  if (k.includes("prueba_externa")) return "Prueba externa";
-  if (k.includes("documento_externo")) return "Documento externo";
-  if (k.includes("submission_receipt")) return "Justificante de presentación";
+  if (k.includes("contestacion")) return "Contestación";
+  if (k.includes("prueba")) return "Prueba externa";
   if (k.includes("original")) return "Documento original";
+  if (k.includes("recurso_pdf")) return "Recurso PDF";
+  if (k.includes("recurso_docx")) return "Recurso Word";
   if (k.includes("generated") && k.includes("pdf")) return "Recurso PDF";
   if (k.includes("generated") && k.includes("docx")) return "Recurso Word";
+  if (k.includes("recurso")) return "Recurso";
+  if (k.includes("multa")) return "Multa";
+  if (k.includes("csv")) return "CSV / registro";
   if (k.includes("pdf")) return "PDF";
   if (k.includes("docx")) return "Word";
 
   return kind || "Documento";
 }
 
-function isResource(kind = "") {
+function docGroup(kind = "") {
   const k = String(kind || "").toLowerCase();
-  return (
-    k.includes("generated") ||
-    k.includes("recurso") ||
-    k.includes("pdf") ||
-    k.includes("docx")
-  );
+  if (k.includes("recurso") || k.includes("generated")) return "resource";
+  if (k.includes("justificante") || k.includes("instancia") || k.includes("csv") || k.includes("resolucion") || k.includes("requerimiento") || k.includes("contestacion")) return "external";
+  return "other";
 }
 
-function isExternalProcedureDoc(kind = "") {
-  const k = String(kind || "").toLowerCase();
-  return (
-    k.includes("justificante_presentacion") ||
-    k.includes("instancia_firmada") ||
-    k.includes("csv_registro") ||
-    k.includes("resolucion") ||
-    k.includes("requerimiento") ||
-    k.includes("contestacion_ayuntamiento") ||
-    k.includes("prueba_externa") ||
-    k.includes("documento_externo")
-  );
+function isResource(kind = "") {
+  return docGroup(kind) === "resource";
+}
+
+function isExternal(kind = "") {
+  return docGroup(kind) === "external";
 }
 
 function eventLabel(type = "") {
   const t = String(type || "").toLowerCase();
-  if (t === "manual_submission_registered") return "Presentación manual registrada";
-  if (t === "external_document_uploaded") return "Documento externo adjuntado";
-  if (t === "justificante_uploaded") return "Justificante subido";
-  if (t === "paid_ok") return "Pago confirmado";
-  if (t === "checkout_started") return "Checkout iniciado";
-  if (t === "resource_generated_auto") return "Recurso generado automáticamente";
-  if (t === "ai_expediente_result") return "Análisis IA registrado";
-  if (t === "case_authorized") return "Autorización registrada";
-  if (t === "case_details_saved") return "Datos del interesado guardados";
-  if (t === "ops_mark_submitted") return "Marcado como presentado";
+  if (t.includes("manual_submission_registered")) return "📌 Presentación manual registrada";
+  if (t.includes("external_document_uploaded")) return "📎 Documento externo adjuntado";
+  if (t.includes("justificante_uploaded")) return "📄 Justificante subido";
+  if (t.includes("paid")) return "💳 Pago confirmado";
+  if (t.includes("checkout")) return "💳 Pago iniciado";
+  if (t.includes("authorized")) return "✍️ Autorización";
+  if (t.includes("resource_generated") || t.includes("generated")) return "🧾 Recurso generado";
+  if (t.includes("submitted")) return "✅ Presentado";
+  if (t.includes("review")) return "🔎 Revisión";
+  if (t.includes("note")) return "📝 Nota";
   return type || "Evento";
+}
+
+function Card({ children, className = "", style = {} }) {
+  return (
+    <div className={`sr-card ${className}`} style={style}>
+      {children}
+    </div>
+  );
+}
+
+function StatusBox({ msg, debug }) {
+  if (!msg && !debug) return null;
+
+  return (
+    <>
+      {msg ? (
+        <Card
+          className="mt-4"
+          style={{
+            color: msg.startsWith("✅") ? "#166534" : "#991b1b",
+            background: msg.startsWith("✅") ? "#ecfdf5" : "#fef2f2",
+            border: msg.startsWith("✅") ? "1px solid #bbf7d0" : "1px solid #fecaca",
+            fontWeight: 900,
+          }}
+        >
+          {msg}
+        </Card>
+      ) : null}
+
+      {debug ? (
+        <Card
+          className="mt-4"
+          style={{
+            color: "#475569",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            fontSize: 12,
+            wordBreak: "break-word",
+          }}
+        >
+          Detalle: {debug}
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
+function DocumentRow({ doc, onOpen }) {
+  return (
+    <button
+      onClick={() => onOpen(doc)}
+      className="block w-full text-left border rounded p-3 mt-2 text-sm"
+      style={{ background: "#f8fafc" }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div style={{ minWidth: 0 }}>
+          <strong>{docLabel(doc.kind)}</strong>
+          <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(doc.created_at)}</div>
+          <div style={{ color: "#64748b", marginTop: 3, fontSize: 12 }}>
+            {doc.mime || "application/octet-stream"} {doc.size_bytes ? `· ${prettyBytes(doc.size_bytes)}` : ""}
+          </div>
+          <div style={{ color: "#94a3b8", marginTop: 3, wordBreak: "break-word", fontSize: 11 }}>
+            {doc.key || doc.b2_key || doc.id}
+          </div>
+        </div>
+        <span className="sr-btn-secondary" style={{ whiteSpace: "nowrap" }}>
+          Descargar
+        </span>
+      </div>
+    </button>
+  );
 }
 
 export default function OpsCaseDetail() {
@@ -129,31 +226,34 @@ export default function OpsCaseDetail() {
   const [registro, setRegistro] = useState("");
   const [note, setNote] = useState("");
   const [justificante, setJustificante] = useState(null);
-
-  const [manualOrganismo, setManualOrganismo] = useState("Ajuntament de Terrassa");
-  const [manualRegistro, setManualRegistro] = useState("");
-  const [manualCsv, setManualCsv] = useState("");
-  const [manualSubmittedAt, setManualSubmittedAt] = useState("");
-  const [manualChannel, setManualChannel] = useState("ayuntamiento_manual");
-  const [manualNote, setManualNote] = useState("");
-  const [manualFile, setManualFile] = useState(null);
-  const [registeringManual, setRegisteringManual] = useState(false);
-
-  const [externalKind, setExternalKind] = useState("documento_externo");
-  const [externalNote, setExternalNote] = useState("");
-  const [externalFile, setExternalFile] = useState(null);
-  const [uploadingExternal, setUploadingExternal] = useState(false);
-
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [debug, setDebug] = useState("");
 
+  const [manualOrganismo, setManualOrganismo] = useState("Ajuntament / organismo");
+  const [manualRegistro, setManualRegistro] = useState("");
+  const [manualCsv, setManualCsv] = useState("");
+  const [manualDate, setManualDate] = useState("");
+  const [manualChannel, setManualChannel] = useState("ayuntamiento_manual");
+  const [manualNote, setManualNote] = useState("");
+  const [manualFile, setManualFile] = useState(null);
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+
+  const [externalKind, setExternalKind] = useState("documento_externo");
+  const [externalNote, setExternalNote] = useState("");
+  const [externalFile, setExternalFile] = useState(null);
+  const [externalUploading, setExternalUploading] = useState(false);
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]);
+
+  const resourceDocs = useMemo(() => docs.filter((d) => isResource(d.kind)), [docs]);
+  const externalDocs = useMemo(() => docs.filter((d) => isExternal(d.kind)), [docs]);
+  const otherDocs = useMemo(() => docs.filter((d) => !isResource(d.kind) && !isExternal(d.kind)), [docs]);
 
   async function load() {
     setLoading(true);
@@ -192,7 +292,7 @@ export default function OpsCaseDetail() {
             window.open(objectUrl, "_blank", "noopener,noreferrer");
             return;
           } catch {
-            // probar siguiente
+            // probar siguiente base
           }
         }
       }
@@ -295,28 +395,26 @@ export default function OpsCaseDetail() {
     }
   }
 
-
   async function registerManualSubmission() {
-    setMsg("");
-    setDebug("");
-
     if (!manualOrganismo.trim()) {
-      setMsg("❌ Indica el organismo donde se presentó.");
+      setMsg("❌ Indica el organismo.");
       return;
     }
     if (!manualRegistro.trim()) {
-      setMsg("❌ Indica el número de registro de entrada.");
+      setMsg("❌ Indica el número de registro.");
       return;
     }
 
-    setRegisteringManual(true);
+    setManualSubmitting(true);
+    setMsg("");
+    setDebug("");
 
     try {
       const fd = new FormData();
       fd.append("organismo", manualOrganismo.trim());
       fd.append("registro", manualRegistro.trim());
       if (manualCsv.trim()) fd.append("csv", manualCsv.trim());
-      if (manualSubmittedAt.trim()) fd.append("submitted_at", manualSubmittedAt.trim());
+      if (manualDate.trim()) fd.append("submitted_at", manualDate.trim());
       if (manualChannel.trim()) fd.append("channel", manualChannel.trim());
       if (manualNote.trim()) fd.append("note", manualNote.trim());
       if (manualFile) fd.append("file", manualFile);
@@ -327,14 +425,18 @@ export default function OpsCaseDetail() {
         body: fd,
       });
 
-      setMsg("✅ Presentación manual registrada y expediente marcado como presentado.");
+      setMsg("✅ Presentación manual registrada en el expediente.");
+      setManualRegistro("");
+      setManualCsv("");
+      setManualDate("");
+      setManualNote("");
       setManualFile(null);
       await load();
     } catch (err) {
       setMsg("❌ No se pudo registrar la presentación manual.");
       setDebug(err?.message || "");
     } finally {
-      setRegisteringManual(false);
+      setManualSubmitting(false);
     }
   }
 
@@ -344,7 +446,7 @@ export default function OpsCaseDetail() {
       return;
     }
 
-    setUploadingExternal(true);
+    setExternalUploading(true);
     setMsg("");
     setDebug("");
 
@@ -368,19 +470,9 @@ export default function OpsCaseDetail() {
       setMsg("❌ No se pudo adjuntar el documento externo.");
       setDebug(err?.message || "");
     } finally {
-      setUploadingExternal(false);
+      setExternalUploading(false);
     }
   }
-
-  const resourceDocs = docs.filter((d) => isResource(d.kind));
-  const externalDocs = docs.filter((d) => isExternalProcedureDoc(d.kind));
-  const otherDocs = docs.filter((d) => !isResource(d.kind) && !isExternalProcedureDoc(d.kind));
-
-  const timelineEvents = [...events].sort((a, b) => {
-    const da = new Date(a.created_at || 0).getTime();
-    const db = new Date(b.created_at || 0).getTime();
-    return db - da;
-  });
 
   return (
     <div className="sr-container py-8">
@@ -390,26 +482,25 @@ export default function OpsCaseDetail() {
 
       <h1 className="sr-h2 mt-4">Expediente {caseId}</h1>
 
-      <div
-        className="sr-card mt-4"
+      <Card
+        className="mt-4"
         style={{ background: "#fffbeb", border: "1px solid #fde68a" }}
       >
         <h3 className="sr-h3" style={{ marginTop: 0 }}>
           🟡 Revisión manual obligatoria
         </h3>
         <p className="sr-p" style={{ marginBottom: 0 }}>
-          Fase inicial del producto: revisar manualmente datos, plazos, organismo,
-          hecho denunciado, recurso generado y canal de presentación antes de marcar
-          el caso como presentado.
+          Revisa datos, plazos, organismo, hecho denunciado, recurso generado y canal de presentación.
+          Para ayuntamientos, usa presentación manual asistida y registra el justificante aquí.
         </p>
-      </div>
+      </Card>
 
-      <div className="sr-card mt-4">
-        <h3 className="sr-h3">Acciones</h3>
+      <Card className="mt-4">
+        <h3 className="sr-h3">Acciones rápidas</h3>
 
         <div className="grid md:grid-cols-2 gap-3 mt-3">
           <input
-            placeholder="Número de registro (opcional)"
+            placeholder="Número de registro automático/manual (opcional)"
             value={registro}
             onChange={(e) => setRegistro(e.target.value)}
             className="border rounded px-3 py-2 text-sm"
@@ -428,7 +519,7 @@ export default function OpsCaseDetail() {
           </button>
 
           <button className="sr-btn-primary" onClick={markSubmitted}>
-            Marcar como presentado
+            Marcar como presentado automático
           </button>
 
           <input
@@ -444,183 +535,122 @@ export default function OpsCaseDetail() {
             {uploading ? "Subiendo…" : "Subir justificante"}
           </button>
         </div>
-      </div>
+      </Card>
 
-      <div className="grid md:grid-cols-2 gap-4 mt-4">
-        <div
-          className="sr-card"
-          style={{ background: "#f0fdf4", border: "1px solid #bbf7d0" }}
-        >
-          <h3 className="sr-h3" style={{ marginTop: 0 }}>
-            📌 Registrar presentación manual
-          </h3>
-          <p className="sr-p" style={{ marginBottom: 12 }}>
-            Para ayuntamientos o presentaciones hechas fuera de OPS. Guarda el registro, CSV,
-            justificante y cambia el estado a presentado_manual_ayuntamiento.
-          </p>
+      <StatusBox msg={msg} debug={debug} />
 
-          <div className="grid gap-3">
-            <input
-              placeholder="Organismo (ej. Ajuntament de Terrassa)"
-              value={manualOrganismo}
-              onChange={(e) => setManualOrganismo(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="Número de registro de entrada"
-              value={manualRegistro}
-              onChange={(e) => setManualRegistro(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="CSV / código seguro de verificación (opcional)"
-              value={manualCsv}
-              onChange={(e) => setManualCsv(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="Fecha/hora presentación (opcional, ej. 2026-05-07 10:43:34)"
-              value={manualSubmittedAt}
-              onChange={(e) => setManualSubmittedAt(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            />
-            <select
-              value={manualChannel}
-              onChange={(e) => setManualChannel(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            >
-              <option value="ayuntamiento_manual">Ayuntamiento manual</option>
-              <option value="registro_general_manual">Registro general manual</option>
-              <option value="gestoria_manual">Gestoría / tercero</option>
-              <option value="otro_manual">Otro canal manual</option>
-            </select>
-            <input
-              placeholder="Observaciones internas (opcional)"
-              value={manualNote}
-              onChange={(e) => setManualNote(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            />
-            <input
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.docx,.xml"
-              onChange={(e) => setManualFile(e.target.files?.[0] || null)}
-            />
-          </div>
+      <Card className="mt-4" style={{ border: "1px solid #bbf7d0", background: "#f0fdf4" }}>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>📌 Registrar presentación manual</h3>
+        <p className="sr-p">
+          Para ayuntamientos o presentaciones hechas fuera de OPS. Guarda el registro, CSV y justificante sin pasar por submitters.
+        </p>
 
+        <div className="grid md:grid-cols-2 gap-3 mt-3">
+          <input
+            placeholder="Organismo: Ajuntament de Terrassa"
+            value={manualOrganismo}
+            onChange={(e) => setManualOrganismo(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="Número registro: E-AJT-..."
+            value={manualRegistro}
+            onChange={(e) => setManualRegistro(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="CSV / código verificación"
+            value={manualCsv}
+            onChange={(e) => setManualCsv(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="Fecha/hora presentación: 2026-05-07 10:43"
+            value={manualDate}
+            onChange={(e) => setManualDate(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="Canal"
+            value={manualChannel}
+            onChange={(e) => setManualChannel(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="Nota interna"
+            value={manualNote}
+            onChange={(e) => setManualNote(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="flex gap-3 flex-wrap items-center mt-4">
+          <input
+            type="file"
+            onChange={(e) => setManualFile(e.target.files?.[0] || null)}
+          />
           <button
-            className="sr-btn-primary mt-4"
+            className="sr-btn-primary"
             onClick={registerManualSubmission}
-            disabled={registeringManual}
+            disabled={manualSubmitting}
           >
-            {registeringManual ? "Registrando…" : "📌 Registrar presentación manual"}
+            {manualSubmitting ? "Registrando…" : "Registrar presentación manual"}
           </button>
         </div>
+      </Card>
 
-        <div
-          className="sr-card"
-          style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
-        >
-          <h3 className="sr-h3" style={{ marginTop: 0 }}>
-            📎 Adjuntar documentación externa
-          </h3>
-          <p className="sr-p" style={{ marginBottom: 12 }}>
-            Añade resoluciones, requerimientos, instancias, justificantes o pruebas externas
-            al expediente completo.
-          </p>
+      <Card className="mt-4" style={{ border: "1px solid #bfdbfe", background: "#eff6ff" }}>
+        <h3 className="sr-h3" style={{ marginTop: 0 }}>📎 Adjuntar documentación externa</h3>
+        <p className="sr-p">
+          Añade resoluciones, requerimientos, instancias, justificantes, contestaciones o pruebas externas al expediente.
+        </p>
 
-          <div className="grid gap-3">
-            <select
-              value={externalKind}
-              onChange={(e) => setExternalKind(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            >
-              <option value="documento_externo">Documento externo</option>
-              <option value="justificante_presentacion">Justificante de presentación</option>
-              <option value="instancia_firmada">Instancia firmada</option>
-              <option value="csv_registro">CSV / resguardo registro</option>
-              <option value="resolucion">Resolución</option>
-              <option value="requerimiento">Requerimiento</option>
-              <option value="contestacion_ayuntamiento">Contestación ayuntamiento</option>
-              <option value="prueba_externa">Prueba externa</option>
-              <option value="recurso_presentado">Recurso presentado</option>
-              <option value="multa_presentada">Multa presentada</option>
-              <option value="autorizacion_presentada">Autorización presentada</option>
-            </select>
-            <input
-              placeholder="Nota del documento (opcional)"
-              value={externalNote}
-              onChange={(e) => setExternalNote(e.target.value)}
-              className="border rounded px-3 py-2 text-sm"
-            />
-            <input
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.docx,.xml"
-              onChange={(e) => setExternalFile(e.target.files?.[0] || null)}
-            />
-          </div>
+        <div className="grid md:grid-cols-2 gap-3 mt-3">
+          <select
+            value={externalKind}
+            onChange={(e) => setExternalKind(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          >
+            {EXTERNAL_KINDS.map((k) => (
+              <option key={k.value} value={k.value}>{k.label}</option>
+            ))}
+          </select>
+          <input
+            placeholder="Nota del documento (opcional)"
+            value={externalNote}
+            onChange={(e) => setExternalNote(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+        </div>
 
+        <div className="flex gap-3 flex-wrap items-center mt-4">
+          <input
+            type="file"
+            onChange={(e) => setExternalFile(e.target.files?.[0] || null)}
+          />
           <button
-            className="sr-btn-primary mt-4"
+            className="sr-btn-primary"
             onClick={uploadExternalDocument}
-            disabled={uploadingExternal}
+            disabled={externalUploading}
           >
-            {uploadingExternal ? "Adjuntando…" : "📎 Adjuntar documento externo"}
+            {externalUploading ? "Adjuntando…" : "Adjuntar documento externo"}
           </button>
         </div>
-      </div>
-
-      {msg ? (
-        <div
-          className="sr-card mt-4"
-          style={{
-            color: msg.startsWith("✅") ? "#166534" : "#991b1b",
-            background: msg.startsWith("✅") ? "#ecfdf5" : "#fef2f2",
-            border: msg.startsWith("✅") ? "1px solid #bbf7d0" : "1px solid #fecaca",
-            fontWeight: 900,
-          }}
-        >
-          {msg}
-        </div>
-      ) : null}
-
-      {debug ? (
-        <div
-          className="sr-card mt-4"
-          style={{
-            color: "#475569",
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            fontSize: 12,
-            wordBreak: "break-word",
-          }}
-        >
-          Detalle: {debug}
-        </div>
-      ) : null}
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-4 mt-6">
-        <div className="sr-card">
+        <Card>
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="sr-h3">Documentos generados</h3>
+            <h3 className="sr-h3">📂 Documentos del expediente</h3>
             <button className="sr-btn-secondary" onClick={load} disabled={loading}>
               {loading ? "Cargando…" : "Refrescar"}
             </button>
           </div>
 
+          <h4 className="font-bold mt-4">Recursos generados</h4>
           {resourceDocs.length ? (
             resourceDocs.map((d, i) => (
-              <button
-                key={`${d.id || d.kind}-${i}`}
-                onClick={() => openDocument(d)}
-                className="block w-full text-left border rounded p-3 mt-2 text-sm"
-                style={{ background: "#f8fafc" }}
-              >
-                <strong>{docLabel(d.kind)}</strong>
-                <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(d.created_at)}</div>
-                <div style={{ color: "#64748b", marginTop: 3, wordBreak: "break-word", fontSize: 12 }}>
-                  {d.key || d.b2_key || d.id}
-                </div>
-              </button>
+              <DocumentRow key={`${d.id || d.kind}-${i}`} doc={d} onOpen={openDocument} />
             ))
           ) : (
             <div
@@ -636,50 +666,29 @@ export default function OpsCaseDetail() {
             </div>
           )}
 
-          <h3 className="sr-h3" style={{ marginTop: 22 }}>Documentación externa / procedimiento</h3>
-
+          <h4 className="font-bold mt-5">Documentación externa / presentación</h4>
           {externalDocs.length ? (
             externalDocs.map((d, i) => (
-              <button
-                key={`${d.id || d.kind}-external-${i}`}
-                onClick={() => openDocument(d)}
-                className="block w-full text-left border rounded p-3 mt-2 text-sm"
-                style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}
-              >
-                <strong>{docLabel(d.kind)}</strong>
-                <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(d.created_at)}</div>
-                <div style={{ color: "#64748b", marginTop: 3, wordBreak: "break-word", fontSize: 12 }}>
-                  {d.key || d.b2_key || d.id}
-                </div>
-              </button>
+              <DocumentRow key={`${d.id || d.kind}-external-${i}`} doc={d} onOpen={openDocument} />
             ))
           ) : (
             <div
               style={{
                 marginTop: 12,
                 padding: 14,
-                border: "1px dashed #bbf7d0",
+                border: "1px dashed #cbd5e1",
                 borderRadius: 12,
-                color: "#166534",
-                background: "#f0fdf4",
+                color: "#64748b",
               }}
             >
-              Todavía no hay documentación externa del procedimiento.
+              No hay documentación externa todavía.
             </div>
           )}
 
-          <h3 className="sr-h3" style={{ marginTop: 22 }}>Otros documentos</h3>
-
+          <h4 className="font-bold mt-5">Otros documentos</h4>
           {otherDocs.length ? (
             otherDocs.map((d, i) => (
-              <button
-                key={`${d.id || d.kind}-other-${i}`}
-                onClick={() => openDocument(d)}
-                className="block w-full text-left border rounded p-3 mt-2 text-sm"
-              >
-                <strong>{docLabel(d.kind)}</strong>
-                <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(d.created_at)}</div>
-              </button>
+              <DocumentRow key={`${d.id || d.kind}-other-${i}`} doc={d} onOpen={openDocument} />
             ))
           ) : (
             <div
@@ -694,17 +703,17 @@ export default function OpsCaseDetail() {
               No hay otros documentos visibles.
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="sr-card">
+        <Card>
           <h3 className="sr-h3">🕒 Timeline jurídico</h3>
 
-          {timelineEvents.length ? (
-            timelineEvents.map((e, i) => (
+          {events.length ? (
+            events.map((e, i) => (
               <div key={i} className="border rounded p-2 mt-2 text-xs">
                 <strong>{eventLabel(e.type)}</strong>
-                <div style={{ color: "#64748b" }}>{e.type}</div>
-                <div>{fmt(e.created_at)}</div>
+                <div style={{ color: "#64748b", marginTop: 3 }}>{fmt(e.created_at)}</div>
+                <div style={{ color: "#334155", marginTop: 3 }}>{e.type}</div>
                 {e.payload ? (
                   <pre
                     style={{
@@ -731,10 +740,10 @@ export default function OpsCaseDetail() {
                 color: "#64748b",
               }}
             >
-              Todavía no hay eventos visibles.
+              Todavía no hay logs visibles.
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );
