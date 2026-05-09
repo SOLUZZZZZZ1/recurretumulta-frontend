@@ -168,6 +168,37 @@ function isExternal(kind = "") {
   return docGroup(kind) === "external";
 }
 
+
+function isSuggestedForZip(doc = {}) {
+  const kind = String(doc.kind || "").toLowerCase();
+  const key = String(doc.key || doc.b2_key || "").toLowerCase();
+
+  if (kind.includes("justificante")) return true;
+  if (kind.includes("authorization") || kind.includes("autoriz")) return true;
+  if (kind.includes("multa") || kind.includes("original")) return true;
+  if (kind.includes("csv")) return true;
+  if (kind.includes("resolucion")) return true;
+  if (kind.includes("final")) return true;
+  if (key.includes("final")) return true;
+
+  return false;
+}
+
+function looksDuplicated(doc = {}) {
+  const kind = String(doc.kind || "").toLowerCase();
+  const key = String(doc.key || doc.b2_key || "").toLowerCase();
+
+  return (
+    key.includes("old") ||
+    key.includes("test") ||
+    key.includes("v1") ||
+    key.includes("tmp") ||
+    key.includes("debug") ||
+    kind.includes("old") ||
+    kind.includes("duplicate")
+  );
+}
+
 function eventMeta(type = "") {
   const t = String(type || "").toLowerCase();
 
@@ -270,20 +301,31 @@ function StatusBox({ msg, debug }) {
   );
 }
 
-function DocumentRow({ doc, onOpen }) {
+function DocumentRow({ doc, onOpen, selectable = false, selected = false, onToggle }) {
   return (
-    <button
-      onClick={() => onOpen(doc)}
+    <div
       className="block w-full text-left border rounded-xl p-3 mt-2 text-sm transition"
       style={{
-        background: "#ffffff",
-        borderColor: "#e2e8f0",
-        boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
+        background: selected ? "#eff6ff" : "#ffffff",
+        borderColor: selected ? "#60a5fa" : "#e2e8f0",
+        boxShadow: selected ? "0 0 0 2px rgba(37,99,235,0.10)" : "0 1px 2px rgba(15,23,42,0.04)",
       }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3" style={{ minWidth: 0 }}>
-          <div
+          {selectable ? (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => onToggle?.(doc)}
+              title="Incluir en ZIP"
+              style={{ marginTop: 12, width: 18, height: 18, flexShrink: 0 }}
+            />
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => onOpen(doc)}
             style={{
               width: 38,
               height: 38,
@@ -294,15 +336,51 @@ function DocumentRow({ doc, onOpen }) {
               justifyContent: "center",
               fontSize: 20,
               flexShrink: 0,
+              border: "none",
+              cursor: "pointer",
             }}
           >
             {docIcon(doc)}
-          </div>
+          </button>
 
           <div style={{ minWidth: 0 }}>
             <strong>{docLabel(doc.kind)}</strong>
             <div style={{ color: "#64748b", marginTop: 3 }}>
               {fmt(doc.created_at)}
+            </div>
+
+            <div className="flex gap-2 flex-wrap mt-2">
+              {isSuggestedForZip(doc) ? (
+                <span
+                  style={{
+                    background: "#dcfce7",
+                    color: "#166534",
+                    border: "1px solid #86efac",
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 800,
+                  }}
+                >
+                  ⭐ Sugerido ZIP
+                </span>
+              ) : null}
+
+              {looksDuplicated(doc) ? (
+                <span
+                  style={{
+                    background: "#fee2e2",
+                    color: "#991b1b",
+                    border: "1px solid #fecaca",
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 800,
+                  }}
+                >
+                  Duplicado / antiguo
+                </span>
+              ) : null}
             </div>
             <div style={{ color: "#64748b", marginTop: 3, fontSize: 12 }}>
               {doc.mime || "application/octet-stream"}
@@ -321,11 +399,16 @@ function DocumentRow({ doc, onOpen }) {
           </div>
         </div>
 
-        <span className="sr-btn-secondary" style={{ whiteSpace: "nowrap" }}>
+        <button
+          type="button"
+          className="sr-btn-secondary"
+          style={{ whiteSpace: "nowrap" }}
+          onClick={() => onOpen(doc)}
+        >
           Descargar
-        </span>
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -434,6 +517,7 @@ export default function OpsCaseDetail() {
   const headers = token ? { "X-Operator-Token": token } : {};
 
   const [docs, setDocs] = useState([]);
+  const [selectedDocIds, setSelectedDocIds] = useState([]);
   const [events, setEvents] = useState([]);
   const [registro, setRegistro] = useState("");
   const [note, setNote] = useState("");
@@ -495,8 +579,15 @@ export default function OpsCaseDetail() {
         fetchJsonFallback(`/ops/cases/${caseId}/events`, { headers }),
       ]);
 
-      setDocs(d.documents || d.items || []);
+      const loadedDocs = d.documents || d.items || [];
+      setDocs(loadedDocs);
       setEvents(e.events || e.items || []);
+
+      const suggestedIds = loadedDocs
+        .filter((doc) => isSuggestedForZip(doc) && doc.id)
+        .map((doc) => String(doc.id));
+
+      setSelectedDocIds(suggestedIds);
     } catch (err) {
       setMsg("❌ No se pudieron cargar documentos o timeline.");
       setDebug(err?.message || "");
@@ -721,23 +812,64 @@ export default function OpsCaseDetail() {
     }
   }
 
+
+  function isDocSelected(doc) {
+    return selectedDocIds.includes(String(doc.id));
+  }
+
+  function toggleDocSelection(doc) {
+    const id = String(doc.id || "");
+    if (!id) return;
+
+    setSelectedDocIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id]
+    );
+  }
+
+  function selectAllVisibleDocs() {
+    setSelectedDocIds(docs.filter((d) => d.id).map((d) => String(d.id)));
+  }
+
+  function clearSelectedDocs() {
+    setSelectedDocIds([]);
+  }
+
   async function downloadZip() {
     setZipLoading(true);
     setMsg("");
     setDebug("");
 
     try {
-      const blob = await fetchBlobFallback(`/ops/cases/${caseId}/zip`, { headers });
+      let blob;
+
+      if (selectedDocIds.length > 0) {
+        blob = await fetchBlobFallback(`/ops/cases/${caseId}/zip-selected`, {
+          method: "POST",
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ document_ids: selectedDocIds }),
+        });
+      } else {
+        blob = await fetchBlobFallback(`/ops/cases/${caseId}/zip`, { headers });
+      }
+
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objectUrl;
-      a.download = `expediente_${caseId}.zip`;
+      a.download =
+        selectedDocIds.length > 0
+          ? `expediente_${caseId}_seleccionado.zip`
+          : `expediente_${caseId}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(objectUrl);
     } catch (err) {
-      setMsg("❌ No se pudo descargar el ZIP. Puede faltar el endpoint backend.");
+      setMsg("❌ No se pudo descargar el ZIP.");
       setDebug(err?.message || "");
     } finally {
       setZipLoading(false);
@@ -832,7 +964,7 @@ export default function OpsCaseDetail() {
             </button>
 
             <button className="sr-btn-secondary" onClick={downloadZip} disabled={zipLoading}>
-              {zipLoading ? "Preparando ZIP…" : "⬇ ZIP expediente"}
+              {zipLoading ? "Preparando ZIP…" : selectedDocIds.length > 0 ? `⬇ ZIP selección (${selectedDocIds.length})` : "⬇ ZIP expediente"}
             </button>
           </div>
 
@@ -979,16 +1111,37 @@ export default function OpsCaseDetail() {
       <div className="grid md:grid-cols-2 gap-4 mt-6">
         <Card>
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="sr-h3">📂 Documentos del expediente</h3>
-            <button className="sr-btn-secondary" onClick={load} disabled={loading}>
-              {loading ? "Cargando…" : "Refrescar"}
-            </button>
+            <div>
+              <h3 className="sr-h3">📂 Documentos del expediente</h3>
+              <div style={{ color: "#64748b", fontSize: 13, marginTop: 4 }}>
+                Seleccionados para ZIP: <strong>{selectedDocIds.length}</strong>
+              </div>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <button className="sr-btn-secondary" onClick={selectAllVisibleDocs} type="button">
+                Seleccionar todos
+              </button>
+              <button className="sr-btn-secondary" onClick={clearSelectedDocs} type="button">
+                Limpiar
+              </button>
+              <button className="sr-btn-secondary" onClick={downloadZip} disabled={zipLoading} type="button">
+                {zipLoading
+                  ? "Preparando ZIP…"
+                  : selectedDocIds.length > 0
+                    ? `⬇ ZIP selección (${selectedDocIds.length})`
+                    : "⬇ ZIP todo"}
+              </button>
+              <button className="sr-btn-secondary" onClick={load} disabled={loading} type="button">
+                {loading ? "Cargando…" : "Refrescar"}
+              </button>
+            </div>
           </div>
 
           <h4 className="font-bold mt-4">🧾 Recursos generados</h4>
           {resourceDocs.length ? (
             resourceDocs.map((d, i) => (
-              <DocumentRow key={`${d.id || d.kind}-${i}`} doc={d} onOpen={openDocument} />
+              <DocumentRow key={`${d.id || d.kind}-${i}`} doc={d} onOpen={openDocument} selectable selected={isDocSelected(d)} onToggle={toggleDocSelection} />
             ))
           ) : (
             <EmptyBox>Todavía no hay recurso visible. Pulsa “Generar recurso ahora”.</EmptyBox>
@@ -997,7 +1150,7 @@ export default function OpsCaseDetail() {
           <h4 className="font-bold mt-5">🏛️ Documentación externa / presentación</h4>
           {externalDocs.length ? (
             externalDocs.map((d, i) => (
-              <DocumentRow key={`${d.id || d.kind}-external-${i}`} doc={d} onOpen={openDocument} />
+              <DocumentRow key={`${d.id || d.kind}-external-${i}`} doc={d} onOpen={openDocument} selectable selected={isDocSelected(d)} onToggle={toggleDocSelection} />
             ))
           ) : (
             <EmptyBox>No hay documentación externa todavía.</EmptyBox>
@@ -1006,7 +1159,7 @@ export default function OpsCaseDetail() {
           <h4 className="font-bold mt-5">📎 Otros documentos</h4>
           {otherDocs.length ? (
             otherDocs.map((d, i) => (
-              <DocumentRow key={`${d.id || d.kind}-other-${i}`} doc={d} onOpen={openDocument} />
+              <DocumentRow key={`${d.id || d.kind}-other-${i}`} doc={d} onOpen={openDocument} selectable selected={isDocSelected(d)} onToggle={toggleDocSelection} />
             ))
           ) : (
             <EmptyBox>No hay otros documentos visibles.</EmptyBox>
