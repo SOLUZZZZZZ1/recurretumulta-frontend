@@ -188,6 +188,83 @@ function looksDuplicated(doc = {}) {
   const kind = String(doc.kind || "").toLowerCase();
   const key = String(doc.key || doc.b2_key || "").toLowerCase();
 
+
+  async function createFollowup() {
+    if (!followupTitle.trim()) {
+      setMsg("❌ Indica un título para el seguimiento.");
+      return;
+    }
+    if (!followupDueAt.trim()) {
+      setMsg("❌ Indica una fecha límite.");
+      return;
+    }
+
+    setFollowupCreating(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("kind", "seguimiento_manual");
+      fd.append("title", followupTitle.trim());
+      fd.append("due_at", followupDueAt.trim());
+      if (followupDescription.trim()) fd.append("description", followupDescription.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setFollowupTitle("");
+      setFollowupDueAt("");
+      setFollowupDescription("");
+      setMsg("✅ Seguimiento creado.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo crear el seguimiento.");
+      setDebug(err?.message || "");
+    } finally {
+      setFollowupCreating(false);
+    }
+  }
+
+  async function resolveFollowup(followupId) {
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("note", "Resuelto desde OPS");
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups/${followupId}/resolve`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Seguimiento marcado como resuelto.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo resolver el seguimiento.");
+      setDebug(err?.message || "");
+    }
+  }
+
+  function followupBadge(fu) {
+    if (fu.status === "resolved") {
+      return { text: "Resuelto", bg: "#dcfce7", color: "#166534" };
+    }
+    if (fu.overdue) {
+      return { text: "Vencido", bg: "#fee2e2", color: "#991b1b" };
+    }
+    if (typeof fu.days_left === "number" && fu.days_left <= 7) {
+      return { text: "Próximo", bg: "#fef9c3", color: "#854d0e" };
+    }
+    return { text: "Pendiente", bg: "#dbeafe", color: "#1d4ed8" };
+  }
+
+
   return (
     key.includes("old") ||
     key.includes("test") ||
@@ -257,6 +334,83 @@ function extractEventSummary(event = {}) {
 }
 
 function Card({ children, className = "", style = {} }) {
+
+  async function createFollowup() {
+    if (!followupTitle.trim()) {
+      setMsg("❌ Indica un título para el seguimiento.");
+      return;
+    }
+    if (!followupDueAt.trim()) {
+      setMsg("❌ Indica una fecha límite.");
+      return;
+    }
+
+    setFollowupCreating(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("kind", "seguimiento_manual");
+      fd.append("title", followupTitle.trim());
+      fd.append("due_at", followupDueAt.trim());
+      if (followupDescription.trim()) fd.append("description", followupDescription.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setFollowupTitle("");
+      setFollowupDueAt("");
+      setFollowupDescription("");
+      setMsg("✅ Seguimiento creado.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo crear el seguimiento.");
+      setDebug(err?.message || "");
+    } finally {
+      setFollowupCreating(false);
+    }
+  }
+
+  async function resolveFollowup(followupId) {
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("note", "Resuelto desde OPS");
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups/${followupId}/resolve`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Seguimiento marcado como resuelto.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo resolver el seguimiento.");
+      setDebug(err?.message || "");
+    }
+  }
+
+  function followupBadge(fu) {
+    if (fu.status === "resolved") {
+      return { text: "Resuelto", bg: "#dcfce7", color: "#166534" };
+    }
+    if (fu.overdue) {
+      return { text: "Vencido", bg: "#fee2e2", color: "#991b1b" };
+    }
+    if (typeof fu.days_left === "number" && fu.days_left <= 7) {
+      return { text: "Próximo", bg: "#fef9c3", color: "#854d0e" };
+    }
+    return { text: "Pendiente", bg: "#dbeafe", color: "#1d4ed8" };
+  }
+
+
   return (
     <div className={`sr-card ${className}`} style={style}>
       {children}
@@ -266,6 +420,83 @@ function Card({ children, className = "", style = {} }) {
 
 function StatusBox({ msg, debug }) {
   if (!msg && !debug) return null;
+
+
+  async function createFollowup() {
+    if (!followupTitle.trim()) {
+      setMsg("❌ Indica un título para el seguimiento.");
+      return;
+    }
+    if (!followupDueAt.trim()) {
+      setMsg("❌ Indica una fecha límite.");
+      return;
+    }
+
+    setFollowupCreating(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("kind", "seguimiento_manual");
+      fd.append("title", followupTitle.trim());
+      fd.append("due_at", followupDueAt.trim());
+      if (followupDescription.trim()) fd.append("description", followupDescription.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setFollowupTitle("");
+      setFollowupDueAt("");
+      setFollowupDescription("");
+      setMsg("✅ Seguimiento creado.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo crear el seguimiento.");
+      setDebug(err?.message || "");
+    } finally {
+      setFollowupCreating(false);
+    }
+  }
+
+  async function resolveFollowup(followupId) {
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("note", "Resuelto desde OPS");
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups/${followupId}/resolve`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Seguimiento marcado como resuelto.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo resolver el seguimiento.");
+      setDebug(err?.message || "");
+    }
+  }
+
+  function followupBadge(fu) {
+    if (fu.status === "resolved") {
+      return { text: "Resuelto", bg: "#dcfce7", color: "#166534" };
+    }
+    if (fu.overdue) {
+      return { text: "Vencido", bg: "#fee2e2", color: "#991b1b" };
+    }
+    if (typeof fu.days_left === "number" && fu.days_left <= 7) {
+      return { text: "Próximo", bg: "#fef9c3", color: "#854d0e" };
+    }
+    return { text: "Pendiente", bg: "#dbeafe", color: "#1d4ed8" };
+  }
+
 
   return (
     <>
@@ -302,6 +533,83 @@ function StatusBox({ msg, debug }) {
 }
 
 function DocumentRow({ doc, onOpen, selectable = false, selected = false, onToggle }) {
+
+  async function createFollowup() {
+    if (!followupTitle.trim()) {
+      setMsg("❌ Indica un título para el seguimiento.");
+      return;
+    }
+    if (!followupDueAt.trim()) {
+      setMsg("❌ Indica una fecha límite.");
+      return;
+    }
+
+    setFollowupCreating(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("kind", "seguimiento_manual");
+      fd.append("title", followupTitle.trim());
+      fd.append("due_at", followupDueAt.trim());
+      if (followupDescription.trim()) fd.append("description", followupDescription.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setFollowupTitle("");
+      setFollowupDueAt("");
+      setFollowupDescription("");
+      setMsg("✅ Seguimiento creado.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo crear el seguimiento.");
+      setDebug(err?.message || "");
+    } finally {
+      setFollowupCreating(false);
+    }
+  }
+
+  async function resolveFollowup(followupId) {
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("note", "Resuelto desde OPS");
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups/${followupId}/resolve`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Seguimiento marcado como resuelto.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo resolver el seguimiento.");
+      setDebug(err?.message || "");
+    }
+  }
+
+  function followupBadge(fu) {
+    if (fu.status === "resolved") {
+      return { text: "Resuelto", bg: "#dcfce7", color: "#166534" };
+    }
+    if (fu.overdue) {
+      return { text: "Vencido", bg: "#fee2e2", color: "#991b1b" };
+    }
+    if (typeof fu.days_left === "number" && fu.days_left <= 7) {
+      return { text: "Próximo", bg: "#fef9c3", color: "#854d0e" };
+    }
+    return { text: "Pendiente", bg: "#dbeafe", color: "#1d4ed8" };
+  }
+
+
   return (
     <div
       className="block w-full text-left border rounded-xl p-3 mt-2 text-sm transition"
@@ -413,6 +721,83 @@ function DocumentRow({ doc, onOpen, selectable = false, selected = false, onTogg
 }
 
 function EmptyBox({ children }) {
+
+  async function createFollowup() {
+    if (!followupTitle.trim()) {
+      setMsg("❌ Indica un título para el seguimiento.");
+      return;
+    }
+    if (!followupDueAt.trim()) {
+      setMsg("❌ Indica una fecha límite.");
+      return;
+    }
+
+    setFollowupCreating(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("kind", "seguimiento_manual");
+      fd.append("title", followupTitle.trim());
+      fd.append("due_at", followupDueAt.trim());
+      if (followupDescription.trim()) fd.append("description", followupDescription.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setFollowupTitle("");
+      setFollowupDueAt("");
+      setFollowupDescription("");
+      setMsg("✅ Seguimiento creado.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo crear el seguimiento.");
+      setDebug(err?.message || "");
+    } finally {
+      setFollowupCreating(false);
+    }
+  }
+
+  async function resolveFollowup(followupId) {
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("note", "Resuelto desde OPS");
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups/${followupId}/resolve`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Seguimiento marcado como resuelto.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo resolver el seguimiento.");
+      setDebug(err?.message || "");
+    }
+  }
+
+  function followupBadge(fu) {
+    if (fu.status === "resolved") {
+      return { text: "Resuelto", bg: "#dcfce7", color: "#166534" };
+    }
+    if (fu.overdue) {
+      return { text: "Vencido", bg: "#fee2e2", color: "#991b1b" };
+    }
+    if (typeof fu.days_left === "number" && fu.days_left <= 7) {
+      return { text: "Próximo", bg: "#fef9c3", color: "#854d0e" };
+    }
+    return { text: "Pendiente", bg: "#dbeafe", color: "#1d4ed8" };
+  }
+
+
   return (
     <div
       style={{
@@ -432,6 +817,83 @@ function EmptyBox({ children }) {
 function TimelineItem({ event, index }) {
   const meta = eventMeta(event.type);
   const summary = extractEventSummary(event);
+
+
+  async function createFollowup() {
+    if (!followupTitle.trim()) {
+      setMsg("❌ Indica un título para el seguimiento.");
+      return;
+    }
+    if (!followupDueAt.trim()) {
+      setMsg("❌ Indica una fecha límite.");
+      return;
+    }
+
+    setFollowupCreating(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("kind", "seguimiento_manual");
+      fd.append("title", followupTitle.trim());
+      fd.append("due_at", followupDueAt.trim());
+      if (followupDescription.trim()) fd.append("description", followupDescription.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setFollowupTitle("");
+      setFollowupDueAt("");
+      setFollowupDescription("");
+      setMsg("✅ Seguimiento creado.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo crear el seguimiento.");
+      setDebug(err?.message || "");
+    } finally {
+      setFollowupCreating(false);
+    }
+  }
+
+  async function resolveFollowup(followupId) {
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("note", "Resuelto desde OPS");
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups/${followupId}/resolve`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Seguimiento marcado como resuelto.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo resolver el seguimiento.");
+      setDebug(err?.message || "");
+    }
+  }
+
+  function followupBadge(fu) {
+    if (fu.status === "resolved") {
+      return { text: "Resuelto", bg: "#dcfce7", color: "#166534" };
+    }
+    if (fu.overdue) {
+      return { text: "Vencido", bg: "#fee2e2", color: "#991b1b" };
+    }
+    if (typeof fu.days_left === "number" && fu.days_left <= 7) {
+      return { text: "Próximo", bg: "#fef9c3", color: "#854d0e" };
+    }
+    return { text: "Pendiente", bg: "#dbeafe", color: "#1d4ed8" };
+  }
+
 
   return (
     <div className="flex gap-3 mt-3">
@@ -519,6 +981,7 @@ export default function OpsCaseDetail() {
   const [docs, setDocs] = useState([]);
   const [selectedDocIds, setSelectedDocIds] = useState([]);
   const [events, setEvents] = useState([]);
+  const [followups, setFollowups] = useState([]);
   const [registro, setRegistro] = useState("");
   const [note, setNote] = useState("");
   const [justificante, setJustificante] = useState(null);
@@ -529,6 +992,10 @@ export default function OpsCaseDetail() {
   const [freezing, setFreezing] = useState(false);
   const [msg, setMsg] = useState("");
   const [debug, setDebug] = useState("");
+  const [followupTitle, setFollowupTitle] = useState("");
+  const [followupDueAt, setFollowupDueAt] = useState("");
+  const [followupDescription, setFollowupDescription] = useState("");
+  const [followupCreating, setFollowupCreating] = useState(false);
 
   const [manualOrganismo, setManualOrganismo] = useState("Ajuntament / organismo");
   const [manualRegistro, setManualRegistro] = useState("");
@@ -574,14 +1041,16 @@ export default function OpsCaseDetail() {
     setDebug("");
 
     try {
-      const [d, e] = await Promise.all([
+      const [d, e, f] = await Promise.all([
         fetchJsonFallback(`/ops/cases/${caseId}/documents`, { headers }),
         fetchJsonFallback(`/ops/cases/${caseId}/events`, { headers }),
+        fetchJsonFallback(`/ops/cases/${caseId}/followups`, { headers }).catch(() => ({ followups: [] })),
       ]);
 
       const loadedDocs = d.documents || d.items || [];
       setDocs(loadedDocs);
       setEvents(e.events || e.items || []);
+      setFollowups(f.followups || []);
 
       const suggestedIds = loadedDocs
         .filter((doc) => isSuggestedForZip(doc) && doc.id)
@@ -876,6 +1345,83 @@ export default function OpsCaseDetail() {
     }
   }
 
+
+  async function createFollowup() {
+    if (!followupTitle.trim()) {
+      setMsg("❌ Indica un título para el seguimiento.");
+      return;
+    }
+    if (!followupDueAt.trim()) {
+      setMsg("❌ Indica una fecha límite.");
+      return;
+    }
+
+    setFollowupCreating(true);
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("kind", "seguimiento_manual");
+      fd.append("title", followupTitle.trim());
+      fd.append("due_at", followupDueAt.trim());
+      if (followupDescription.trim()) fd.append("description", followupDescription.trim());
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setFollowupTitle("");
+      setFollowupDueAt("");
+      setFollowupDescription("");
+      setMsg("✅ Seguimiento creado.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo crear el seguimiento.");
+      setDebug(err?.message || "");
+    } finally {
+      setFollowupCreating(false);
+    }
+  }
+
+  async function resolveFollowup(followupId) {
+    setMsg("");
+    setDebug("");
+
+    try {
+      const fd = new FormData();
+      fd.append("note", "Resuelto desde OPS");
+
+      await fetchJsonFallback(`/ops/cases/${caseId}/followups/${followupId}/resolve`, {
+        method: "POST",
+        headers,
+        body: fd,
+      });
+
+      setMsg("✅ Seguimiento marcado como resuelto.");
+      await load();
+    } catch (err) {
+      setMsg("❌ No se pudo resolver el seguimiento.");
+      setDebug(err?.message || "");
+    }
+  }
+
+  function followupBadge(fu) {
+    if (fu.status === "resolved") {
+      return { text: "Resuelto", bg: "#dcfce7", color: "#166534" };
+    }
+    if (fu.overdue) {
+      return { text: "Vencido", bg: "#fee2e2", color: "#991b1b" };
+    }
+    if (typeof fu.days_left === "number" && fu.days_left <= 7) {
+      return { text: "Próximo", bg: "#fef9c3", color: "#854d0e" };
+    }
+    return { text: "Pendiente", bg: "#dbeafe", color: "#1d4ed8" };
+  }
+
+
   return (
     <div className="sr-container py-8">
       <Link to="/ops" className="sr-btn-secondary">
@@ -1008,6 +1554,110 @@ export default function OpsCaseDetail() {
       </div>
 
       <StatusBox msg={msg} debug={debug} />
+
+      <Card className="mt-4" style={{ border: "1px solid #fde68a", background: "#fffbeb" }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="sr-h3" style={{ marginTop: 0 }}>⏰ Control de plazos y seguimiento</h3>
+            <p className="sr-p" style={{ marginBottom: 0 }}>
+              Alertas operativas tras la presentación: revisar respuesta, silencio, requerimientos o siguiente acción.
+            </p>
+          </div>
+          <button className="sr-btn-secondary" onClick={load} type="button">
+            Refrescar
+          </button>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-3 mt-4">
+          <input
+            placeholder="Título: Revisar respuesta del Ayuntamiento"
+            value={followupTitle}
+            onChange={(e) => setFollowupTitle(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="Fecha: 2026-06-07 o 2026-06-07 10:00"
+            value={followupDueAt}
+            onChange={(e) => setFollowupDueAt(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+          <input
+            placeholder="Descripción / nota"
+            value={followupDescription}
+            onChange={(e) => setFollowupDescription(e.target.value)}
+            className="border rounded px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="mt-3">
+          <button
+            className="sr-btn-primary"
+            onClick={createFollowup}
+            disabled={followupCreating}
+            type="button"
+          >
+            {followupCreating ? "Creando…" : "Crear seguimiento"}
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {followups.length ? (
+            followups.map((fu) => {
+              const badge = followupBadge(fu);
+              return (
+                <div
+                  key={fu.id}
+                  className="border rounded-xl p-3"
+                  style={{ background: "#fff", borderColor: "#e2e8f0" }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <strong>{fu.title}</strong>
+                      <div style={{ color: "#64748b", fontSize: 13, marginTop: 3 }}>
+                        Vence: {fmt(fu.due_at)}
+                        {typeof fu.days_left === "number" ? ` · ${fu.days_left} días` : ""}
+                      </div>
+                      {fu.description ? (
+                        <div style={{ color: "#334155", fontSize: 13, marginTop: 6 }}>
+                          {fu.description}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex gap-2 items-center flex-wrap justify-end">
+                      <span
+                        style={{
+                          background: badge.bg,
+                          color: badge.color,
+                          borderRadius: 999,
+                          padding: "4px 10px",
+                          fontWeight: 900,
+                          fontSize: 12,
+                        }}
+                      >
+                        {badge.text}
+                      </span>
+
+                      {fu.status !== "resolved" ? (
+                        <button
+                          className="sr-btn-secondary"
+                          onClick={() => resolveFollowup(fu.id)}
+                          type="button"
+                        >
+                          Marcar resuelto
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <EmptyBox>No hay seguimientos todavía. Al registrar una presentación manual se crearán alertas de 30/60/90 días.</EmptyBox>
+          )}
+        </div>
+      </Card>
+
 
       <Card className="mt-4" style={{ border: "1px solid #bbf7d0", background: "#f0fdf4" }}>
         <h3 className="sr-h3" style={{ marginTop: 0 }}>📌 Registrar presentación manual</h3>
