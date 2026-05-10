@@ -419,8 +419,6 @@ export default function OPSQueueSmart() {
     [filteredItems]
   );
 
-  const topNext = automaticItems[0] || manualItems[0] || null;
-
   return (
     <div className="sr-container" style={{ paddingTop: 18, paddingBottom: 40 }}>
       <div className="rounded-[22px] bg-slate-950 px-4 py-4 text-white shadow-xl">
