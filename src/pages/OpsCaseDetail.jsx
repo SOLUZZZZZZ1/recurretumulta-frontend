@@ -1424,9 +1424,14 @@ export default function OpsCaseDetail() {
 
   return (
     <div className="sr-container py-8">
-      <Link to="/ops" className="sr-btn-secondary">
-        ← Volver al panel
-      </Link>
+      <div className="flex gap-2 flex-wrap">
+        <Link to="/ops" className="sr-btn-secondary">
+          ← Volver al panel
+        </Link>
+        <Link to="/ops" className="sr-btn-secondary">
+          ⚖️ Dashboard jurídico
+        </Link>
+      </div>
 
       <div className="flex items-start justify-between gap-4 flex-wrap mt-4">
         <div>
@@ -1447,7 +1452,7 @@ export default function OpsCaseDetail() {
               border: hasManualSubmission ? "1px solid #86efac" : "1px solid #fde68a",
             }}
           >
-            {hasManualSubmission ? "Presentado manualmente" : "Pendiente / revisión"}
+            {hasManualSubmission ? "🟢 Presentado manualmente" : "🟡 Pendiente / revisión"}
           </span>
           <span
             style={{
