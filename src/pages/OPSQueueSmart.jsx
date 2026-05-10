@@ -306,6 +306,7 @@ export default function OPSQueueSmart() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(15);
 
   const token = localStorage.getItem("ops_token") || "";
 
@@ -377,12 +378,36 @@ export default function OPSQueueSmart() {
     [rawItems]
   );
 
+  const topNext = useMemo(
+    () => {
+      const candidates = (filteredItems || []).filter(isOperativelyPending);
+
+      if (!candidates.length) return null;
+
+      return [...candidates].sort((a, b) => {
+        const ap = Number(a.priority || a.prioridad || 0);
+        const bp = Number(b.priority || b.prioridad || 0);
+        return bp - ap;
+      })[0];
+    },
+    [filteredItems]
+  );
+
+
   const presentedOrClosedCount = useMemo(
     () => rawItems.filter((item) => !isOperativelyPending(item)).length,
     [rawItems]
   );
 
   const duplicateHiddenCount = Math.max(0, rawPendingItems.length - filteredItems.length);
+
+  const visibleItems = useMemo(
+    () => (filteredItems || []).slice(0, visibleCount),
+    [filteredItems, visibleCount]
+  );
+
+  const hasMoreItems = (filteredItems || []).length > visibleCount;
+
 
   const automaticItems = useMemo(
     () => filteredItems.filter((item) => classifyLane(item) === "AUTOMATICO"),
@@ -446,13 +471,43 @@ export default function OPSQueueSmart() {
         <StatBox title="Pendientes reales" value={filteredItems.length} tone="info" />
         <StatBox title="Automáticos" value={automaticItems.length} tone="success" />
         <StatBox title="Manual" value={manualItems.length} tone="danger" />
-        <StatBox title="Siguiente" value={topNext?.expediente_ref || "—"} tone="warn" />
+        <StatBox title="Siguiente" value={topNext?.expediente_ref || topNext?.case_id || "Sin pendientes"} tone="warn" />
         <StatBox title="Presentados/cerrados fuera" value={presentedOrClosedCount} tone="success" />
         <StatBox title="Duplicados ocultos" value={duplicateHiddenCount} tone="warn" />
       </div>
 
       <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
         Los expedientes presentados o cerrados quedan fuera del foco. Los duplicados lógicos se ocultan para evitar confusión operativa.
+      </div>
+
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
+        <div className="text-slate-600">
+          Mostrando primeros <strong>{Math.min(visibleCount, filteredItems.length)}</strong> de{" "}
+          <strong>{filteredItems.length}</strong> expedientes pendientes reales.
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {visibleCount > 15 ? (
+            <button
+              type="button"
+              onClick={() => setVisibleCount(15)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Colapsar
+            </button>
+          ) : null}
+
+          {hasMoreItems ? (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((v) => v + 15)}
+              className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+            >
+              ⬇ Ver más
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-5 rounded-3xl border border-slate-200 bg-white shadow-sm">
