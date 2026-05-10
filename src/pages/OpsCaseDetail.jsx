@@ -1431,6 +1431,10 @@ export default function OpsCaseDetail() {
         <Link to="/ops" className="sr-btn-secondary">
           ⚖️ Dashboard jurídico
         </Link>
+
+        <Link to="/ops" className="sr-btn-secondary">
+          🟢 Presentados / histórico
+        </Link>
       </div>
 
       <div className="flex items-start justify-between gap-4 flex-wrap mt-4">

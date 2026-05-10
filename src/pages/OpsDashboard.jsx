@@ -185,6 +185,21 @@ export default function OpsDashboard() {
     }
   }
 
+
+  async function loadPresentedCases(searchValue = presentedSearch) {
+    if (!authed) return;
+
+    try {
+      const qs = searchValue ? `?q=${encodeURIComponent(searchValue)}&limit=100` : "?limit=100";
+      const data = await fetchJson(`${API}/ops/cases/presented${qs}`, {
+        headers: authHeaders,
+      });
+      setPresentedCases(data.items || []);
+    } catch (e) {
+      setPresentedCases([]);
+    }
+  }
+
   async function runTick() {
     setTickLoading(true);
     setTickError("");
@@ -441,7 +456,87 @@ export default function OpsDashboard() {
           {smartLoading && <span className="text-sm text-gray-500">Actualizando monitor…</span>}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] mb-5">
+        
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 shadow-sm mb-5">
+          <div className="flex flex-col gap-3 border-b border-emerald-100 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">🟢 Presentados / histórico operativo</h2>
+              <div className="text-xs text-slate-600">
+                Expedientes ya tramitados que salen de la cola pendiente, pero siguen vivos para seguimiento y resolución.
+              </div>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <input
+                value={presentedSearch}
+                onChange={(e) => setPresentedSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") loadPresentedCases(e.currentTarget.value);
+                }}
+                placeholder="Buscar expediente, email o case_id"
+                className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => loadPresentedCases()}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              >
+                Buscar presentados
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4">
+            {!presentedCases.length ? (
+              <div className="rounded-2xl border border-dashed border-emerald-200 bg-white/70 px-4 py-6 text-sm text-slate-500">
+                No hay expedientes presentados visibles. Busca por referencia, email o case_id si necesitas localizar uno concreto.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {presentedCases.slice(0, 10).map((item) => (
+                  <div key={item.case_id} className="rounded-2xl border border-emerald-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900">
+                          {item.expediente_ref || item.case_id}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500 break-all">
+                          Case ID: {item.case_id}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {item.contact_email || "Sin email"} · Actualizado: {formatDate(item.updated_at)}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2">
+                        <Pill tone="success">
+                          {item.status === "presentado_manual_ayuntamiento"
+                            ? "Presentado manual"
+                            : item.status || "Presentado"}
+                        </Pill>
+
+                        <Link
+                          to={`/ops/case/${encodeURIComponent(item.case_id)}`}
+                          className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          Abrir seguimiento
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {presentedCases.length > 10 ? (
+                  <div className="text-xs text-slate-500">
+                    Mostrando 10 de {presentedCases.length}. Usa el buscador para localizar un expediente concreto.
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+
+<div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] mb-5">
           <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
