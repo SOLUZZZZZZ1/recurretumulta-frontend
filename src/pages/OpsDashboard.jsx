@@ -125,7 +125,10 @@ function classifyLane(item) {
 
 export default function OpsDashboard() {
   const [token, setToken] = useState(() => localStorage.getItem("ops_token") || "");
-  const [pin, setPin] = useState("");
+  
+  const [presentedCases, setPresentedCases] = useState([]);
+  const [presentedSearch, setPresentedSearch] = useState("");
+const [pin, setPin] = useState("");
 
   const [status, setStatus] = useState("ready_to_submit");
   const [cases, setCases] = useState([]);
