@@ -37,7 +37,119 @@ function confidenceTone(value) {
   return num < 0.8 ? "warn" : "success";
 }
 
+
+function normalizeKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function isPresentedStatus(status) {
+  const s = String(status || "").toLowerCase();
+  return (
+    s === "submitted" ||
+    s === "presentado_manual_ayuntamiento" ||
+    s === "presentado_auto_dgt" ||
+    s === "presentado_auto_registro" ||
+    s.includes("presentado")
+  );
+}
+
+function isClosedStatus(status) {
+  const s = String(status || "").toLowerCase();
+  return (
+    s === "closed" ||
+    s === "archived" ||
+    s === "resolved" ||
+    s === "estimado" ||
+    s === "desestimado"
+  );
+}
+
+function isOperativelyPending(item) {
+  return !isPresentedStatus(item?.status) && !isClosedStatus(item?.status);
+}
+
+function logicalCaseKey(item) {
+  const expediente = normalizeKey(item?.expediente_ref);
+  const matricula = normalizeKey(item?.matricula || item?.plate || item?.vehicle_plate);
+  const organismo = normalizeKey(item?.organismo || item?.entity || item?.destination);
+  const email = normalizeKey(item?.contact_email);
+
+  if (expediente || matricula || organismo) {
+    return [expediente || "sinexp", matricula || "sinmat", organismo || "sinorg"].join("|");
+  }
+
+  return email ? `email:${email}` : `case:${item?.case_id}`;
+}
+
+function itemScoreForDedup(item) {
+  let score = 0;
+
+  if (item?.payment_status === "paid") score += 30;
+  if (item?.authorized) score += 30;
+  if (item?.has_generated_pdf) score += 10;
+  if (item?.has_generated_docx) score += 10;
+  if (item?.has_authorization_pdf) score += 5;
+  if (String(item?.organismo || item?.entity || item?.destination || "").trim()) score += 5;
+
+  const updated = new Date(item?.updated_at || item?.created_at || 0).getTime();
+  if (Number.isFinite(updated)) score += Math.min(updated / 10000000000000, 10);
+
+  return score;
+}
+
+function dedupeLogicalCases(items) {
+  const grouped = new Map();
+
+  for (const item of items || []) {
+    const key = logicalCaseKey(item);
+    const current = grouped.get(key);
+
+    if (!current || itemScoreForDedup(item) >= itemScoreForDedup(current)) {
+      grouped.set(key, item);
+    }
+  }
+
+  return Array.from(grouped.values());
+}
+
+function hasAuthorizationEvidence(item) {
+  return (
+    !!item?.authorized ||
+    !!item?.has_authorization_pdf ||
+    !!item?.authorization_url ||
+    !!item?.authorization_document_id
+  );
+}
+
+function statusPillTone(status) {
+  if (isPresentedStatus(status)) return "success";
+  if (isClosedStatus(status)) return "default";
+  const s = String(status || "").toLowerCase();
+  if (s === "manual_review" || s === "ready_to_submit") return "warn";
+  if (s === "pending_documents") return "danger";
+  return "info";
+}
+
+function statusLabel(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "presentado_manual_ayuntamiento") return "Presentado manual";
+  if (s === "presentado_auto_dgt") return "Presentado DGT";
+  if (s === "submitted") return "Presentado";
+  if (s === "manual_review") return "Revisión manual";
+  if (s === "ready_to_submit") return "Listo para presentar";
+  if (s === "pending_documents") return "Pendiente docs";
+  if (s === "generated") return "Generado";
+  if (s === "uploaded") return "Subido";
+  return status || "—";
+}
+
 function classifyLane(item) {
+  if (!isOperativelyPending(item)) return "NO_PENDIENTE";
+
   const tipo = String(item?.familia || item?.tipo_infraccion || "").trim().toLowerCase();
   const conf = confidenceNumber(item?.confidence);
   const authorized = !!item?.authorized;
@@ -137,7 +249,7 @@ function QueueSection({ title, tone, items, emptyText }) {
                       <Pill tone={lane === "AUTOMATICO" ? "success" : "danger"}>
                         {lane === "AUTOMATICO" ? "🟢 Automático" : "🔴 Manual"}
                       </Pill>
-                      <Pill tone="info">{item.status || "—"}</Pill>
+                      <Pill tone={statusPillTone(item.status)}>{statusLabel(item.status)}</Pill>
                     </div>
 
                     <div className="mt-2 grid gap-2 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-4">
@@ -150,7 +262,7 @@ function QueueSection({ title, tone, items, emptyText }) {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <RowBool ok={!!item.authorized} yes="Autorizado" no="Sin autorización" />
                       <RowBool ok={item.payment_status === "paid"} yes="Pagado" no="Sin pago" />
-                      <RowBool ok={!!item.has_authorization_pdf} yes="PDF autorización" no="Sin autorización PDF" />
+                      <RowBool ok={hasAuthorizationEvidence(item)} yes="Autorización registrada" no="Sin autorización" />
                       <RowBool ok={!!item.has_generated_pdf} yes="PDF generado" no="Sin PDF generado" />
                       <RowBool ok={!!item.has_generated_docx} yes="DOCX generado" no="Sin DOCX generado" />
                       <RowBool ok={!!String(item.entity || item.organismo || item.destination || "").trim()} yes="Organismo OK" no="Organismo dudoso" />
@@ -224,9 +336,18 @@ export default function OPSQueueSmart() {
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
-    const items = data?.items || [];
-    if (!term) return items;
-    return items.filter((item) => {
+
+    // 1) Solo trabajo operativo pendiente.
+    // Presentados/cerrados salen de "Siguiente foco" y de la cola manual/auto.
+    const pendingOnly = (data?.items || []).filter(isOperativelyPending);
+
+    // 2) Evitar duplicados lógicos: mismo expediente/matrícula/organismo.
+    // Si hay varias versiones del mismo expediente, nos quedamos con la más completa/reciente.
+    const deduped = dedupeLogicalCases(pendingOnly);
+
+    if (!term) return deduped;
+
+    return deduped.filter((item) => {
       const haystack = [
         item.case_id,
         item.expediente_ref,
@@ -238,6 +359,9 @@ export default function OPSQueueSmart() {
         item.entity,
         item.organismo,
         item.destination,
+        item.matricula,
+        item.plate,
+        item.vehicle_plate,
       ]
         .filter(Boolean)
         .join(" ")
@@ -245,6 +369,20 @@ export default function OPSQueueSmart() {
       return haystack.includes(term);
     });
   }, [data, search]);
+
+
+  const rawItems = data?.items || [];
+  const rawPendingItems = useMemo(
+    () => rawItems.filter(isOperativelyPending),
+    [rawItems]
+  );
+
+  const presentedOrClosedCount = useMemo(
+    () => rawItems.filter((item) => !isOperativelyPending(item)).length,
+    [rawItems]
+  );
+
+  const duplicateHiddenCount = Math.max(0, rawPendingItems.length - filteredItems.length);
 
   const automaticItems = useMemo(
     () => filteredItems.filter((item) => classifyLane(item) === "AUTOMATICO"),
@@ -304,11 +442,17 @@ export default function OPSQueueSmart() {
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatBox title="Total en cola" value={filteredItems.length} tone="info" />
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <StatBox title="Pendientes reales" value={filteredItems.length} tone="info" />
         <StatBox title="Automáticos" value={automaticItems.length} tone="success" />
         <StatBox title="Manual" value={manualItems.length} tone="danger" />
         <StatBox title="Siguiente" value={topNext?.expediente_ref || "—"} tone="warn" />
+        <StatBox title="Presentados/cerrados fuera" value={presentedOrClosedCount} tone="success" />
+        <StatBox title="Duplicados ocultos" value={duplicateHiddenCount} tone="warn" />
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+        Los expedientes presentados o cerrados quedan fuera del foco. Los duplicados lógicos se ocultan para evitar confusión operativa.
       </div>
 
       <div className="mt-5 rounded-3xl border border-slate-200 bg-white shadow-sm">
