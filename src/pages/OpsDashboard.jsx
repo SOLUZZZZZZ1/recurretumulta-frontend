@@ -194,7 +194,7 @@ const [pin, setPin] = useState("");
 
     try {
       const qs = searchValue ? `?q=${encodeURIComponent(searchValue)}&limit=100` : "?limit=100";
-      const data = await fetchJson(`${API}/ops/cases/presented${qs}`, {
+      const data = await fetchJson(`${API}/ops/presented-cases${qs}`, {
         headers: authHeaders,
       });
       setPresentedCases(data.items || []);
@@ -484,7 +484,7 @@ const [pin, setPin] = useState("");
                 onClick={() => loadPresentedCases()}
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
               >
-                Buscar presentados
+                Cargar presentados
               </button>
             </div>
           </div>
