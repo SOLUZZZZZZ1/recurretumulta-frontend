@@ -62,6 +62,7 @@ function isClosedStatus(status) {
   return (
     s === "closed" ||
     s === "archived" ||
+    s === "archived_test" ||
     s === "resolved" ||
     s === "estimado" ||
     s === "desestimado"
@@ -400,7 +401,6 @@ export default function OPSQueueSmart() {
   const topNext = useMemo(
     () => {
       const candidates = (filteredItems || []).filter(isOperativelyPending);
-
       if (!candidates.length) return null;
 
       return [...candidates].sort((a, b) => {
