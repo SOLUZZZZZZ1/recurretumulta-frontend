@@ -101,6 +101,24 @@ function itemScoreForDedup(item) {
   return score;
 }
 
+
+function hideGroupsAlreadyPresentedOrClosed(items) {
+  const raw = items || [];
+  const finishedKeys = new Set();
+
+  for (const item of raw) {
+    if (isPresentedStatus(item?.status) || isClosedStatus(item?.status)) {
+      finishedKeys.add(logicalCaseKey(item));
+    }
+  }
+
+  return raw.filter((item) => {
+    const key = logicalCaseKey(item);
+    if (finishedKeys.has(key)) return false;
+    return isOperativelyPending(item);
+  });
+}
+
 function dedupeLogicalCases(items) {
   const grouped = new Map();
 
@@ -339,8 +357,9 @@ export default function OPSQueueSmart() {
     const term = search.trim().toLowerCase();
 
     // 1) Solo trabajo operativo pendiente.
-    // Presentados/cerrados salen de "Siguiente foco" y de la cola manual/auto.
-    const pendingOnly = (data?.items || []).filter(isOperativelyPending);
+    // Si un expediente lógico ya tiene una versión presentada/cerrada,
+    // ocultamos también sus duplicados antiguos en manual_review.
+    const pendingOnly = hideGroupsAlreadyPresentedOrClosed(data?.items || []);
 
     // 2) Evitar duplicados lógicos: mismo expediente/matrícula/organismo.
     // Si hay varias versiones del mismo expediente, nos quedamos con la más completa/reciente.
@@ -374,7 +393,7 @@ export default function OPSQueueSmart() {
 
   const rawItems = data?.items || [];
   const rawPendingItems = useMemo(
-    () => rawItems.filter(isOperativelyPending),
+    () => hideGroupsAlreadyPresentedOrClosed(rawItems),
     [rawItems]
   );
 
@@ -395,7 +414,7 @@ export default function OPSQueueSmart() {
 
 
   const presentedOrClosedCount = useMemo(
-    () => rawItems.filter((item) => !isOperativelyPending(item)).length,
+    () => rawItems.filter((item) => isPresentedStatus(item.status) || isClosedStatus(item.status)).length,
     [rawItems]
   );
 
