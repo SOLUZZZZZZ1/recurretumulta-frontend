@@ -63,6 +63,9 @@ function isClosedStatus(status) {
     s === "closed" ||
     s === "archived" ||
     s === "archived_test" ||
+    s === "pending_client_data" ||
+    s === "draft" ||
+    s === "lead" ||
     s === "resolved" ||
     s === "estimado" ||
     s === "desestimado"
@@ -70,6 +73,9 @@ function isClosedStatus(status) {
 }
 
 function isOperativelyPending(item) {
+  const payment = String(item?.payment_status || "").toLowerCase();
+  if (payment && payment !== "paid") return false;
+  if (payment !== "paid") return false;
   return !isPresentedStatus(item?.status) && !isClosedStatus(item?.status);
 }
 
