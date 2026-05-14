@@ -1,512 +1,392 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  "/api";
-
+const API = "/api";
 const MAX_FILES = 5;
 
-// Versión ultra segura anti-413.
-// Aunque el usuario suba JPG de 6, 10 o 20 MB, el sistema intenta dejarlo < 700 KB.
-// Además bloquea antes de enviar si pasa de 900 KB.
-const HARD_SEND_LIMIT_BYTES = 900 * 1024;
-const TARGET_IMAGE_BYTES = 700 * 1024;
-const IMAGE_MAX_SIDE = 1100;
-
-function formatBytes(bytes) {
-  if (!bytes && bytes !== 0) return "";
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function ext(name = "") {
-  const m = String(name).match(/\.([a-zA-Z0-9]+)$/);
-  return m ? m[1].toLowerCase() : "";
-}
-
-function isImage(file) {
-  const e = ext(file?.name);
-  return file?.type?.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(e);
-}
-
-function isPdf(file) {
-  return file?.type === "application/pdf" || ext(file?.name) === "pdf";
-}
-
-function canvasToBlob(canvas, quality) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) reject(new Error("No se pudo comprimir la imagen."));
-        else resolve(blob);
-      },
-      "image/jpeg",
-      quality
-    );
-  });
-}
-
-async function loadImage(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    return await new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () =>
-        reject(
-          new Error(
-            "No se pudo leer la imagen. Si es HEIC, haz una captura de pantalla y sube esa captura."
-          )
-        );
-      image.src = url;
-    });
-  } finally {
-    URL.revokeObjectURL(url);
+async function fetchJson(url, options = {}) {
+  const r = await fetch(url, options);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const detail = data?.detail || data?.message || data?.error || "Error API";
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
   }
-}
-
-async function compressImageUltra(file) {
-  const img = await loadImage(file);
-
-  let originalWidth = img.naturalWidth || img.width;
-  let originalHeight = img.naturalHeight || img.height;
-
-  if (!originalWidth || !originalHeight) {
-    throw new Error("No se pudo leer el tamaño de la imagen.");
-  }
-
-  let side = IMAGE_MAX_SIDE;
-  let bestBlob = null;
-  let bestWidth = 0;
-  let bestHeight = 0;
-
-  for (const maxSide of [1100, 950, 800, 650]) {
-    let width = originalWidth;
-    let height = originalHeight;
-
-    const longest = Math.max(width, height);
-    if (longest > maxSide) {
-      const ratio = maxSide / longest;
-      width = Math.round(width * ratio);
-      height = Math.round(height * ratio);
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) throw new Error("No se pudo preparar la compresión.");
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, 0, 0, width, height);
-
-    for (const q of [0.68, 0.56, 0.46, 0.36, 0.28, 0.22, 0.16]) {
-      const blob = await canvasToBlob(canvas, q);
-      if (!bestBlob || blob.size < bestBlob.size) {
-        bestBlob = blob;
-        bestWidth = width;
-        bestHeight = height;
-      }
-      if (blob.size <= TARGET_IMAGE_BYTES) {
-        const base = String(file.name || "documento").replace(/\.[^.]+$/, "");
-        return {
-          file: new File([blob], `${base}-optimizado-anti413.jpg`, {
-            type: "image/jpeg",
-            lastModified: Date.now(),
-          }),
-          width,
-          height,
-          quality: q,
-        };
-      }
-    }
-
-    side = maxSide;
-  }
-
-  if (!bestBlob) {
-    throw new Error("No se pudo optimizar la imagen.");
-  }
-
-  if (bestBlob.size > HARD_SEND_LIMIT_BYTES) {
-    throw new Error(
-      `La imagen optimizada sigue pesando ${formatBytes(bestBlob.size)}. Haz una captura más cercana/simple del documento.`
-    );
-  }
-
-  const base = String(file.name || "documento").replace(/\.[^.]+$/, "");
-  return {
-    file: new File([bestBlob], `${base}-optimizado-anti413.jpg`, {
-      type: "image/jpeg",
-      lastModified: Date.now(),
-    }),
-    width: bestWidth,
-    height: bestHeight,
-    quality: "mínima",
-  };
-}
-
-async function prepareFile(file) {
-  if (!file) throw new Error("Archivo no válido.");
-
-  if (isImage(file)) {
-    const optimized = await compressImageUltra(file);
-    return {
-      id: crypto.randomUUID(),
-      file: optimized.file,
-      originalName: file.name,
-      originalSize: file.size,
-      optimized: true,
-      meta: {
-        width: optimized.width,
-        height: optimized.height,
-        quality: optimized.quality,
-      },
-    };
-  }
-
-  if (isPdf(file)) {
-    throw new Error(
-      "Ahora mismo los PDF pesados pueden provocar 413. Sube una foto JPG/captura clara del documento; el sistema la optimiza automáticamente."
-    );
-  }
-
-  throw new Error("Formato no recomendado. Sube una imagen JPG/PNG o una captura clara.");
-}
-
-async function readApi(response) {
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    if (response.status === 413) {
-      throw new Error(
-        "413: el servidor recibió demasiado peso. Esta versión bloquea >900 KB; si ves esto, estás usando otra pantalla o el navegador no desplegó la última versión."
-      );
-    }
-
-    const detail = data?.detail || data?.message;
-    throw new Error(typeof detail === "string" ? detail : "No se pudo analizar el documento.");
-  }
-
   return data;
 }
 
-export default function UploadExpediente() {
+function formatBytes(bytes) {
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(2)} MB`;
+}
+
+function cleanPlate(v) {
+  return String(v || "").toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
+}
+
+function validateClientData(client) {
+  const missing = [];
+
+  if (!client.full_name.trim() || client.full_name.trim().length < 3) missing.push("nombre");
+  if (!client.email.trim() || !client.email.includes("@")) missing.push("email");
+  if (!client.telefono.trim() || client.telefono.trim().length < 6) missing.push("teléfono");
+  if (!client.dni_nie.trim() || client.dni_nie.trim().length < 3) missing.push("DNI/NIE");
+  if (!client.matricula.trim() || client.matricula.trim().length < 4) missing.push("matrícula");
+  if (!client.domicilio_notif.trim() || client.domicilio_notif.trim().length < 5) missing.push("domicilio");
+
+  return missing;
+}
+
+export default function UploadExpediente({ maxSizeMB = 12 }) {
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
-  const [items, setItems] = useState([]);
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [client, setClient] = useState({
+    full_name: "",
+    email: "",
+    telefono: "",
+    dni_nie: "",
+    matricula: "",
+    domicilio_notif: "",
+  });
+
+  const [files, setFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const openPicker = () => inputRef.current?.click();
+  const maxBytes = useMemo(() => maxSizeMB * 1024 * 1024, [maxSizeMB]);
 
-  async function addFiles(fileList) {
+  function updateClient(key, value) {
+    setClient((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function pickFiles() {
+    inputRef.current?.click();
+  }
+
+  function addFiles(fileList) {
+    setMsg("");
     const incoming = Array.from(fileList || []);
     if (!incoming.length) return;
 
-    setMessage("");
-    setBusy(true);
+    const space = MAX_FILES - files.length;
+    const sliced = incoming.slice(0, Math.max(0, space));
 
-    try {
-      const available = MAX_FILES - items.length;
-      const selected = incoming.slice(0, Math.max(0, available));
-      const prepared = [];
-      const notes = [];
-
-      for (const file of selected) {
-        try {
-          const item = await prepareFile(file);
-          prepared.push(item);
-
-          notes.push(
-            `✅ Imagen optimizada ULTRA ANTI-413: ${formatBytes(item.originalSize)} → ${formatBytes(item.file.size)} (${item.meta.width}x${item.meta.height})`
-          );
-        } catch (err) {
-          notes.push(err?.message || `No se pudo preparar ${file.name}.`);
-        }
-      }
-
-      if (prepared.length) setItems((prev) => [...prev, ...prepared]);
-      if (notes.length) setMessage(notes.join(" "));
-    } finally {
-      setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
+    if (incoming.length > sliced.length) {
+      setMsg(`Máximo ${MAX_FILES} documentos por expediente. Se han añadido solo los primeros.`);
     }
+
+    const valid = [];
+    for (const f of sliced) {
+      if (f.size > maxBytes) {
+        setMsg(`Uno de los archivos supera ${maxSizeMB} MB. Reduce el tamaño o usa otro documento.`);
+        continue;
+      }
+      valid.push({ id: crypto.randomUUID(), file: f });
+    }
+
+    if (!valid.length) return;
+    setFiles((prev) => [...prev, ...valid]);
   }
 
-  function removeItem(id) {
-    setItems((prev) => prev.filter((x) => x.id !== id));
+  function removeFile(id) {
+    setFiles((prev) => prev.filter((x) => x.id !== id));
   }
 
   function clearAll() {
-    setItems([]);
-    setMessage("");
+    setFiles([]);
+    setMsg("");
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  async function saveClientDetails(caseId) {
+    const payload = {
+      full_name: client.full_name.trim(),
+      dni_nie: client.dni_nie.trim().toUpperCase(),
+      domicilio_notif: client.domicilio_notif.trim(),
+      email: client.email.trim(),
+      telefono: client.telefono.trim(),
+    };
+
+    await fetchJson(`${API}/cases/${caseId}/details`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    // Guardamos matrícula en local para usarla en resumen/autorización si el backend todavía no la expone ahí.
+    localStorage.setItem(
+      `rtm_client_${caseId}`,
+      JSON.stringify({
+        ...payload,
+        matricula: cleanPlate(client.matricula),
+      })
+    );
+  }
+
   async function analyze() {
-    setMessage("");
+    setMsg("");
 
-    if (!items.length) {
-      setMessage("Primero añade al menos un documento.");
+    const missing = validateClientData(client);
+    if (missing.length) {
+      setMsg(`❌ Antes de subir la multa faltan datos: ${missing.join(", ")}.`);
       return;
     }
 
-    const totalBytes = items.reduce((sum, x) => sum + (x.file?.size || 0), 0);
-    const tooBig = items.find((x) => (x.file?.size || 0) > HARD_SEND_LIMIT_BYTES);
-
-    if (tooBig) {
-      setMessage(
-        `Bloqueado antes de subir: ${tooBig.file.name} pesa ${formatBytes(tooBig.file.size)}. No se enviará para evitar 413.`
-      );
+    if (files.length === 0) {
+      setMsg("❌ Primero añade al menos un documento.");
       return;
     }
 
-    // Bloqueo adicional para varios documentos.
-    if (totalBytes > HARD_SEND_LIMIT_BYTES * 1.8) {
-      setMessage(
-        `Bloqueado antes de subir: el conjunto pesa ${formatBytes(totalBytes)}. Sube un solo documento principal para evitar 413.`
-      );
-      return;
-    }
-
-    setBusy(true);
+    setLoading(true);
 
     try {
-      if (items.length === 1) {
+      let data;
+      let caseId;
+
+      if (files.length === 1) {
         const fd = new FormData();
-        fd.append("file", items[0].file);
+        fd.append("file", files[0].file);
 
-        // Marca de diagnóstico visible en consola.
-        console.log("[RTM ANTI-413] Enviando archivo:", {
-          name: items[0].file.name,
-          size: items[0].file.size,
-          sizeHuman: formatBytes(items[0].file.size),
-          type: items[0].file.type,
-        });
-
-        setMessage(`Enviando archivo optimizado de ${formatBytes(items[0].file.size)}…`);
-
-        const response = await fetch(`${API_BASE}/analyze`, {
+        data = await fetchJson(`${API}/analyze`, {
           method: "POST",
           body: fd,
         });
 
-        const data = await readApi(response);
-        const caseId =
+        caseId =
           data?.case_id ||
           data?.caseId ||
           data?.id ||
           data?.extracted?.case_id ||
           data?.extracted?.id;
 
-        if (!caseId) throw new Error("El análisis terminó, pero no devolvió número de caso.");
+        if (!caseId) throw new Error("No se pudo obtener el número de expediente.");
+      } else {
+        const fdMulti = new FormData();
+        files.forEach((f) => fdMulti.append("files", f.file));
 
-        localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
-        setMessage("✅ Documento analizado. Abriendo resumen…");
-        navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
-        return;
+        data = await fetchJson(`${API}/analyze/expediente`, {
+          method: "POST",
+          body: fdMulti,
+        });
+
+        caseId = data?.case_id;
+        if (!caseId) throw new Error("El backend no devolvió case_id para el expediente.");
       }
 
-      const fd = new FormData();
-      items.forEach((item) => fd.append("files", item.file));
+      await saveClientDetails(caseId);
 
-      console.log("[RTM ANTI-413] Enviando expediente:", {
-        count: items.length,
-        totalBytes,
-        totalHuman: formatBytes(totalBytes),
-      });
+      localStorage.setItem(
+        "rtm_last_analysis",
+        JSON.stringify({
+          ...data,
+          case_id: caseId,
+          client_data: {
+            ...client,
+            matricula: cleanPlate(client.matricula),
+          },
+        })
+      );
 
-      setMessage(`Enviando expediente optimizado de ${formatBytes(totalBytes)}…`);
-
-      const response = await fetch(`${API_BASE}/analyze/expediente`, {
-        method: "POST",
-        body: fd,
-      });
-
-      const data = await readApi(response);
-      const caseId = data?.case_id;
-
-      if (!caseId) throw new Error("El expediente terminó, pero no devolvió número de caso.");
-
-      localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
-      setMessage("✅ Expediente analizado. Abriendo resumen…");
+      setMsg("✅ Documentación recibida. Ahora revisa el resumen, autoriza y completa el pago para iniciar la tramitación.");
       navigate(`/resumen?case=${encodeURIComponent(caseId)}`);
-    } catch (err) {
-      setMessage(err?.message || "No se pudo analizar el documento.");
+    } catch (e) {
+      setMsg(e?.message || "Error al analizar el expediente.");
     } finally {
-      setBusy(false);
+      setLoading(false);
     }
   }
 
+  const labelBtn = files.length <= 1 ? "Analizar documento" : "Analizar expediente";
+
   return (
     <div className="sr-card" style={{ textAlign: "left" }}>
-      <div
-        style={{
-          background: "#ecfdf5",
-          color: "#166534",
-          border: "1px solid #bbf7d0",
-          borderRadius: 12,
-          padding: "8px 10px",
-          marginBottom: 12,
-          fontWeight: 900,
-          fontSize: 13,
-        }}
-      >
-        ✅ ULTRA ANTI-413 ACTIVO — envío bloqueado por encima de 900 KB
-      </div>
-
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="sr-h2" style={{ marginBottom: 6 }}>
-            Subir documentos del expediente
+            Datos y subida de multa
           </h2>
           <p className="sr-p" style={{ marginBottom: 0 }}>
-            Sube la multa en JPG/PNG. El sistema la reduce automáticamente antes de enviarla.
+            Para evitar expedientes sin cliente, necesitamos tus datos antes de subir la documentación.
           </p>
         </div>
 
         <div className="sr-small" style={{ color: "#6b7280" }}>
-          {items.length}/{MAX_FILES} documentos
+          {files.length}/{MAX_FILES} documentos
         </div>
       </div>
 
-      <div
-        onClick={openPicker}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          addFiles(e.dataTransfer?.files);
-        }}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") openPicker();
-        }}
-        style={{
-          marginTop: 14,
-          border: `2px dashed ${dragOver ? "#111827" : "#cbd5e1"}`,
-          background: dragOver ? "rgba(17,24,39,0.05)" : "rgba(255,255,255,0.78)",
-          borderRadius: 16,
-          padding: 18,
-          cursor: "pointer",
-          transition: "all 120ms ease",
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept="image/*,.jpg,.jpeg,.png,.webp"
-          style={{ display: "none" }}
-          onChange={(e) => addFiles(e.target.files)}
-        />
+      <div className="sr-card" style={{ marginTop: 14, background: "rgba(248,250,252,0.9)" }}>
+        <div className="sr-h3">1. Datos obligatorios del cliente</div>
 
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <p className="sr-p" style={{ margin: 0 }}>
-              <strong>Arrastra y suelta</strong> aquí tus documentos o haz clic para seleccionar.
-            </p>
-            <p className="sr-small" style={{ marginTop: 6, opacity: 0.85 }}>
-              Solo imágenes · compresión automática · objetivo 700 KB
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="sr-btn-primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              openPicker();
-            }}
-            disabled={busy}
-          >
-            {busy ? "Preparando…" : "Añadir documento"}
-          </button>
+        <div className="grid md:grid-cols-2 gap-3" style={{ marginTop: 12 }}>
+          <input
+            className="sr-input"
+            placeholder="Nombre y apellidos"
+            value={client.full_name}
+            onChange={(e) => updateClient("full_name", e.target.value)}
+          />
+          <input
+            className="sr-input"
+            placeholder="Email"
+            type="email"
+            value={client.email}
+            onChange={(e) => updateClient("email", e.target.value)}
+          />
+          <input
+            className="sr-input"
+            placeholder="Teléfono"
+            value={client.telefono}
+            onChange={(e) => updateClient("telefono", e.target.value)}
+          />
+          <input
+            className="sr-input"
+            placeholder="DNI / NIE / Pasaporte"
+            value={client.dni_nie}
+            onChange={(e) => updateClient("dni_nie", e.target.value)}
+          />
+          <input
+            className="sr-input"
+            placeholder="Matrícula"
+            value={client.matricula}
+            onChange={(e) => updateClient("matricula", e.target.value)}
+          />
+          <input
+            className="sr-input"
+            placeholder="Domicilio a efectos de notificaciones"
+            value={client.domicilio_notif}
+            onChange={(e) => updateClient("domicilio_notif", e.target.value)}
+          />
         </div>
+
+        <p className="sr-small" style={{ marginTop: 10, color: "#64748b" }}>
+          La tramitación no se inicia hasta que completes autorización y pago.
+        </p>
       </div>
 
-      {items.length > 0 && (
-        <div className="sr-card" style={{ marginTop: 12 }}>
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="sr-h3">Documentos preparados</div>
-            <button className="sr-btn-secondary" type="button" onClick={clearAll} disabled={busy}>
-              Limpiar todo
+      <div className="sr-card" style={{ marginTop: 14 }}>
+        <div className="sr-h3">2. Documentos del expediente</div>
+
+        <div
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            addFiles(e.dataTransfer?.files);
+          }}
+          role="button"
+          tabIndex={0}
+          onClick={pickFiles}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") pickFiles();
+          }}
+          style={{
+            marginTop: 14,
+            border: `2px dashed ${dragOver ? "#111827" : "#cbd5e1"}`,
+            background: dragOver ? "rgba(17,24,39,0.04)" : "rgba(255,255,255,0.75)",
+            borderRadius: 16,
+            padding: 18,
+            cursor: "pointer",
+            transition: "all 120ms ease",
+          }}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx"
+            style={{ display: "none" }}
+            onChange={(e) => addFiles(e.target.files)}
+          />
+
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p className="sr-p" style={{ margin: 0 }}>
+                <strong>Arrastra y suelta</strong> aquí tus documentos, o haz clic para seleccionar.
+              </p>
+              <p className="sr-small" style={{ marginTop: 6, opacity: 0.85 }}>
+                Formatos: JPG/PNG/WebP/PDF/DOCX · Tamaño máx: {maxSizeMB} MB
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="sr-btn-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                pickFiles();
+              }}
+            >
+              Añadir documento
             </button>
           </div>
-
-          <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 10,
-                  background: "rgba(255,255,255,0.75)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
-                <div>
-                  <div className="sr-small" style={{ fontWeight: 800 }}>
-                    Documento {index + 1}
-                  </div>
-                  <div className="sr-small" style={{ color: "#6b7280" }}>
-                    {item.file.name} · {formatBytes(item.file.size)}
-                    {item.optimized && (
-                      <span style={{ color: "#166534", fontWeight: 800 }}>
-                        {" "}
-                        · optimizado desde {formatBytes(item.originalSize)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <button className="sr-btn-secondary" type="button" onClick={() => removeItem(item.id)} disabled={busy}>
-                  Quitar
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
-      )}
+
+        {files.length > 0 && (
+          <div className="sr-card" style={{ marginTop: 12 }}>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="sr-h3">Documentos añadidos</div>
+              <button className="sr-btn-secondary" type="button" onClick={clearAll}>
+                Limpiar todo
+              </button>
+            </div>
+
+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+              {files.map((f, idx) => (
+                <div
+                  key={f.id}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 12,
+                    padding: 10,
+                    background: "rgba(255,255,255,0.7)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <div className="sr-small" style={{ fontWeight: 800 }}>
+                      Documento {idx + 1}
+                    </div>
+                    <div className="sr-small" style={{ color: "#6b7280" }}>
+                      {f.file.name} · {formatBytes(f.file.size)}
+                    </div>
+                  </div>
+
+                  <button className="sr-btn-secondary" type="button" onClick={() => removeFile(f.id)}>
+                    Quitar
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="sr-cta-row" style={{ marginTop: 14, justifyContent: "flex-start" }}>
-        <button className="sr-btn-primary" onClick={analyze} disabled={busy || !items.length}>
-          {busy ? "Procesando…" : items.length > 1 ? "Analizar expediente" : "Analizar documento"}
+        <button className="sr-btn-primary" onClick={analyze} disabled={loading}>
+          {loading ? "Procesando…" : labelBtn}
         </button>
 
-        {message && (
+        {msg && (
           <span
             className="sr-small"
-            style={{
-              alignSelf: "center",
-              color: message.startsWith("✅") || message.startsWith("Enviando") ? "#166534" : "#991b1b",
-              lineHeight: 1.45,
-            }}
+            style={{ alignSelf: "center", color: msg.startsWith("✅") ? "#166534" : "#991b1b" }}
           >
-            {message}
+            {msg}
           </span>
         )}
       </div>
