@@ -403,7 +403,8 @@ export default function Inicio() {
       }
 
       if (phase === "pay") {
-        nav(`/pagar?case=${encodeURIComponent(caseKey)}`);
+        // No existe ruta /pagar en App.jsx. El pago se inicia desde ResumenExpediente.
+        nav(`/resumen?case=${encodeURIComponent(caseKey)}`);
         return;
       }
 
