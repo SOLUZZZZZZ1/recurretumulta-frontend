@@ -260,6 +260,25 @@ function getCasePhase(data) {
   return "summary";
 }
 
+async function fetchContinueLookupWithFallback(caseIdOrExpediente) {
+  const errors = [];
+
+  for (const base of API_CANDIDATES) {
+    const cleanBase = String(base).replace(/\/$/, "");
+    const url = `${cleanBase}/cases/continue-lookup?q=${encodeURIComponent(caseIdOrExpediente)}`;
+
+    try {
+      const response = await fetch(url, { method: "GET" });
+      const data = await parseAnalyzeResponse(response);
+      return data;
+    } catch (err) {
+      errors.push(`${url} → ${err?.message || "error"}`);
+    }
+  }
+
+  throw new Error(`No se pudo recuperar el expediente. ${errors.join(" | ")}`);
+}
+
 export default function Inicio() {
   const nav = useNavigate();
 
@@ -348,7 +367,7 @@ export default function Inicio() {
     const clean = caseId.trim();
 
     if (!clean) {
-      setErr("Introduce el número de expediente para continuar.");
+      setErr("Introduce el número de expediente o el código interno para continuar.");
       return;
     }
 
@@ -356,7 +375,7 @@ export default function Inicio() {
     setLoading(true);
 
     try {
-      const data = await fetchPublicStatusWithFallback(clean);
+      const data = await fetchContinueLookupWithFallback(clean);
       const caseKey = data?.case_id || data?.id || clean;
       const phase = getCasePhase(data);
 
@@ -647,13 +666,13 @@ export default function Inicio() {
                 </h2>
 
                 <p style={{ color: "#64748b", lineHeight: 1.5 }}>
-                  Si ya tienes un expediente iniciado, introduce el número y te llevaremos al punto exacto donde lo dejaste: autorización, pago o seguimiento.
+                  Si ya tienes un expediente iniciado, introduce el número administrativo o el código interno y te llevaremos al punto exacto donde lo dejaste: autorización, pago o seguimiento.
                 </p>
 
                 <input
                   value={caseId}
                   onChange={(e) => setCaseId(e.target.value)}
-                  placeholder="Ej. 390700943475"
+                  placeholder="Ej. 025100670720 o código interno"
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
@@ -683,7 +702,7 @@ export default function Inicio() {
                 </button>
 
                 <div style={{ color: "#64748b", fontSize: 13, marginTop: 12, lineHeight: 1.45 }}>
-                  Útil si cerraste la página, falta pagar, falta autorización o quieres ver el estado.
+                  Útil si cerraste la página, falta pagar, falta autorización o quieres ver el estado. No te mandará a subir documentos salvo que entres expresamente por añadir documento.
                 </div>
               </div>
             </div>
