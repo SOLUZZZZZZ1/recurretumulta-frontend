@@ -221,6 +221,13 @@ async function postAnalyzeWithFallback(formData) {
 }
 
 
+
+function looksLikeUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    String(value || "").trim()
+  );
+}
+
 async function fetchPublicStatusWithFallback(caseId) {
   const errors = [];
 
@@ -375,7 +382,18 @@ export default function Inicio() {
     setLoading(true);
 
     try {
-      const data = await fetchContinueLookupWithFallback(clean);
+      let data;
+
+      // Si es case_id interno UUID, usamos la ruta que YA existe y funciona:
+      // /cases/{case_id}/public-status
+      if (looksLikeUuid(clean)) {
+        data = await fetchPublicStatusWithFallback(clean);
+      } else {
+        // Si es número administrativo, usamos el buscador nuevo del backend.
+        // Si todavía no está desplegado, mostrará error claro.
+        data = await fetchContinueLookupWithFallback(clean);
+      }
+
       const caseKey = data?.case_id || data?.id || clean;
       const phase = getCasePhase(data);
 
