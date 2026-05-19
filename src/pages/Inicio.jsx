@@ -221,6 +221,45 @@ async function postAnalyzeWithFallback(formData) {
 }
 
 
+async function fetchPublicStatusWithFallback(caseId) {
+  const errors = [];
+
+  for (const base of API_CANDIDATES) {
+    const cleanBase = String(base).replace(/\/$/, "");
+    const url = `${cleanBase}/cases/${encodeURIComponent(caseId)}/public-status`;
+
+    try {
+      const response = await fetch(url, { method: "GET" });
+      const data = await parseAnalyzeResponse(response);
+      return data;
+    } catch (err) {
+      errors.push(`${url} → ${err?.message || "error"}`);
+    }
+  }
+
+  throw new Error(`No se pudo recuperar el expediente. ${errors.join(" | ")}`);
+}
+
+function getCasePhase(data) {
+  const authorized = Boolean(data?.authorized);
+  const paymentStatus = String(data?.payment_status || "").toLowerCase();
+  const status = String(data?.status || "").toLowerCase();
+
+  if (!authorized) return "authorize";
+  if (paymentStatus !== "paid") return "pay";
+
+  if (
+    status.includes("presentado") ||
+    status === "submitted" ||
+    status === "closed" ||
+    status === "resolved"
+  ) {
+    return "status";
+  }
+
+  return "summary";
+}
+
 export default function Inicio() {
   const nav = useNavigate();
 
@@ -305,7 +344,7 @@ export default function Inicio() {
     }
   }
 
-  function continueCase() {
+  async function continueCase() {
     const clean = caseId.trim();
 
     if (!clean) {
@@ -313,7 +352,35 @@ export default function Inicio() {
       return;
     }
 
-    nav(`/caso/${encodeURIComponent(clean)}`);
+    setErr("");
+    setLoading(true);
+
+    try {
+      const data = await fetchPublicStatusWithFallback(clean);
+      const caseKey = data?.case_id || data?.id || clean;
+      const phase = getCasePhase(data);
+
+      if (phase === "authorize") {
+        nav(`/autorizar?case=${encodeURIComponent(caseKey)}`);
+        return;
+      }
+
+      if (phase === "pay") {
+        nav(`/pagar?case=${encodeURIComponent(caseKey)}`);
+        return;
+      }
+
+      if (phase === "status") {
+        nav(`/estado-expediente?case=${encodeURIComponent(caseKey)}`);
+        return;
+      }
+
+      nav(`/resumen?case=${encodeURIComponent(caseKey)}`);
+    } catch (e) {
+      setErr(e?.message || "No se pudo recuperar el expediente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -576,12 +643,11 @@ export default function Inicio() {
                 }}
               >
                 <h2 style={{ marginTop: 0, fontSize: 24, fontWeight: 950 }}>
-                  Añadir documento al expediente
+                  Continuar expediente
                 </h2>
 
                 <p style={{ color: "#64748b", lineHeight: 1.5 }}>
-                  Si ya tienes un expediente iniciado, introduce el número para subir una nueva
-                  notificación, resolución o documento adicional.
+                  Si ya tienes un expediente iniciado, introduce el número y te llevaremos al punto exacto donde lo dejaste: autorización, pago o seguimiento.
                 </p>
 
                 <input
@@ -613,11 +679,11 @@ export default function Inicio() {
                     cursor: "pointer",
                   }}
                 >
-                  Buscar expediente
+                  Continuar expediente
                 </button>
 
                 <div style={{ color: "#64748b", fontSize: 13, marginTop: 12, lineHeight: 1.45 }}>
-                  Útil cuando el expediente quedó incompleto o llega una resolución posterior.
+                  Útil si cerraste la página, falta pagar, falta autorización o quieres ver el estado.
                 </div>
               </div>
             </div>
