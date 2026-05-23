@@ -590,6 +590,33 @@ export default function Inicio() {
                   Sin compromiso. Si no merece la pena recurrirla, te lo decimos claro.
                 </div>
 
+                <div
+                  style={{
+                    marginTop: 16,
+                    background: "#fffbeb",
+                    border: "1px solid #f59e0b",
+                    borderRadius: 14,
+                    padding: 14,
+                    color: "#92400e",
+                    lineHeight: 1.55,
+                    fontSize: 14,
+                  }}
+                >
+                  <div style={{ fontWeight: 900, marginBottom: 8 }}>
+                    ⚠ IMPORTANTE
+                  </div>
+
+                  <div>
+                    En la mayoría de multas de tráfico, si decides presentar alegaciones o recursos administrativos perderás el derecho al descuento del 50% por pronto pago.
+                  </div>
+
+                  <div style={{ marginTop: 8 }}>
+                    Si pagas la multa con reducción, normalmente renuncias a continuar el procedimiento administrativo de recurso.
+                  </div>
+                </div>
+
+
+
                 {err ? (
                   <div
                     style={{

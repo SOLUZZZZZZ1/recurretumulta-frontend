@@ -441,6 +441,40 @@ export default function Autorizar() {
               </CheckRow>
             </div>
 
+            <div
+              style={{
+                marginTop: 18,
+                background: "#fffbeb",
+                border: "1px solid #f59e0b",
+                borderRadius: 14,
+                padding: 16,
+                color: "#92400e",
+                lineHeight: 1.6,
+              }}
+            >
+              <div style={{ fontWeight: 900, marginBottom: 8 }}>
+                ⚠ IMPORTANTE
+              </div>
+
+              <div>
+                En la mayoría de multas de tráfico, si decides presentar alegaciones o recursos administrativos perderás el derecho al descuento del 50% por pronto pago.
+              </div>
+
+              <div style={{ marginTop: 10 }}>
+                Si pagas la multa con reducción, normalmente renuncias a continuar el procedimiento administrativo de recurso.
+              </div>
+
+              <div style={{ marginTop: 10, fontWeight: 800 }}>
+                Antes de continuar, valora qué opción prefieres:
+              </div>
+
+              <ul style={{ marginTop: 8, paddingLeft: 20 }}>
+                <li>Pago reducido inmediato</li>
+                <li>Recurso y defensa del expediente</li>
+              </ul>
+            </div>
+
+
             <div className="sr-cta-row" style={{ marginTop: 16, justifyContent: "flex-start" }}>
               <button
                 type="button"
