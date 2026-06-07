@@ -3,7 +3,7 @@
   --sr-hero-pad: clamp(18px, 2.2vw, 30px);
   --sr-hero-text: #ffffff;
   --sr-hero-shadow: rgba(0, 0, 0, 0.55);
-  --sr-hero-panel: rgba(30, 30, 30, 0.14);
+  --sr-hero-panel: rgba(30, 30, 30, 0.12);
 }
 
 .sr-inicio{
