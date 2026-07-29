@@ -24,6 +24,7 @@ import AdminCrearAsesoria from "./pages/AdminCrearAsesoria.jsx";
 import OPSQueueSmart from "./pages/OPSQueueSmart.jsx";
 import OpsVehicleRemoval from "./pages/OpsVehicleRemoval.jsx";
 import EliminarCoche from "./pages/EliminarCoche.jsx";
+import Asnef from "./pages/Asnef.jsx";
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/eliminar-coche" element={<EliminarCoche />} />
+        <Route path="/asnef" element={<Asnef />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/gestorias" element={<Gestorias />} />
