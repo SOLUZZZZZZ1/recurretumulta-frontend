@@ -149,7 +149,7 @@ textarea {
 .rtm-navbar-logo {
   display: block;
   width: auto;
-  height: 52px;
+  height: 95px;
   max-width: min(310px, 42vw);
   object-fit: contain;
 }
