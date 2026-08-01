@@ -8,7 +8,9 @@ import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 
 // Páginas
-import Inicio from "./pages/Inicio.jsx";
+import InicioRTM from "./pages/InicioRTM.jsx";
+import InicioMultas from "./pages/Inicio.jsx";
+import Trafico from "./pages/Trafico.jsx";
 import ComoFunciona from "./pages/ComoFunciona.jsx";
 import Precios from "./pages/Precios.jsx";
 import FAQ from "./pages/FAQ.jsx";
@@ -61,7 +63,9 @@ export default function App() {
       {!hideChrome && <Navbar />}
 
       <Routes>
-        <Route path="/" element={<Inicio />} />
+        <Route path="/" element={<InicioRTM />} />
+        <Route path="/trafico" element={<Trafico />} />
+        <Route path="/multas" element={<InicioMultas />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/eliminar-coche" element={<EliminarCoche />} />
