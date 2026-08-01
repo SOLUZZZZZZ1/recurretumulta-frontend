@@ -84,7 +84,7 @@ export default function Footer() {
             </a>
           </p>
           <p style={{ fontSize: 12, opacity: 0.85, lineHeight: 1.6 }}>
-             ofrecemos también asesoramiento jurídico. Este canal es exclusivamente
+            ofrecemos también asesoramiento jurídico. Este canal es exclusivamente
             para consultas técnicas o de funcionamiento del servicio.
           </p>
         </div>
