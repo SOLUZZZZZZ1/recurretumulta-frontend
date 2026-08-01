@@ -7,7 +7,7 @@ const SERVICES = [
     title: "Recurrir una multa",
     text: "Suba la multa o notificación. La analizaremos y le diremos con claridad si merece la pena recurrir.",
     action: "Analizar mi multa",
-    to: "/multas",
+    to: "/iniciar-expediente/traffic/fine",
     available: true,
   },
   {
