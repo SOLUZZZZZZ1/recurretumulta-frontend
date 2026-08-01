@@ -123,6 +123,7 @@ textarea {
   top: 0;
   z-index: 1000;
   width: 100%;
+  overflow: visible;
   background: #0b4aa2;
   border-bottom: 1px solid rgba(255,255,255,.12);
 }
@@ -131,31 +132,35 @@ textarea {
   position: relative;
   max-width: 1200px;
   min-width: 0;
+  height: 76px;
   margin: 0 auto;
-  padding: 0 24px;
-  min-height: 110px;
+  padding: 0 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 22px;
+  gap: 14px;
 }
 
 .rtm-navbar-brand {
-  min-width: 0;
+  width: 126px;
+  height: 76px;
+  min-width: 126px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
   text-decoration: none;
-
-  margin-top: -10px;
-  margin-bottom: -10px;
+  flex-shrink: 0;
 }
 
 .rtm-navbar-logo {
   display: block;
   width: auto;
-  height: 130px;
+  height: 118px;
+  max-width: none;
   object-fit: contain;
+  transform: translateY(5px) scale(1.08);
+  transform-origin: center;
 }
 
 .rtm-navbar-links {
@@ -281,7 +286,8 @@ textarea {
   }
 
   .rtm-navbar-inner {
-    flex-wrap: wrap;
+    height: 72px;
+    flex-wrap: nowrap;
   }
 
   .rtm-navbar-links {
@@ -334,14 +340,22 @@ textarea {
   }
 
   .rtm-navbar-inner {
+    height: 68px;
     min-height: 68px;
-    padding: 8px 12px;
+    padding: 0 12px;
     flex-wrap: nowrap;
   }
 
+  .rtm-navbar-brand {
+    width: 88px;
+    min-width: 88px;
+    height: 68px;
+  }
+
   .rtm-navbar-logo {
-    height: 43px;
-    max-width: 56vw;
+    height: 82px;
+    max-width: none;
+    transform: translateY(3px) scale(1.04);
   }
 
   .rtm-menu-button {
@@ -432,9 +446,15 @@ textarea {
 
 /* Móviles muy estrechos */
 @media (max-width: 380px) {
+  .rtm-navbar-brand {
+    width: 72px;
+    min-width: 72px;
+  }
+
   .rtm-navbar-logo {
-    height: 38px;
-    max-width: 52vw;
+    height: 70px;
+    max-width: none;
+    transform: translateY(2px);
   }
 
   .rtm-menu-button {
