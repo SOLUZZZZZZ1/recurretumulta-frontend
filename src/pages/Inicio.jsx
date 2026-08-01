@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Seo from "../components/Seo.jsx";
 
 const API = "/api";
-
 const DIRECT_BACKEND = "https://recurretumulta-backend.onrender.com";
-
 const API_CANDIDATES = [
   import.meta.env.VITE_API_BASE_URL,
   import.meta.env.VITE_API_URL,
@@ -13,176 +11,7 @@ const API_CANDIDATES = [
   API,
 ].filter(Boolean);
 
-const HARD_SEND_LIMIT_BYTES = 2.2 * 1024 * 1024;
-const TARGET_IMAGE_BYTES = 1.6 * 1024 * 1024;
-const IMAGE_MAX_SIDE = 1800;
-
-function formatBytes(bytes) {
-  if (!bytes && bytes !== 0) return "";
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function getExt(name = "") {
-  const m = String(name).match(/\.([a-zA-Z0-9]+)$/);
-  return m ? m[1].toLowerCase() : "";
-}
-
-function isImageFile(file) {
-  const ext = getExt(file?.name);
-  return file?.type?.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(ext);
-}
-
-function isPdfFile(file) {
-  return file?.type === "application/pdf" || getExt(file?.name) === "pdf";
-}
-
-function canvasToBlob(canvas, quality) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) reject(new Error("No se pudo comprimir la imagen."));
-        else resolve(blob);
-      },
-      "image/jpeg",
-      quality
-    );
-  });
-}
-
-async function loadImage(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    return await new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () =>
-        reject(
-          new Error(
-            "No se pudo leer la imagen. Si el móvil la guardó como HEIC, haz una captura de pantalla y sube esa captura."
-          )
-        );
-      image.src = url;
-    });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-async function compressImageForUpload(file) {
-  const image = await loadImage(file);
-
-  const originalWidth = image.naturalWidth || image.width;
-  const originalHeight = image.naturalHeight || image.height;
-
-  if (!originalWidth || !originalHeight) {
-    throw new Error("No se pudo leer el tamaño de la imagen.");
-  }
-
-  let bestBlob = null;
-  let bestWidth = 0;
-  let bestHeight = 0;
-
-  for (const maxSide of [IMAGE_MAX_SIDE, 1600, 1400, 1100, 900]) {
-    let width = originalWidth;
-    let height = originalHeight;
-
-    const longest = Math.max(width, height);
-    if (longest > maxSide) {
-      const ratio = maxSide / longest;
-      width = Math.round(width * ratio);
-      height = Math.round(height * ratio);
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) throw new Error("No se pudo preparar la compresión.");
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(image, 0, 0, width, height);
-
-    for (const quality of [0.78, 0.68, 0.58, 0.48, 0.38, 0.3, 0.22]) {
-      const blob = await canvasToBlob(canvas, quality);
-      if (!bestBlob || blob.size < bestBlob.size) {
-        bestBlob = blob;
-        bestWidth = width;
-        bestHeight = height;
-      }
-      if (blob.size <= TARGET_IMAGE_BYTES) {
-        bestBlob = blob;
-        bestWidth = width;
-        bestHeight = height;
-        break;
-      }
-    }
-
-    if (bestBlob && bestBlob.size <= TARGET_IMAGE_BYTES) break;
-  }
-
-  if (!bestBlob) throw new Error("No se pudo optimizar la imagen.");
-
-  if (bestBlob.size > HARD_SEND_LIMIT_BYTES) {
-    throw new Error(
-      `La imagen sigue pesando ${formatBytes(bestBlob.size)} tras prepararla. Haz una captura más simple del documento.`
-    );
-  }
-
-  const base = String(file.name || "documento").replace(/\.[^.]+$/, "");
-  const optimizedFile = new File([bestBlob], `${base}-preparado.jpg`, {
-    type: "image/jpeg",
-    lastModified: Date.now(),
-  });
-
-  return {
-    file: optimizedFile,
-    originalSize: file.size,
-    finalSize: optimizedFile.size,
-    width: bestWidth,
-    height: bestHeight,
-    optimized: true,
-  };
-}
-
-async function prepareUploadFile(file) {
-  if (!file) throw new Error("Archivo no válido.");
-
-  if (isImageFile(file)) {
-    return compressImageForUpload(file);
-  }
-
-  if (isPdfFile(file)) {
-    if (file.size > HARD_SEND_LIMIT_BYTES) {
-      throw new Error(
-        `El PDF pesa ${formatBytes(file.size)}. Para evitar error de subida, sube una foto o captura clara del documento.`
-      );
-    }
-    return {
-      file,
-      originalSize: file.size,
-      finalSize: file.size,
-      optimized: false,
-    };
-  }
-
-  if (file.size > HARD_SEND_LIMIT_BYTES) {
-    throw new Error(
-      `El archivo pesa ${formatBytes(file.size)}. Sube una foto/captura para que el sistema la prepare automáticamente.`
-    );
-  }
-
-  return {
-    file,
-    originalSize: file.size,
-    finalSize: file.size,
-    optimized: false,
-  };
-}
-
-async function parseAnalyzeResponse(response) {
+async function parseResponse(response) {
   const text = await response.text().catch(() => "");
   let data = {};
   try {
@@ -192,35 +21,22 @@ async function parseAnalyzeResponse(response) {
   }
 
   if (!response.ok) {
-    const detail = data?.detail || data?.message || data?.error || text || `HTTP ${response.status}`;
-    throw new Error(typeof detail === "string" ? `HTTP ${response.status}: ${detail}` : `HTTP ${response.status}`);
+    const detail =
+      data?.detail ||
+      data?.message ||
+      data?.error ||
+      text ||
+      `HTTP ${response.status}`;
+
+    throw new Error(
+      typeof detail === "string"
+        ? `HTTP ${response.status}: ${detail}`
+        : `HTTP ${response.status}`
+    );
   }
 
   return data;
 }
-
-async function postAnalyzeWithFallback(formData) {
-  const errors = [];
-
-  for (const base of API_CANDIDATES) {
-    const cleanBase = String(base).replace(/\/$/, "");
-    const url = `${cleanBase}/analyze`;
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        body: formData,
-      });
-      return await parseAnalyzeResponse(response);
-    } catch (err) {
-      errors.push(`${url} → ${err?.message || "error"}`);
-    }
-  }
-
-  throw new Error(`No se pudo analizar el documento. ${errors.join(" | ")}`);
-}
-
-
 
 function looksLikeUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -237,10 +53,29 @@ async function fetchPublicStatusWithFallback(caseId) {
 
     try {
       const response = await fetch(url, { method: "GET" });
-      const data = await parseAnalyzeResponse(response);
-      return data;
-    } catch (err) {
-      errors.push(`${url} → ${err?.message || "error"}`);
+      return await parseResponse(response);
+    } catch (error) {
+      errors.push(`${url} → ${error?.message || "error"}`);
+    }
+  }
+
+  throw new Error(`No se pudo recuperar el expediente. ${errors.join(" | ")}`);
+}
+
+async function fetchContinueLookupWithFallback(caseIdOrExpediente) {
+  const errors = [];
+
+  for (const base of API_CANDIDATES) {
+    const cleanBase = String(base).replace(/\/$/, "");
+    const url = `${cleanBase}/cases/continue-lookup?q=${encodeURIComponent(
+      caseIdOrExpediente
+    )}`;
+
+    try {
+      const response = await fetch(url, { method: "GET" });
+      return await parseResponse(response);
+    } catch (error) {
+      errors.push(`${url} → ${error?.message || "error"}`);
     }
   }
 
@@ -267,155 +102,102 @@ function getCasePhase(data) {
   return "summary";
 }
 
-async function fetchContinueLookupWithFallback(caseIdOrExpediente) {
-  const errors = [];
+const SERVICES = [
+  {
+    icon: "🚗",
+    title: "RTM Multa",
+    text: "Multas de tráfico y otras sanciones administrativas.",
+    action: "Recurrir una multa",
+    to: "/multas",
+  },
+  {
+    icon: "💳",
+    title: "RTM Deuda",
+    text: "ASNEF, ficheros de morosidad e incidencias relacionadas con crédito.",
+    action: "Comprobar mi situación",
+    to: "/asnef",
+  },
+  {
+    icon: "🏛️",
+    title: "Administración pública",
+    text: "Hacienda, Seguridad Social, ayuntamientos y otros organismos.",
+    action: "Enviar mi caso",
+    to: "/administracion",
+  },
+  {
+    icon: "📂",
+    title: "Otros procedimientos",
+    text: "Envíenos la documentación y revisaremos si podemos ayudarle.",
+    action: "Consultar mi caso",
+    to: "/otros-procedimientos",
+  },
+];
 
-  for (const base of API_CANDIDATES) {
-    const cleanBase = String(base).replace(/\/$/, "");
-    const url = `${cleanBase}/cases/continue-lookup?q=${encodeURIComponent(caseIdOrExpediente)}`;
+const BENEFITS = [
+  "Expediente digital y documentación organizada.",
+  "Seguimiento online del estado del caso.",
+  "Información clara y sin falsas expectativas.",
+  "Presupuesto previo cuando la actuación lo requiera.",
+  "Tecnología para agilizar la recepción y el análisis.",
+  "Profesionales cuando sea necesario.",
+];
 
-    try {
-      const response = await fetch(url, { method: "GET" });
-      const data = await parseAnalyzeResponse(response);
-      return data;
-    } catch (err) {
-      errors.push(`${url} → ${err?.message || "error"}`);
-    }
-  }
+const STEPS = [
+  {
+    number: "1",
+    title: "Cuéntenos qué ha ocurrido",
+    text: "Seleccione el servicio y envíenos la información y los documentos disponibles.",
+  },
+  {
+    number: "2",
+    title: "Analizamos el expediente",
+    text: "Ordenamos la documentación y revisamos las posibles vías de actuación.",
+  },
+  {
+    number: "3",
+    title: "Le proponemos la estrategia",
+    text: "Le explicamos las opciones y, si desea continuar, gestionamos el procedimiento.",
+  },
+];
 
-  throw new Error(`No se pudo recuperar el expediente. ${errors.join(" | ")}`);
-}
-
-export default function Inicio() {
-  const nav = useNavigate();
-
-  const [file, setFile] = useState(null);
-  const [uploadInfo, setUploadInfo] = useState(null);
+export default function InicioRTM() {
+  const navigate = useNavigate();
   const [caseId, setCaseId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [preparing, setPreparing] = useState(false);
-  const [err, setErr] = useState("");
-
-  async function handleFileChange(selectedFile) {
-    setErr("");
-    setUploadInfo(null);
-
-    if (!selectedFile) {
-      setFile(null);
-      return;
-    }
-
-    setPreparing(true);
-
-    try {
-      const prepared = await prepareUploadFile(selectedFile);
-      setFile(prepared.file);
-      setUploadInfo(prepared);
-
-      if (prepared.optimized) {
-        setErr(
-          `Imagen preparada correctamente: ${formatBytes(prepared.originalSize)} → ${formatBytes(prepared.finalSize)}`
-        );
-      }
-    } catch (e) {
-      setFile(null);
-      setUploadInfo(null);
-      setErr(e?.message || "No se pudo preparar el archivo.");
-    } finally {
-      setPreparing(false);
-    }
-  }
-
-  async function handleUpload() {
-    setErr("");
-
-    if (!file) {
-      setErr("Selecciona primero la multa o notificación que quieres analizar.");
-      return;
-    }
-
-    if (file.size > HARD_SEND_LIMIT_BYTES) {
-      setErr(
-        `El archivo preparado pesa ${formatBytes(file.size)} y no se enviará para evitar error de subida.`
-      );
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const data = await postAnalyzeWithFallback(formData);
-
-      localStorage.setItem("rtm_last_analysis", JSON.stringify(data));
-
-      const newCaseId =
-        data?.case_id ||
-        data?.caseId ||
-        data?.id ||
-        data?.extracted?.case_id ||
-        data?.extracted?.id;
-
-      if (!newCaseId) {
-        throw new Error("El análisis se completó, pero no se recibió número de expediente.");
-      }
-
-      nav(`/resumen?case=${encodeURIComponent(newCaseId)}`);
-    } catch (e) {
-      setErr(e.message || "Error al subir el documento.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [error, setError] = useState("");
 
   async function continueCase() {
     const clean = caseId.trim();
 
     if (!clean) {
-      setErr("Introduce el número de expediente o el código interno para continuar.");
+      setError("Introduce el número de expediente o el código interno.");
       return;
     }
 
-    setErr("");
+    setError("");
     setLoading(true);
 
     try {
-      let data;
-
-      // Si es case_id interno UUID, usamos la ruta que YA existe y funciona:
-      // /cases/{case_id}/public-status
-      if (looksLikeUuid(clean)) {
-        data = await fetchPublicStatusWithFallback(clean);
-      } else {
-        // Si es número administrativo, usamos el buscador nuevo del backend.
-        // Si todavía no está desplegado, mostrará error claro.
-        data = await fetchContinueLookupWithFallback(clean);
-      }
+      const data = looksLikeUuid(clean)
+        ? await fetchPublicStatusWithFallback(clean)
+        : await fetchContinueLookupWithFallback(clean);
 
       const caseKey = data?.case_id || data?.id || clean;
       const phase = getCasePhase(data);
 
       if (phase === "authorize") {
-        nav(`/autorizar?case=${encodeURIComponent(caseKey)}`);
-        return;
-      }
-
-      if (phase === "pay") {
-        // No existe ruta /pagar en App.jsx. El pago se inicia desde ResumenExpediente.
-        nav(`/resumen?case=${encodeURIComponent(caseKey)}`);
+        navigate(`/autorizar?case=${encodeURIComponent(caseKey)}`);
         return;
       }
 
       if (phase === "status") {
-        nav(`/estado-expediente?case=${encodeURIComponent(caseKey)}`);
+        navigate(`/estado-expediente?case=${encodeURIComponent(caseKey)}`);
         return;
       }
 
-      nav(`/resumen?case=${encodeURIComponent(caseKey)}`);
-    } catch (e) {
-      setErr(e?.message || "No se pudo recuperar el expediente.");
+      navigate(`/resumen?case=${encodeURIComponent(caseKey)}`);
+    } catch (err) {
+      setError(err?.message || "No se pudo recuperar el expediente.");
     } finally {
       setLoading(false);
     }
@@ -424,347 +206,340 @@ export default function Inicio() {
   return (
     <>
       <Seo
-        title="Recurrir multas de tráfico · RecurreTuMulta"
-        description="Sube tu multa, la analizamos y, si merece la pena, preparamos y presentamos el recurso por ti."
+        title="RTM · Procedimientos jurídicos y administrativos"
+        description="RTM le ayuda a gestionar multas, deudas, reclamaciones y procedimientos frente a administraciones y organismos."
         canonical="https://www.recurretumulta.eu/"
       />
 
-      <main className="rtm-home" style={{ background: "#f8fafc", minHeight: "calc(100vh - 120px)" }}>
+      <main
+        className="rtm-home"
+        style={{
+          minHeight: "calc(100vh - 120px)",
+          background: "#f8fafc",
+          color: "#0f172a",
+        }}
+      >
         <section
           className="rtm-home-hero"
           style={{
-            background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0f766e 100%)",
+            padding: "72px 20px 64px",
             color: "#fff",
+            background:
+              "linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0f766e 100%)",
           }}
         >
           <div className="sr-container" style={{ maxWidth: 1120, margin: "0 auto" }}>
-            <div className="rtm-home-hero-grid">
-              <div className="rtm-home-copy">
-                <div
-                  style={{
-                    display: "inline-flex",
-                    padding: "7px 12px",
-                    borderRadius: 999,
-                    background: "rgba(255,255,255,0.14)",
-                    border: "1px solid rgba(255,255,255,0.24)",
-                    fontWeight: 800,
-                    marginBottom: 18,
-                  }}
-                >
-                  Revisión inicial gratuita
-                </div>
-
-                <h1
-                  style={{
-                    fontSize: "clamp(34px, 5vw, 58px)",
-                    lineHeight: 1.04,
-                    margin: "0 0 18px",
-                    letterSpacing: "-0.04em",
-                    fontWeight: 950,
-                  }}
-                >
-                  ¿Te ha llegado una multa de tráfico?
-                </h1>
-
-                <p
-                  style={{
-                    fontSize: 20,
-                    lineHeight: 1.55,
-                    margin: "0 0 24px",
-                    color: "rgba(255,255,255,0.88)",
-                    maxWidth: 690,
-                  }}
-                >
-                  Súbela y la revisamos. Si se puede defender bien, preparamos el recurso
-                  adaptado a tu caso y lo presentamos en tu nombre con autorización previa.
-                </p>
-
-                <div className="rtm-home-benefits">
-                  {[
-                    "Análisis completo",
-                    "Recurso adaptado",
-                    "Presentación incluida",
-                  ].map((x) => (
-                    <div
-                      key={x}
-                      style={{
-                        background: "rgba(255,255,255,0.12)",
-                        border: "1px solid rgba(255,255,255,0.20)",
-                        borderRadius: 16,
-                        padding: 14,
-                        fontWeight: 850,
-                      }}
-                    >
-                      ✔ {x}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
+            <div style={{ maxWidth: 850, margin: "0 auto 38px", textAlign: "center" }}>
               <div
-                className="rtm-home-upload-card"
                 style={{
-                  background: "#fff",
-                  color: "#0f172a",
-                  boxShadow: "0 24px 70px rgba(15,23,42,0.30)",
+                  display: "inline-flex",
+                  padding: "7px 13px",
+                  marginBottom: 18,
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,.14)",
+                  border: "1px solid rgba(255,255,255,.24)",
+                  fontWeight: 850,
                 }}
               >
-                <h2 style={{ fontSize: 26, margin: "0 0 8px", fontWeight: 950 }}>
-                  Sube tu multa
-                </h2>
+                Plataforma RTM
+              </div>
 
-                <p style={{ color: "#64748b", lineHeight: 1.5, marginBottom: 18 }}>
-                  Sube una foto o captura de la multa. Si pesa mucho, la preparamos automáticamente antes de enviarla.
-                </p>
+              <h1
+                style={{
+                  margin: "0 0 18px",
+                  fontSize: "clamp(38px, 6vw, 66px)",
+                  lineHeight: 1.03,
+                  letterSpacing: "-.045em",
+                  fontWeight: 950,
+                }}
+              >
+                ¿Qué problema necesita resolver?
+              </h1>
 
-                <label
+              <p
+                style={{
+                  maxWidth: 760,
+                  margin: "0 auto",
+                  fontSize: "clamp(18px, 2vw, 21px)",
+                  lineHeight: 1.55,
+                  color: "rgba(255,255,255,.88)",
+                }}
+              >
+                Seleccione el servicio que necesita o envíenos la documentación.
+                Estudiaremos su caso y le indicaremos la forma más adecuada de actuar.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(235px, 1fr))",
+                gap: 18,
+              }}
+            >
+              {SERVICES.map((service) => (
+                <article
+                  key={service.title}
                   style={{
-                    display: "block",
-                    border: "2px dashed #cbd5e1",
-                    borderRadius: 18,
-                    padding: 22,
-                    textAlign: "center",
-                    background: "#f8fafc",
-                    cursor: "pointer",
-                    marginBottom: 14,
+                    display: "flex",
+                    minHeight: 270,
+                    padding: 24,
+                    flexDirection: "column",
+                    borderRadius: 24,
+                    background: "#fff",
+                    color: "#0f172a",
+                    boxShadow: "0 20px 55px rgba(15,23,42,.25)",
                   }}
                 >
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp,image/*,.pdf"
-                    onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                    style={{ display: "none" }}
-                  />
+                  <div style={{ fontSize: 39, marginBottom: 16 }}>{service.icon}</div>
 
-                  <div style={{ fontSize: 34, marginBottom: 8 }}>📄</div>
-                  <div style={{ fontWeight: 900 }}>
-                    {file ? file.name : "Seleccionar documento"}
-                  </div>
-                  <div style={{ color: "#64748b", fontSize: 14, marginTop: 4 }}>
-                    Multa, notificación o resolución
-                  </div>
-
-                  {uploadInfo ? (
-                    <div style={{ color: "#166534", fontSize: 13, marginTop: 8, fontWeight: 800 }}>
-                      Archivo preparado: {formatBytes(uploadInfo.originalSize)} → {formatBytes(uploadInfo.finalSize)}
-                    </div>
-                  ) : null}
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleUpload}
-                  disabled={loading || preparing}
-                  style={{
-                    width: "100%",
-                    border: 0,
-                    borderRadius: 14,
-                    padding: "15px 18px",
-                    background: loading ? "#64748b" : "#16a34a",
-                    color: "#fff",
-                    fontWeight: 950,
-                    fontSize: 17,
-                    cursor: loading ? "not-allowed" : "pointer",
-                    boxShadow: "0 14px 28px rgba(22,163,74,0.28)",
-                  }}
-                >
-                  {preparing ? "Preparando imagen…" : loading ? "Analizando…" : "Analizar multa gratis"}
-                </button>
-
-                <div style={{ marginTop: 14, color: "#64748b", fontSize: 14, lineHeight: 1.45 }}>
-                  Sin compromiso. Si no merece la pena recurrirla, te lo decimos claro.
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 16,
-                    background: "#fffbeb",
-                    border: "1px solid #f59e0b",
-                    borderRadius: 14,
-                    padding: 14,
-                    color: "#92400e",
-                    lineHeight: 1.55,
-                    fontSize: 14,
-                  }}
-                >
-                  <div style={{ fontWeight: 900, marginBottom: 8 }}>
-                    ⚠ IMPORTANTE
-                  </div>
-
-                  <div>
-                    En la mayoría de multas de tráfico, si decides presentar alegaciones o recursos administrativos perderás el derecho al descuento del 50% por pronto pago.
-                  </div>
-
-                  <div style={{ marginTop: 8 }}>
-                    Si pagas la multa con reducción, normalmente renuncias a continuar el procedimiento administrativo de recurso.
-                  </div>
-                </div>
-
-
-
-                {err ? (
-                  <div
+                  <h2
                     style={{
-                      marginTop: 14,
-                      padding: 12,
-                      borderRadius: 12,
-                      background: "#fef2f2",
-                      color: "#991b1b",
-                      fontWeight: 700,
+                      margin: "0 0 10px",
+                      fontSize: 25,
+                      lineHeight: 1.15,
+                      fontWeight: 950,
                     }}
                   >
-                    {err}
-                  </div>
-                ) : null}
-              </div>
+                    {service.title}
+                  </h2>
+
+                  <p
+                    style={{
+                      margin: "0 0 22px",
+                      color: "#64748b",
+                      lineHeight: 1.55,
+                      flexGrow: 1,
+                    }}
+                  >
+                    {service.text}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate(service.to)}
+                    style={{
+                      width: "100%",
+                      minHeight: 48,
+                      padding: "13px 16px",
+                      border: 0,
+                      borderRadius: 13,
+                      background: "#16a34a",
+                      color: "#fff",
+                      fontSize: 16,
+                      fontWeight: 950,
+                      cursor: "pointer",
+                      boxShadow: "0 12px 24px rgba(22,163,74,.22)",
+                    }}
+                  >
+                    {service.action}
+                  </button>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
-        <section style={{ padding: "34px 20px" }}>
+        <section style={{ padding: "42px 20px 20px" }}>
           <div className="sr-container" style={{ maxWidth: 1120, margin: "0 auto" }}>
-            <div className="rtm-home-services-grid">
-              <div
+            <div
+              className="rtm-home-services-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1.12fr) minmax(320px, .88fr)",
+                gap: 20,
+                alignItems: "stretch",
+              }}
+            >
+              <article
                 className="rtm-home-card"
                 style={{
-                  background: "#fff",
+                  padding: 28,
                   border: "1px solid #e2e8f0",
-                  boxShadow: "0 12px 34px rgba(15,23,42,0.06)",
+                  borderRadius: 24,
+                  background: "#fff",
+                  boxShadow: "0 12px 34px rgba(15,23,42,.06)",
                 }}
               >
-                <h2 style={{ marginTop: 0, fontSize: 28, fontWeight: 950 }}>
-                  ¿Qué incluye el servicio?
+                <h2 style={{ margin: "0 0 20px", fontSize: 30, fontWeight: 950 }}>
+                  ¿Por qué RTM?
                 </h2>
 
-                <div style={{ display: "grid", gap: 14 }}>
-                  {[
-                    "Análisis completo de la multa o expediente.",
-                    "Detección de errores, defectos de prueba o problemas de motivación.",
-                    "Preparación del recurso adaptado al caso.",
-                    "Presentación del recurso en tu nombre con autorización previa.",
-                    "Seguimiento del recurso y plazos.",
-                    "Justificante oficial de presentación.",
-                  ].map((item) => (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+                    gap: 14,
+                  }}
+                >
+                  {BENEFITS.map((benefit) => (
                     <div
-                      key={item}
+                      key={benefit}
                       style={{
                         display: "flex",
-                        gap: 12,
+                        gap: 11,
                         alignItems: "flex-start",
-                        fontSize: 16,
+                        padding: 14,
+                        borderRadius: 16,
+                        background: "#f8fafc",
                         lineHeight: 1.45,
                       }}
                     >
                       <span
                         style={{
-                          minWidth: 26,
-                          height: 26,
-                          borderRadius: 999,
-                          background: "#dcfce7",
-                          color: "#166534",
+                          minWidth: 27,
+                          height: 27,
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          borderRadius: 999,
+                          background: "#dcfce7",
+                          color: "#166534",
                           fontWeight: 950,
                         }}
                       >
                         ✓
                       </span>
-                      <span>{item}</span>
+                      <span>{benefit}</span>
                     </div>
                   ))}
                 </div>
-              </div>
+              </article>
 
-              <div
+              <article
                 className="rtm-home-card"
                 style={{
-                  background: "#fff",
+                  padding: 28,
                   border: "1px solid #e2e8f0",
-                  boxShadow: "0 12px 34px rgba(15,23,42,0.06)",
+                  borderRadius: 24,
+                  background: "#fff",
+                  boxShadow: "0 12px 34px rgba(15,23,42,.06)",
                 }}
               >
-                <h2 style={{ marginTop: 0, fontSize: 24, fontWeight: 950 }}>
-                  Continuar expediente
+                <h2 style={{ margin: "0 0 10px", fontSize: 26, fontWeight: 950 }}>
+                  Recuperar expediente
                 </h2>
 
-                <p style={{ color: "#64748b", lineHeight: 1.5 }}>
-                  Si ya tienes un expediente iniciado, introduce el número administrativo o el código interno y te llevaremos al punto exacto donde lo dejaste: autorización, pago o seguimiento.
+                <p style={{ margin: "0 0 18px", color: "#64748b", lineHeight: 1.55 }}>
+                  Introduzca el número administrativo o el código interno y le
+                  llevaremos al punto exacto donde dejó el expediente.
                 </p>
 
                 <input
                   value={caseId}
-                  onChange={(e) => setCaseId(e.target.value)}
-                  placeholder="Ej. 025100670720 o código interno"
+                  onChange={(event) => setCaseId(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") continueCase();
+                  }}
+                  placeholder="Número de expediente o código interno"
                   style={{
                     width: "100%",
                     boxSizing: "border-box",
+                    marginBottom: 12,
+                    padding: "14px 15px",
                     border: "1px solid #cbd5e1",
                     borderRadius: 14,
-                    padding: "14px 15px",
                     fontSize: 16,
-                    marginBottom: 12,
                   }}
                 />
 
                 <button
                   type="button"
                   onClick={continueCase}
+                  disabled={loading}
                   style={{
                     width: "100%",
+                    minHeight: 48,
+                    padding: "14px 18px",
                     border: 0,
                     borderRadius: 14,
-                    padding: "14px 18px",
-                    background: "#0f172a",
+                    background: loading ? "#64748b" : "#0f172a",
                     color: "#fff",
                     fontWeight: 950,
-                    cursor: "pointer",
+                    cursor: loading ? "not-allowed" : "pointer",
                   }}
                 >
-                  Continuar expediente
+                  {loading ? "Buscando expediente…" : "Continuar expediente"}
                 </button>
 
-                <div style={{ color: "#64748b", fontSize: 13, marginTop: 12, lineHeight: 1.45 }}>
-                  Útil si cerraste la página, falta pagar, falta autorización o quieres ver el estado. No te mandará a subir documentos salvo que entres expresamente por añadir documento.
+                <div
+                  style={{
+                    marginTop: 12,
+                    color: "#64748b",
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Útil si falta la autorización, el pago o desea consultar el estado.
                 </div>
-              </div>
+
+                {error ? (
+                  <div
+                    role="alert"
+                    style={{
+                      marginTop: 14,
+                      padding: 12,
+                      borderRadius: 12,
+                      background: "#fef2f2",
+                      color: "#991b1b",
+                      fontWeight: 750,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {error}
+                  </div>
+                ) : null}
+              </article>
             </div>
           </div>
         </section>
 
-        <section style={{ padding: "10px 20px 54px" }}>
+        <section style={{ padding: "24px 20px 62px" }}>
           <div className="sr-container" style={{ maxWidth: 1120, margin: "0 auto" }}>
             <div
               className="rtm-home-steps"
               style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: 20,
+                padding: 30,
+                borderRadius: 26,
                 background: "#0f172a",
                 color: "#fff",
               }}
             >
-              {[
-                ["1", "Sube la multa", "Analizamos el documento y localizamos posibles defectos."],
-                ["2", "Decidimos si compensa", "Si no vemos recorrido, te lo decimos sin venderte nada."],
-                ["3", "Recurso y presentación", "Con autorización, preparamos y presentamos el escrito."],
-              ].map(([num, title, text]) => (
-                <div key={num}>
+              {STEPS.map((step) => (
+                <article key={step.number}>
                   <div
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 12,
-                      background: "#16a34a",
+                      width: 40,
+                      height: 40,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      marginBottom: 13,
+                      borderRadius: 12,
+                      background: "#16a34a",
                       fontWeight: 950,
-                      marginBottom: 12,
                     }}
                   >
-                    {num}
+                    {step.number}
                   </div>
-                  <div style={{ fontWeight: 950, fontSize: 18, marginBottom: 6 }}>{title}</div>
-                  <div style={{ color: "rgba(255,255,255,0.76)", lineHeight: 1.5 }}>{text}</div>
-                </div>
+
+                  <h2 style={{ margin: "0 0 7px", fontSize: 20, fontWeight: 950 }}>
+                    {step.title}
+                  </h2>
+
+                  <p
+                    style={{
+                      margin: 0,
+                      color: "rgba(255,255,255,.76)",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {step.text}
+                  </p>
+                </article>
               ))}
             </div>
           </div>
