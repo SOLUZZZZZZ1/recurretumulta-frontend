@@ -22,9 +22,9 @@ export default function Asnef() {
               </p>
 
               <div className="rtm-asnef-actions">
-                <a href="#iniciar" className="rtm-asnef-primary">
-                  Revisar mi anotación
-                </a>
+                <Link to="/deudas/iniciar" className="rtm-asnef-primary">
+                  Comprobar mi situación
+                </Link>
                 <Link to="/contacto" className="rtm-asnef-secondary">
                   Resolver una duda
                 </Link>
@@ -49,7 +49,7 @@ export default function Asnef() {
 
         <section id="iniciar" className="rtm-asnef-content">
           <div className="sr-container">
-            <h2>Cómo funcionará el servicio</h2>
+            <h2>Cómo trabajamos</h2>
             <div className="rtm-asnef-steps">
               <article>
                 <strong>1</strong>
@@ -66,15 +66,6 @@ export default function Asnef() {
                 <h3>Preparamos la solicitud</h3>
                 <p>Generamos la reclamación y la autorización para actuar en representación del cliente.</p>
               </article>
-            </div>
-
-            <div className="rtm-asnef-coming">
-              <h2>Módulo en preparación</h2>
-              <p>
-                Esta página deja preparada la nueva sección. El siguiente paso será conectar
-                el formulario, la autorización, el pago y el seguimiento con la base ya utilizada
-                por RecurreTuMulta.
-              </p>
             </div>
           </div>
         </section>
