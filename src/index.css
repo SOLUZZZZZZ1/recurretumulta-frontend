@@ -347,15 +347,15 @@ textarea {
   }
 
   .rtm-navbar-brand {
-    width: 88px;
-    min-width: 88px;
+    width: 104px;
+    min-width: 104px;
     height: 68px;
   }
 
   .rtm-navbar-logo {
-    height: 82px;
+    height: 96px;
     max-width: none;
-    transform: translateY(3px) scale(1.04);
+    transform: translateY(4px) scale(1.08);
   }
 
   .rtm-menu-button {
@@ -447,14 +447,14 @@ textarea {
 /* Móviles muy estrechos */
 @media (max-width: 380px) {
   .rtm-navbar-brand {
-    width: 72px;
-    min-width: 72px;
+    width: 88px;
+    min-width: 88px;
   }
 
   .rtm-navbar-logo {
-    height: 70px;
+    height: 82px;
     max-width: none;
-    transform: translateY(2px);
+    transform: translateY(3px) scale(1.04);
   }
 
   .rtm-menu-button {
