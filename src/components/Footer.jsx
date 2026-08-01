@@ -84,7 +84,7 @@ export default function Footer() {
             </a>
           </p>
           <p style={{ fontSize: 12, opacity: 0.85, lineHeight: 1.6 }}>
-            No ofrecemos asesoramiento jurídico. Este canal es exclusivamente
+             ofrecemos también asesoramiento jurídico. Este canal es exclusivamente
             para consultas técnicas o de funcionamiento del servicio.
           </p>
         </div>
@@ -127,7 +127,7 @@ export default function Footer() {
         © {new Date().getFullYear()} RecurreTuMulta · Asistencia automatizada en
         trámites administrativos
         <br />
-        Este sitio no presta asesoramiento jurídico ni garantiza resultados.
+        Este sitio presta asesoramiento jurídico pero no garantiza resultados.
         <br />
         www.recurretumulta.eu
       </div>
