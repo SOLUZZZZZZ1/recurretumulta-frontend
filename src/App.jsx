@@ -27,7 +27,7 @@ import OPSQueueSmart from "./pages/OPSQueueSmart.jsx";
 import OpsVehicleRemoval from "./pages/OpsVehicleRemoval.jsx";
 import EliminarCoche from "./pages/EliminarCoche.jsx";
 import Asnef from "./pages/Asnef.jsx";
-import Deudas from "./pages/Deudas.jsx";
+import IniciarExpedienteRTM from "./pages/IniciarExpedienteRTM.jsx";
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -66,12 +66,14 @@ export default function App() {
       <Routes>
         <Route path="/" element={<InicioRTM />} />
         <Route path="/trafico" element={<Trafico />} />
+        <Route path="/iniciar-expediente/:department/:caseType" element={<IniciarExpedienteRTM />} />
+        <Route path="/iniciar-expediente/:department" element={<IniciarExpedienteRTM />} />
+        <Route path="/iniciar-expediente" element={<IniciarExpedienteRTM />} />
         <Route path="/multas" element={<InicioMultas />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/eliminar-coche" element={<EliminarCoche />} />
         <Route path="/asnef" element={<Asnef />} />
-        <Route path="/deudas/iniciar" element={<Deudas />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/gestorias" element={<Gestorias />} />
