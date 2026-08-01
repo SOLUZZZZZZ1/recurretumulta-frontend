@@ -28,6 +28,11 @@ import OpsVehicleRemoval from "./pages/OpsVehicleRemoval.jsx";
 import EliminarCoche from "./pages/EliminarCoche.jsx";
 import Asnef from "./pages/Asnef.jsx";
 import IniciarExpedienteRTM from "./pages/IniciarExpedienteRTM.jsx";
+import MultasDocumentos from "./pages/MultasDocumentos.jsx";
+import DeudasDocumentos from "./pages/DeudasDocumentos.jsx";
+import AdministracionDocumentos from "./pages/AdministracionDocumentos.jsx";
+import ReclamacionesDocumentos from "./pages/ReclamacionesDocumentos.jsx";
+import OtrosDocumentos from "./pages/OtrosDocumentos.jsx";
 
 // Pago (post-pago: datos + autorización)
 import PagoOk from "./pages/PagoOk.jsx";
@@ -70,6 +75,12 @@ export default function App() {
         <Route path="/iniciar-expediente/:department" element={<IniciarExpedienteRTM />} />
         <Route path="/iniciar-expediente" element={<IniciarExpedienteRTM />} />
         <Route path="/multas" element={<InicioMultas />} />
+
+        <Route path="/multas/documentos" element={<MultasDocumentos />} />
+        <Route path="/deudas/documentos" element={<DeudasDocumentos />} />
+        <Route path="/administracion/documentos" element={<AdministracionDocumentos />} />
+        <Route path="/reclamaciones/documentos" element={<ReclamacionesDocumentos />} />
+        <Route path="/otros/documentos" element={<OtrosDocumentos />} />
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/eliminar-coche" element={<EliminarCoche />} />
