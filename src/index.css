@@ -132,12 +132,12 @@ textarea {
   max-width: 1200px;
   min-width: 0;
   margin: 0 auto;
-  padding: 0 18px;
-  min-height: 84px;
+  padding: 0 24px;
+  min-height: 110px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 22px;
 }
 
 .rtm-navbar-brand {
@@ -146,15 +146,17 @@ textarea {
   align-items: center;
   justify-content: center;
   text-decoration: none;
+
+  margin-top: -10px;
+  margin-bottom: -10px;
 }
 
 .rtm-navbar-logo {
-  display:block;
-  width:auto;
-  height:96px;
-  object-fit:contain;
-  margin-top:6px;
-  margin-bottom:-6px;
+  display: block;
+  width: auto;
+  height: 130px;
+  object-fit: contain;
+}
 }
 
 .rtm-navbar-links {
