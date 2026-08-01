@@ -118,37 +118,43 @@ textarea {
 
 /* ---------- NAVBAR ---------- */
 
-.rtm-navbar {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  width: 100%;
-  background: #0b4aa2;
-  border-bottom: 1px solid rgba(255,255,255,.12);
+.rtm-navbar{
+    position:sticky;
+    top:0;
+    z-index:1000;
+    width:100%;
+    background:#0b4aa2;
+    border-bottom:1px solid rgba(255,255,255,.12);
+    overflow:visible;
+
 }
 
-.rtm-navbar-inner {
-  position: relative;
-  max-width: 1200px;
-  min-width: 0;
-  margin: 0 auto;
-  padding: 0 24px;
-  min-height: 110px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 22px;
+.rtm-navbar-inner{
+    max-width:1200px;
+    margin:0 auto;
+
+    height:74px;
+
+    display:flex;
+    align-items:center;
+
+    padding:0 20px;
 }
 
-.rtm-navbar-brand {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
+.rtm-navbar-brand{
 
-  margin-top: -10px;
-  margin-bottom: -10px;
+    width:170px;
+
+    height:74px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    flex-shrink:0;
+
 }
 
 .rtm-navbar-logo {
