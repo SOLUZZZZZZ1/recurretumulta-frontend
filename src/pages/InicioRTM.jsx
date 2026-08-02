@@ -121,8 +121,8 @@ const SERVICES = [
     icon: "🏛️",
     title: "Administración y organismos públicos",
     text: "Hacienda, Seguridad Social, ayuntamientos, comunidades autónomas y otros organismos.",
-    action: "Enviar mi caso",
-    to: "/AdministracionHome",
+    action: "Solicitar revisión del expediente",
+    to: "/administracion",
   },
   {
     icon: "📂",
