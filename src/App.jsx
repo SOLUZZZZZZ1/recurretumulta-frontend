@@ -26,7 +26,8 @@ import AdminCrearAsesoria from "./pages/AdminCrearAsesoria.jsx";
 import OPSQueueSmart from "./pages/OPSQueueSmart.jsx";
 import OpsVehicleRemoval from "./pages/OpsVehicleRemoval.jsx";
 import EliminarCoche from "./pages/EliminarCoche.jsx";
-import Asnef from "./pages/Asnef.jsx";
+import MorosidadHome from "./pages/MorosidadHome.jsx";
+import AdministracionHome from "./pages/AdministracionHome.jsx";
 import IniciarExpedienteRTM from "./pages/IniciarExpedienteRTM.jsx";
 import MultasDocumentos from "./pages/MultasDocumentos.jsx";
 import DeudasDocumentos from "./pages/DeudasDocumentos.jsx";
@@ -84,6 +85,12 @@ export default function App() {
         <Route path="/como-funciona" element={<ComoFunciona />} />
         <Route path="/precios" element={<Precios />} />
         <Route path="/eliminar-coche" element={<EliminarCoche />} />
+
+        <Route path="/morosidad" element={<MorosidadHome />} />
+
+        <Route path="/administracion" element={<AdministracionHome />} />
+
+        <Route path="/faq" element={<FAQ />} />
         <Route path="/asnef" element={<Asnef />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/contacto" element={<Contacto />} />
