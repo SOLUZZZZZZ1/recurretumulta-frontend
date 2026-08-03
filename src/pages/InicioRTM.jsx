@@ -106,57 +106,57 @@ const SERVICES = [
   {
     icon: "🚗",
     title: "Tráfico",
-    text: "Multas, sanciones, permisos, vehículos y otros procedimientos relacionados con Tráfico.",
-    action: "Ver procedimientos",
+    text: "Multas, sanciones, vehículos y otros trámites relacionados.",
+    action: "Ver servicios de tráfico",
     to: "/trafico",
   },
   {
     icon: "💳",
     title: "Deudas y morosidad",
-    text: "ASNEF, Equifax y otros ficheros de morosidad. Analizamos su situación antes de recomendar cualquier actuación.",
-    action: "Ver cómo trabajamos",
-    to: "/morosidad",
+    text: "ASNEF, ficheros de morosidad e incidencias relacionadas con crédito.",
+    action: "Comprobar mi situación",
+    to: "/asnef",
   },
   {
     icon: "🏛️",
     title: "Administración y organismos públicos",
-    text: "Hacienda, Seguridad Social, ayuntamientos y otros organismos. Estudiamos cada expediente antes de proponer una actuación.",
-    action: "Ver cómo trabajamos",
+    text: "Hacienda, Seguridad Social, ayuntamientos, comunidades autónomas y otros organismos.",
+    action: "Enviar mi caso",
     to: "/administracion",
   },
   {
     icon: "📂",
     title: "No encuentro mi caso",
-    text: "Si no encuentra el procedimiento que necesita, explíquenos su situación y le indicaremos la mejor forma de continuar.",
+    text: "Envíenos la documentación y revisaremos si podemos ayudarle.",
     action: "Consultar mi caso",
-    to: "/contacto",
+    to: "/otros-procedimientos",
   },
 ];
 
 const BENEFITS = [
-  "Cada expediente se estudia individualmente.",
-  "Propuestas adaptadas a las circunstancias reales del caso.",
+  "Expediente digital y documentación organizada.",
+  "Seguimiento online del estado del caso.",
   "Información clara y sin falsas expectativas.",
-  "Seguimiento digital del expediente.",
-  "Tecnología al servicio del criterio profesional.",
-  "Intervención de profesionales cuando el expediente lo requiera.",
+  "Presupuesto previo cuando la actuación lo requiera.",
+  "Tecnología para agilizar la recepción y el análisis.",
+  "Profesionales cuando sea necesario.",
 ];
 
 const STEPS = [
   {
     number: "1",
     title: "Cuéntenos qué ha ocurrido",
-    text: "Seleccione el área que mejor describa su situación y aporte la información disponible.",
+    text: "Seleccione el servicio y envíenos la información y los documentos disponibles.",
   },
   {
     number: "2",
-    title: "Estudiamos el expediente",
-    text: "Analizamos la documentación y elaboramos una primera valoración profesional.",
+    title: "Analizamos el expediente",
+    text: "Ordenamos la documentación y revisamos las posibles vías de actuación.",
   },
   {
     number: "3",
-    title: "Le proponemos cómo actuar",
-    text: "Le explicamos las alternativas y usted decide libremente si desea continuar.",
+    title: "Le proponemos la estrategia",
+    text: "Le explicamos las opciones y, si desea continuar, gestionamos el procedimiento.",
   },
 ];
 
@@ -253,7 +253,7 @@ export default function InicioRTM() {
                   fontWeight: 950,
                 }}
               >
-                ¿En qué podemos ayudarle?
+                ¿Qué problema necesita resolver?
               </h1>
 
               <p
@@ -265,7 +265,8 @@ export default function InicioRTM() {
                   color: "rgba(255,255,255,.88)",
                 }}
               >
-                Seleccione el área que mejor describa su situación. Estudiaremos su caso y le explicaremos la mejor forma de actuar antes de recomendar cualquier actuación.
+                Seleccione el servicio que necesita o envíenos la documentación.
+                Estudiaremos su caso y le indicaremos la forma más adecuada de actuar.
               </p>
             </div>
 
@@ -416,11 +417,12 @@ export default function InicioRTM() {
                 }}
               >
                 <h2 style={{ margin: "0 0 10px", fontSize: 26, fontWeight: 950 }}>
-                  ¿Ya había iniciado un expediente?
+                  Recuperar expediente
                 </h2>
 
                 <p style={{ margin: "0 0 18px", color: "#64748b", lineHeight: 1.55 }}>
-                  Introduzca el número de expediente o el código interno para continuar exactamente donde dejó el procedimiento.
+                  Introduzca el número administrativo o el código interno y le
+                  llevaremos al punto exacto donde dejó el expediente.
                 </p>
 
                 <input
@@ -468,7 +470,7 @@ export default function InicioRTM() {
                     lineHeight: 1.45,
                   }}
                 >
-                  Puede continuar un expediente pendiente, aportar documentación o consultar su estado.
+                  Útil si falta la autorización, el pago o desea consultar el estado.
                 </div>
 
                 {error ? (
