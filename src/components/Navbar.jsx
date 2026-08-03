@@ -139,7 +139,7 @@ export default function Navbar() {
               </Link>
             );
           })}
->>>>>>> e269cea (Guardar estado actual del frontend antes de sincronizar)
+ e269cea (Guardar estado actual del frontend antes de sincronizar)
         </nav>
       </div>
     </header>
