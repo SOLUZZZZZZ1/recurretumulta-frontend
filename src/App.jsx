@@ -90,7 +90,7 @@ export default function App() {
 
         <Route path="/administracion" element={<AdministracionHome />} />
 
-        <Route path="/faq" element={<FAQ />} />
+        
         <Route path="/faq" element={<FAQ />} />
         <Route path="/contacto" element={<Contacto />} />
         <Route path="/gestorias" element={<Gestorias />} />
